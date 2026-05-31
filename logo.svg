@@ -1,0 +1,7 @@
+<svg width="168" height="40" viewBox="0 0 168 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ngọc Châu">
+  <rect width="40" height="40" rx="10" fill="#d6a12a"/>
+  <path d="M20 8L30 18L20 32L10 18L20 8Z" fill="#fff9ec" opacity="0.45"/>
+  <text x="20" y="25" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800" fill="#8a5a06">NC</text>
+  <text x="52" y="26" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" fill="#201707">Ngọc</text>
+  <text x="108" y="26" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" fill="#0f766e">Châu</text>
+</svg>
