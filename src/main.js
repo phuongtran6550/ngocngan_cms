@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+import VueApexCharts from 'vue3-apexcharts';
 import App from './App.vue';
 import { APP_NAME } from './config/app';
 import router from './router';
@@ -9,7 +10,7 @@ import './assets/ngocchau.css';
 
 document.title = APP_NAME;
 
-createApp(App).use(createPinia()).use(router).mount('#app');
+createApp(App).use(createPinia()).use(router).use(VueApexCharts).mount('#app');
 
 function removeInitialLoader() {
   const loader = document.getElementById('loading-bg');
