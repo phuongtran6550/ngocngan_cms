@@ -100,7 +100,8 @@ const nav = computed(() => [
   },
   { to: '/source-of-goods', label: 'Nguồn hàng', short: 'Nguồn', icon: 'heroicons-outline:truck', permission: 'source-goods.view' },
   { to: '/roles', label: 'Vai trò', short: 'Vai trò', icon: 'heroicons-outline:shield-check', permission: 'roles.manage' },
-  { to: '/users', label: 'Nhân sự', short: 'Nhân sự', icon: 'heroicons-outline:users', permission: 'users.manage' }
+  { to: '/users', label: 'Nhân sự', short: 'Nhân sự', icon: 'heroicons-outline:users', permission: 'users.manage' },
+  { to: '/zalo', label: 'Zalo', short: 'Zalo', icon: 'heroicons-outline:chat-bubble-left-right', permission: 'zalo.manage' }
 ]);
 
 const visibleNav = computed(() => nav.value.filter((item) => auth.can(item.permission)));

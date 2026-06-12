@@ -8,7 +8,8 @@ const protectedNav = [
   { path: '/customers', permission: 'customers.view' },
   { path: '/source-of-goods', permission: 'source-goods.view' },
   { path: '/roles', permission: 'roles.manage' },
-  { path: '/users', permission: 'users.manage' }
+  { path: '/users', permission: 'users.manage' },
+  { path: '/zalo', permission: 'zalo.manage' }
 ];
 
 function firstAllowedPath(auth) {
@@ -84,6 +85,18 @@ const routes = [
         name: 'users',
         component: () => import('@/views/users/UsersList.vue'),
         meta: { permission: 'users.manage' }
+      },
+      {
+        path: 'zalo',
+        name: 'zalo',
+        component: () => import('@/views/zalo/ZaloManagement.vue'),
+        meta: { permission: 'zalo.manage' }
+      },
+      {
+        path: 'zalo/callback',
+        name: 'zalo-callback',
+        component: () => import('@/views/zalo/ZaloCallback.vue'),
+        meta: { permission: 'zalo.manage' }
       }
     ]
   },

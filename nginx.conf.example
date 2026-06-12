@@ -6,10 +6,13 @@ upstream ngocngan_api {
 server {
   listen 80;
   listen [::]:80;
-  server_name _;
+  server_name cms.tiembacngocchau.vn;
 
-  root /var/www/ngocngan_cms/dist;
+  root /home/https/www/cms/dist;
   index index.html;
+
+  access_log /home/https/logs/cms/access.log;
+  error_log /home/https/logs/cms/error.log warn;
 
   client_max_body_size 30m;
   client_body_buffer_size 256k;
@@ -30,6 +33,9 @@ server {
     image/svg+xml;
 
   location /api/ {
+    access_log /home/https/logs/api/nginx-access.log;
+    error_log /home/https/logs/api/nginx-error.log warn;
+
     proxy_pass http://ngocngan_api;
     proxy_http_version 1.1;
 
@@ -48,7 +54,10 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 
-  location /uploads/ {
+  location ^~ /uploads/ {
+    access_log /home/https/logs/api/nginx-access.log;
+    error_log /home/https/logs/api/nginx-error.log warn;
+
     proxy_pass http://ngocngan_api;
     proxy_http_version 1.1;
 
