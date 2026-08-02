@@ -1,0 +1,13 @@
+.foundation-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 10% 0%, rgb(56 116 255 / 10%), transparent 30rem),
+    var(--phoenix-body-bg);
+}
+
+.foundation-card {
+  width: min(100%, 34rem);
+}

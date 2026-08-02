@@ -1,0 +1,117 @@
+<style>
+  .sidebar-options { display: grid; gap: 1.25rem; }
+  .sidebar-options .option { cursor: pointer; }
+  .sidebar-options .option.recommended { border-color: #3874ff; box-shadow: 0 0 0 2px rgb(56 116 255 / 14%); }
+  .sidebar-options .option.recommended::after { content: "Khuyến nghị"; position: absolute; top: .85rem; right: .85rem; border-radius: 999px; padding: .25rem .55rem; background: #e7efff; color: #1d5ddd; font-size: .7rem; font-weight: 700; }
+  .menu-comparison { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 1rem; }
+  .menu-viewport { overflow: hidden; border: 1px solid #e3e6ed; border-radius: .75rem; background: #f5f7fa; min-height: 31rem; }
+  .mock-topbar { height: 2.45rem; display: flex; align-items: center; padding: 0 .75rem; color: #8a94ad; background: #fff; border-bottom: 1px solid #e3e6ed; font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .mock-layout { display: flex; min-height: 28.5rem; }
+  .mock-sidebar { width: 100%; padding: 1rem .7rem; background: #fff; color: #525b75; }
+  .mock-main { flex: 1; padding: 1.25rem; color: #6e7891; font-size: .75rem; }
+  .nav-group { margin-top: 1.25rem; }
+  .nav-group:first-child { margin-top: 0; }
+  .nav-label { margin: 0 .7rem .45rem; color: #6e7891; font-size: .62rem; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+  .nav-row { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) .75rem; align-items: center; min-height: 2.45rem; gap: .55rem; padding: 0 .7rem; border-radius: .5rem; font-size: .78rem; font-weight: 600; }
+  .nav-row + .nav-row { margin-top: .12rem; }
+  .nav-icon { position: relative; display: grid; width: 1.25rem; height: 1.25rem; place-items: center; color: currentColor; }
+  .nav-icon::before { width: .82rem; height: .82rem; border: 2px solid currentColor; border-radius: .22rem; content: ""; }
+  .nav-icon.chart::before { border-radius: 50%; border-right-color: transparent; transform: rotate(-35deg); }
+  .nav-icon.cart::before { width: .85rem; height: .54rem; border-top: 0; border-radius: 0 0 .18rem .18rem; transform: skewX(-12deg); }
+  .nav-icon.cart::after { position: absolute; bottom: .05rem; width: .72rem; height: .18rem; border-left: 2px solid currentColor; border-right: 2px solid currentColor; content: ""; }
+  .nav-icon.people::before { border-radius: 50% 50% .3rem .3rem; width: .8rem; height: .8rem; }
+  .nav-icon.archive::before { width: .95rem; height: .62rem; border-radius: .1rem; box-shadow: 0 -.28rem 0 -.09rem #fff, 0 -.28rem 0 0 currentColor; }
+  .nav-chevron { color: #8a94ad; font-size: .8rem; }
+  .nav-row.active { color: #3874ff; background: #eff4ff; }
+  .nav-row.parent { background: transparent; }
+  .nav-subrow { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); align-items: center; min-height: 2rem; gap: .55rem; padding: 0 1.6rem 0 2.5rem; color: #6e7891; font-size: .72rem; font-weight: 600; }
+  .nav-subrow.active { color: #3874ff; }
+  .nav-subrow::before { width: .27rem; height: .27rem; border-radius: 50%; background: currentColor; content: ""; }
+  .patch .nav-row { grid-template-columns: 1.1rem minmax(0, 1fr); min-height: 2.8rem; border-radius: 0; padding-left: .35rem; }
+  .patch .nav-label { margin-left: .15rem; }
+  .patch .nav-row.active { background: transparent; }
+  .flat .nav-row { grid-template-columns: 1.25rem minmax(0, 1fr); }
+  .flat .nav-row.parent { color: #525b75; }
+  .flat .nav-subrow { display: none; }
+  .technical-note { margin-top: .75rem; color: #6e7891; font-size: .76rem; line-height: 1.5; }
+  @media (max-width: 820px) { .menu-comparison { grid-template-columns: 1fr; } .menu-viewport { min-height: auto; } .mock-layout { min-height: 20rem; } }
+</style>
+
+<h2>Ba hướng thiết kế menu</h2>
+<p class="subtitle">Mục tiêu là đưa sidebar về đúng contract của Phoenix: một cột icon cố định, một nhịp hàng thống nhất, heading cùng trục và trạng thái active có chủ đích.</p>
+
+<div class="sidebar-options">
+  <div class="option recommended" data-choice="phoenix-native" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Phoenix-native hierarchy</h3>
+      <p>Khôi phục đúng cấu trúc của template và giữ menu cha/con. Đây là phương án tôi khuyến nghị.</p>
+      <div class="menu-viewport">
+        <div class="mock-topbar">Sidebar 254px · rhythm 40px · icon column 20px</div>
+        <div class="mock-layout">
+          <aside class="mock-sidebar">
+            <section class="nav-group">
+              <div class="nav-row"><span class="nav-icon chart"></span><span>Tổng quan</span><span></span></div>
+            </section>
+            <section class="nav-group">
+              <p class="nav-label">Nghiệp vụ</p>
+              <div class="nav-row"><span class="nav-icon cart"></span><span>Đơn hàng</span><span></span></div>
+              <div class="nav-row parent"><span class="nav-icon"></span><span>Danh mục</span><span class="nav-chevron">›</span></div>
+              <div class="nav-subrow">Nhóm hàng</div>
+              <div class="nav-subrow">Chất liệu</div>
+              <div class="nav-subrow">Mẫu</div>
+              <div class="nav-row active"><span class="nav-icon archive"></span><span>Hàng nhập kho</span><span></span></div>
+              <div class="nav-row"><span class="nav-icon"></span><span>Nguồn hàng</span><span></span></div>
+              <div class="nav-row"><span class="nav-icon people"></span><span>Khách hàng</span><span></span></div>
+            </section>
+            <section class="nav-group">
+              <p class="nav-label">Quản trị</p>
+              <div class="nav-row"><span class="nav-icon"></span><span>Vai trò</span><span></span></div>
+              <div class="nav-row"><span class="nav-icon people"></span><span>Nhân sự</span><span></span></div>
+            </section>
+          </aside>
+        </div>
+      </div>
+      <p class="technical-note"><strong>Tác động:</strong> sửa markup để Phoenix CSS quản lý căn lề, hover, active, submenu, trạng thái thu gọn và mobile drawer. Không đổi route, permission hay dữ liệu menu.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="minimal-patch" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Chỉnh CSS tối thiểu</h3>
+      <p>Giữ nguyên cấu trúc hiện tại và chỉ hiệu chỉnh padding, icon, heading, màu active.</p>
+      <div class="menu-viewport patch">
+        <div class="mock-topbar">CSS overrides</div>
+        <div class="mock-layout"><aside class="mock-sidebar">
+          <section class="nav-group"><div class="nav-row"><span class="nav-icon chart"></span><span>Tổng quan</span></div></section>
+          <section class="nav-group"><p class="nav-label">Nghiệp vụ</p><div class="nav-row"><span class="nav-icon cart"></span><span>Đơn hàng</span></div><div class="nav-row"><span class="nav-icon"></span><span>Danh mục</span></div><div class="nav-row active"><span class="nav-icon archive"></span><span>Hàng nhập kho</span></div><div class="nav-row"><span class="nav-icon"></span><span>Nguồn hàng</span></div></section>
+        </aside></div>
+      </div>
+      <p class="technical-note"><strong>Đổi lấy:</strong> nhanh nhưng sẽ tiếp tục thiếu contract submenu/collapsed của Phoenix; dễ lệch lại khi theme hoặc breakpoint thay đổi.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="flat-navigation" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Điều hướng phẳng</h3>
+      <p>Hiển thị tất cả mục ở cùng cấp, loại bỏ menu cha/con để sidebar ngắn gọn hơn.</p>
+      <div class="menu-viewport flat">
+        <div class="mock-topbar">Flat content map</div>
+        <div class="mock-layout"><aside class="mock-sidebar">
+          <section class="nav-group"><div class="nav-row"><span class="nav-icon chart"></span><span>Tổng quan</span></div></section>
+          <section class="nav-group"><p class="nav-label">Nghiệp vụ</p><div class="nav-row"><span class="nav-icon cart"></span><span>Đơn hàng</span></div><div class="nav-row"><span class="nav-icon"></span><span>Danh mục</span></div><div class="nav-row"><span class="nav-icon"></span><span>Chất liệu</span></div><div class="nav-row"><span class="nav-icon"></span><span>Mẫu</span></div><div class="nav-row active"><span class="nav-icon archive"></span><span>Hàng nhập kho</span></div></section>
+        </aside></div>
+      </div>
+      <p class="technical-note"><strong>Đổi lấy:</strong> dễ quét hơn nhưng thay đổi information architecture hiện có và đi xa hơn cách Phoenix biểu diễn menu phân cấp.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Kết luận phân tích</h3>
+  <p>Ảnh hiện tại không chỉ lệch padding. Component đang dùng class Phoenix nhưng thiếu phần tử mà stylesheet Phoenix chờ đợi: wrapper cho dropdown indicator, cấu trúc submenu và biến thể sidebar có thể thu gọn. Vì vậy các rule chuẩn của template không thể ghép đúng icon, nhãn, chevron và active state ở mọi breakpoint.</p>
+</div>
+
+<p class="subtitle">Hãy bấm chọn phương án bạn muốn. Nếu chọn B, tôi sẽ viết bản đặc tả thiết kế trước; chưa chỉnh sửa mã nguồn cho đến khi bạn phê duyệt.</p>

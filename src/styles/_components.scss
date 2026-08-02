@@ -1,0 +1,61 @@
+.cms-brand-identity {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.cms-brand-logo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.cms-brand-identity--mark .cms-brand-logo {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+
+.cms-login-brand .cms-brand-logo {
+  width: 3.625rem;
+  height: 3.625rem;
+}
+
+.cms-status-brand .cms-brand-logo {
+  width: 3rem;
+  height: 3rem;
+  margin-inline: auto;
+}
+
+.cms-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: -0.2em;
+}
+
+.svg-inline--fa {
+  display: var(--fa-display, inline-block);
+  height: 1em;
+  overflow: visible;
+  vertical-align: -0.125em;
+}
+
+.navbar-vertical .nav-link-icon > .cms-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.form-icon-container > .cms-icon.form-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+[data-password-toggle] > .cms-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+// Vue owns this menu state, so set the same anchor point Popper would use.
+.navbar-top .dropdown-profile {
+  top: 100%;
+}
