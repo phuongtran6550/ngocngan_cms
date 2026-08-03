@@ -52,8 +52,17 @@ export interface CustomerListParams {
   page: number;
   limit: number;
   query?: string;
+  customerCohort?: "new";
+  from?: string;
+  to?: string;
   sortBy?: "name" | "phone" | "price" | "priceReturn" | "orderCount" | "latestOrderAt";
   sortDirection?: "asc" | "desc";
+}
+
+export interface CustomerReportFilter {
+  customerCohort?: "new";
+  from?: string;
+  to?: string;
 }
 
 export interface CustomerListResponse {

@@ -1,0 +1,24 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    timeout(time: 1, unit: 'HOURS')
+  }
+
+  stages {
+    stage('Deploy API') {
+      steps {
+        build job: 'Ngoc Chau - API', wait: true, propagate: true
+      }
+    }
+
+    stage('Deploy CMS') {
+      steps {
+        build job: 'Ngoc Chau - CMS', wait: true, propagate: true
+      }
+    }
+  }
+}

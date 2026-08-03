@@ -59,8 +59,6 @@ A shared abbreviation function normalizes Vietnamese text to uppercase ASCII bef
 - Punctuation and whitespace are removed from the final segment.
 - An empty or unusable option name contributes no segment until the user finishes the selection.
 
-The same utility owns abbreviation behavior for category, material, and pattern so the rules cannot drift between form rows or API tests.
-
 ### Weight Segment
 
 - Normalize the positive decimal number and remove insignificant trailing zeroes.
@@ -170,43 +168,6 @@ Legacy products are handled as follows:
 - Duplicate manual codes in the form: identify both the duplicated value and affected row.
 - API normalization prevents lowercase, accents, whitespace, or punctuation differences from bypassing uniqueness.
 - Expected duplicate-key races are translated into allocation retries; unrelated database errors are not swallowed.
-
-## Testing Strategy
-
-### CMS Unit Tests
-
-- Catalog abbreviation generation, including Vietnamese accents and preserved material digits.
-- Weight and size segment formatting.
-- Full base-code generation with and without size.
-- Automatic updates when classification, weight, or size changes.
-- Manual override protection and `Tạo lại mã` behavior.
-- Pricing explanation cards reactively display the same generated or manually entered SKU code as their row input.
-- In-form suffix allocation for duplicate automatic rows.
-- Required and duplicate code validation.
-- Multipart serialization includes each SKU code.
-- Item-to-form mapping preserves persisted SKU codes.
-- Detail page renders persisted SKU codes and legacy fallback behavior.
-
-### API Tests
-
-- Validator accepts normalized valid SKU codes and rejects empty, invalid, or oversized codes.
-- Inventory service normalizes codes and mirrors the first SKU code to product `code`.
-- Allocation keeps a free base and adds `-02`, `-03` for conflicts.
-- Multiple identical codes in one request receive deterministic suffixes.
-- Update excludes codes already owned by the current product.
-- Transformer exposes embedded SKU codes.
-- Search filter matches `skus.code`.
-- Repository/schema tests cover the new lookup and partial unique index behavior.
-- Legacy documents without embedded codes remain readable and can receive unrelated updates.
-
-### End-to-End Tests
-
-- Creating a product shows automatically generated codes for two SKUs.
-- Changing size or weight updates only the appropriate automatic row.
-- Manual override survives later classification changes.
-- Each pricing explanation card shows the matching SKU code on desktop and mobile.
-- Saved product detail shows the final API-returned SKU codes.
-- Desktop and mobile flows remain usable without horizontal overflow.
 
 ## Implementation Boundaries
 

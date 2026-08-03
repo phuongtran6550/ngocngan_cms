@@ -18,7 +18,6 @@ existing API paths, query parameters, verbs, payloads, and response contracts.
 | `src/components/ListLayout/` | Public list-page composition, its table shell, and the standard CRUD form/delete flow. |
 | `src/components/` | Reusable Phoenix layout, table, form, overlay, media, feedback, and UI primitives. |
 | `src/views/` | Feature pages. Standard CRUD routes are thin declarations; workflows with distinct behavior remain custom. |
-| `tests/` | Unit, architecture, and Playwright E2E coverage. |
 
 ### Standard Resource Flow
 
@@ -74,7 +73,7 @@ The sales flow is optimized for a busy counter and uses the existing Product bar
 
 Customer information moves through `ocr_processing`, `review_required`, `manual_required`, and `complete`. OCR suggestions are always shown beside the original order photo and require a person to confirm or correct them. Review shows field-level confidence, Vietnamese guidance, and up to three one-click alternatives while preserving one final confirmation action. The incomplete-order page refreshes visible `ocr_processing` rows every eight seconds and stops polling when hidden, unmounted, or no processing rows remain. The CMS never receives Google credentials and never calls Vision or Gemini directly.
 
-Primary manual-test routes:
+Primary order workflow routes:
 
 - `http://localhost:5174/orders`
 - `http://localhost:5174/orders/create`
@@ -91,8 +90,6 @@ Primary manual-test routes:
 | `npm run build` | Type-check and build the production bundle. |
 | `npm run typecheck` | Run Vue/TypeScript type checking only. |
 | `npm run lint` | Run ESLint over the frontend workspace. |
-| `npm run test:unit` | Run unit and architecture tests. |
-| `npm run test:e2e` | Run Playwright E2E coverage. |
 
 ## Environment
 
@@ -104,9 +101,7 @@ Primary manual-test routes:
 ## Operational Rules
 
 - Use `src/request/index.ts` and `src/request/resource-client.ts` for API traffic; do not import Axios outside the request layer.
-- Add a declaration and shared-runtime tests before migrating another standard CRUD family.
 - Preserve the backend's configured verbs and payloads. Runtime menu data is accepted from the existing login or `/auth/me` response when supplied; route metadata remains the fallback until the backend provides it.
 - A realtime adapter can dispatch `menu:updated` with the recursive menu payload or `menu:reload`; `App.vue` persists the former and refreshes the latter through the existing `/auth/me` API.
 - Do not add YTPlus encryption, token refresh, socket, or dual-session endpoints without a backend contract.
-- Test reference-source assertions with `YTPLUS_CMS_REFERENCE_ROOT=/Users/phuongtran/Documents/YTPlus/cms`; the normal test suite remains self-contained.
 - Phoenix assets remain vendored under `public/phoenix` and `src/styles/vendor`.

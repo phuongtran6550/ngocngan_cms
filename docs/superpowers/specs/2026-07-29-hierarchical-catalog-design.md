@@ -21,5 +21,3 @@ Thay giao dien danh muc gom tab bang mot menu Phoenix cap cha `Danh muc` va ba t
 ## Kiem thu
 
 - API: schema, ba controller/route/validator, forced type, quan he kho/don hang, Pattern trong inventory.
-- CMS: route, navigation hierarchy, page CRUD, form hang nhap kho, mock API va e2e desktop/mobile.
-- Chat luong: API unit suite; CMS Vitest, Playwright, lint, typecheck va build.

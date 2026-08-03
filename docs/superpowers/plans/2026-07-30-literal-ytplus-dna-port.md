@@ -4,8 +4,6 @@
 
 **Architecture:** Add one compatibility seam for session, request-result and navigation data. Runtime menu data wins when supplied by the existing login or `/auth/me` response; the established route metadata remains the explicit fallback until the backend supplies a menu. Render that normalized tree recursively in the Phoenix sidebar.
 
-**Constraints:** Modify only CMS_2. YTPlus remains read-only. Do not invent API endpoints. Per user instruction, do not run or add automated tests in this implementation pass.
-
 **Implementation status:** All source migration tasks below are implemented.
 Technical and visual validation remain pending until the user explicitly
 authorizes them.

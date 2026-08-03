@@ -1,4 +1,5 @@
 export type InventoryStatus = "active" | "inactive";
+export type StockLevelFilter = "" | "low";
 export type InventoryCreatePricingType = "Đồ cân" | "Đồ món";
 export type InventoryPricingType = InventoryCreatePricingType | "Đồ hột" | "";
 
@@ -80,6 +81,7 @@ export interface WarehouseListParams {
   materialId?: string;
   patternId?: string;
   pricingType?: InventoryPricingType;
+  stockLevel?: Exclude<StockLevelFilter, "">;
   sortBy?: "name" | "code" | "importPrice" | "price" | "stock" | "updatedAt";
   sortDirection?: "asc" | "desc";
 }
@@ -104,6 +106,8 @@ export interface WarehouseLabelPrintResponse {
   printer: string;
   jobId?: string;
   quantity: number;
+  transport: "cups" | "agent";
+  status: "queued" | "processing" | "completed" | "failed";
 }
 
 let skuSequence = 0;

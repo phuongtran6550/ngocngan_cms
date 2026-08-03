@@ -6,8 +6,6 @@
 
 **Architecture:** Extend the shared column type, centralize renderer visibility in one pure helper, and have both list renderers filter through that helper. Existing columns default to both renderers, so current screens do not change until they opt into the new config.
 
-**Tech Stack:** Vue 3, TypeScript, Vitest, Vue Test Utils, Playwright, Vite.
-
 ---
 
 ### Task 1: Lock the shared visibility contract
@@ -15,7 +13,6 @@
 **Files:**
 
 - Create: `src/components/Table/column-visibility.ts`
-- Create: `tests/unit/components/Table/column-visibility.test.ts`
 - Modify: `src/config/resource.ts`
 
 - [ ] Add failing tests for default/both, table-only, card-only, and `visible: false` behavior.
@@ -29,8 +26,6 @@
 
 - Modify: `src/components/Table/DataTable.vue`
 - Modify: `src/components/Table/ResourceCardGrid.vue`
-- Modify: `tests/unit/components/Table/DataTable.test.ts`
-- Modify: `tests/unit/components/Table/ResourceCardGrid.test.ts`
 
 - [ ] Add failing renderer tests proving `table` and `card` columns appear only in their assigned renderer.
 - [ ] Run both focused renderer test files and confirm the new assertions fail.
@@ -45,9 +40,6 @@
 - Verify: `src/components/Table/column-visibility.ts`
 - Verify: `src/components/Table/DataTable.vue`
 - Verify: `src/components/Table/ResourceCardGrid.vue`
-- Verify: related unit and responsive E2E tests
 
-- [ ] Run related unit tests.
 - [ ] Run typecheck, ESLint, and Prettier checks.
-- [ ] Run responsive E2E for desktop and mobile.
 - [ ] Run the production build.

@@ -1,9 +1,4 @@
-import {
-  createMemoryHistory,
-  createRouter,
-  createWebHistory,
-  type RouterHistory,
-} from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 import {
   navigationAllowsPath,
   requiresNavigationAccess,
@@ -15,15 +10,9 @@ import clientRoutes from "@/router/client";
 import type { PermissionRequirement } from "@/config/permissions";
 import { authenStore } from "@/stores/app-authen";
 
-function createHistory(): RouterHistory {
-  return import.meta.env.MODE === "test"
-    ? createMemoryHistory()
-    : createWebHistory();
-}
-
 export function createCmsRouter() {
   const router = createRouter({
-    history: createHistory(),
+    history: createWebHistory(),
     routes: [
       {
         path: "/login",

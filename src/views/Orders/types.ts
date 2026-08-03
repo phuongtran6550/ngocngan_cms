@@ -186,6 +186,8 @@ export interface OrderListParams {
   type?: Exclude<OrderTypeFilter, "">;
   status?: OrderStatus | "";
   customerInfoStatus?: CustomerInfoStatus | "";
+  from?: string;
+  to?: string;
   sortBy?: "name" | "phone" | "price" | "status" | "createdAt" | "updatedAt";
   sortDirection?: "asc" | "desc";
 }

@@ -6,13 +6,10 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      ".playwright-browsers/**",
       "artifacts/**",
-      "coverage/**",
       "dist/**",
       "node_modules/**",
       "public/phoenix/**",
-      "test-results/**",
     ],
   },
   eslint.configs.recommended,

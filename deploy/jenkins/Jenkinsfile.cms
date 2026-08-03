@@ -1,0 +1,184 @@
+pipeline {
+  agent any
+
+  tools {
+    nodejs 'Node 20'
+  }
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    timeout(time: 1, unit: 'HOURS')
+  }
+
+  environment {
+    REPOSITORY = 'git@github.com:phuongtran6550/ngocngan_cms.git'
+    DEPLOY_HOST = 'root@149.28.144.156'
+    VITE_API_BASE_URL = 'https://api.tiembacngocchau.vn/api'
+    VITE_ASSET_BASE_URL = 'https://api.tiembacngocchau.vn'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        deleteDir()
+        script {
+          def source = checkout([
+            $class: 'GitSCM',
+            branches: [[name: '*/main']],
+            userRemoteConfigs: [[url: env.REPOSITORY, credentialsId: 'YTPlus_SSH']]
+          ])
+          env.SOURCE_REVISION = source.GIT_COMMIT
+          currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.SOURCE_REVISION.take(8)}"
+        }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh '''
+          set -eu
+          node --version
+          npm --version
+          npm ci
+          npm run lint
+          npm run build
+          test -s dist/index.html
+          tar -czf cms-dist.tgz dist
+        '''
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'NGOCCHAU_SERVER_HOST_KEY', variable: 'SERVER_HOST_KEY_VALUE')
+        ]) {
+          sshagent(credentials: ['NGOCCHAU_SERVER_SSH']) {
+            sh '''
+              set -eu
+              set +x
+              umask 077
+
+              archive="/tmp/ngocchau-cms-$BUILD_NUMBER.tgz"
+              known_hosts_file="$(mktemp)"
+
+              ssh_to_deploy_host() {
+                ssh -o BatchMode=yes \
+                  -o UserKnownHostsFile="$known_hosts_file" \
+                  -o StrictHostKeyChecking=yes \
+                  "$DEPLOY_HOST" "$@"
+              }
+
+              scp_to_deploy_host() {
+                scp -o BatchMode=yes \
+                  -o UserKnownHostsFile="$known_hosts_file" \
+                  -o StrictHostKeyChecking=yes \
+                  "$@"
+              }
+
+              cleanup_local() {
+                status="$?"
+                trap - EXIT
+                set +e
+                if ! ssh_to_deploy_host "rm -f '$archive'" >/dev/null 2>&1; then
+                  echo "Warning: remote cleanup failed for CMS transfer artifacts" >&2
+                fi
+                rm -f "$known_hosts_file"
+                exit "$status"
+              }
+              trap cleanup_local EXIT
+
+              printf '%s\n' "$SERVER_HOST_KEY_VALUE" > "$known_hosts_file"
+              chmod 600 "$known_hosts_file"
+
+              ssh_to_deploy_host \
+                "find /tmp -maxdepth 1 -type f -name 'ngocchau-cms-*.tgz' -mmin +120 -delete"
+              scp_to_deploy_host cms-dist.tgz "$DEPLOY_HOST:$archive"
+              ssh_to_deploy_host \
+                "bash -s -- '$BUILD_NUMBER' '$archive'" <<'REMOTE'
+                set -Eeuo pipefail
+                build_number="$1"
+                archive="$2"
+                release_root="/home/https/releases/ngocchau/cms"
+                active_path="/home/https/www/cms"
+                release_path="$release_root/release-$build_number"
+                previous_path=""
+                legacy_backup=""
+
+                if [ -L "$active_path" ]; then
+                  previous_path="$(readlink -f "$active_path")"
+                elif [ -d "$active_path" ]; then
+                  legacy_backup="${active_path}.legacy-$(date +%Y%m%d%H%M%S)"
+                  mv "$active_path" "$legacy_backup"
+                fi
+
+                verify_cms_http() {
+                  status_code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 2 https://cms.tiembacngocchau.vn/)"
+                  [ "$status_code" = "200" ]
+                }
+
+                verify_cms_release() {
+                  expected_path="$1"
+                  [ "$(readlink -f "$active_path")" = "$expected_path" ] || return 1
+                  test -s "$active_path/dist/index.html" || return 1
+                  verify_cms_http
+                }
+
+                verify_legacy_cms() {
+                  if [ ! -s "$active_path/dist/index.html" ] && [ ! -s "$active_path/index.html" ]; then
+                    return 1
+                  fi
+                  verify_cms_http
+                }
+
+                rollback() {
+                  status="$?"
+                  trap - ERR
+                  set +e
+                  rollback_ok=1
+                  rm -f "$active_path" "${active_path}.new" || rollback_ok=0
+                  if [ -n "$previous_path" ] && [ -d "$previous_path" ]; then
+                    [ "$rollback_ok" -eq 1 ] && ln -s "$previous_path" "$active_path" || rollback_ok=0
+                    [ "$rollback_ok" -eq 1 ] && verify_cms_release "$previous_path" || rollback_ok=0
+                  elif [ -n "$legacy_backup" ] && [ -d "$legacy_backup" ]; then
+                    [ "$rollback_ok" -eq 1 ] && mv "$legacy_backup" "$active_path" || rollback_ok=0
+                    [ "$rollback_ok" -eq 1 ] && verify_legacy_cms || rollback_ok=0
+                  fi
+                  rm -f "$archive"
+                  if [ "$rollback_ok" -ne 1 ]; then
+                    echo "Rollback failed: CMS was not restored to a healthy release" >&2
+                  fi
+                  exit "$status"
+                }
+                trap rollback ERR
+
+                install -d -m 755 "$release_root"
+                rm -rf "$release_path"
+                install -d -m 755 "$release_path"
+                tar -xzf "$archive" -C "$release_path"
+                test -s "$release_path/dist/index.html"
+
+                ln -sfn "$release_path" "${active_path}.new"
+                mv -Tf "${active_path}.new" "$active_path"
+                verify_cms_release "$release_path"
+
+                trap - ERR
+                rm -f "$archive"
+                ls -1dt "$release_root"/release-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+REMOTE
+            '''
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      sh 'rm -f cms-dist.tgz'
+      deleteDir()
+    }
+  }
+}

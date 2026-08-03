@@ -26,7 +26,6 @@ The supplied screenshot is treated as a symptom report: headings, icon columns, 
 - The identical navigation information hierarchy in `MobileNavDrawer.vue` through the shared sidebar component.
 - Phoenix-compatible icon, label, disclosure, submenu, active, and collapsed markup.
 - The missing `tag` icon in `AppIcon.vue`.
-- Focused unit, architecture, and Playwright coverage for navigation anatomy and behavior.
 
 ### Out Of Scope
 
@@ -142,34 +141,12 @@ Expected changed files:
 - `src/components/app/Sidebar.vue`: render the full Phoenix contract, Template2-style parent anchors, and context-specific IDs for the desktop and mobile trees.
 - `src/components/app/MobileNavDrawer.vue`: only if the shared sidebar requires an explicit context class or prop to neutralize fixed desktop geometry in the offcanvas.
 - `src/components/ui/AppIcon.vue`: add the `tag` icon definition.
-- `tests/unit/components/app/Sidebar.test.ts`: add focused rendering and interaction coverage.
-- `tests/architecture/phoenix-interaction-contract.test.ts` or a dedicated sidebar anatomy test: lock the Phoenix structural contract so future changes cannot regress to class-only imitation.
-- `tests/e2e/app-shell.spec.ts`: extend app-shell coverage for active-parent/submenu, collapsed rail behavior, and mobile navigation close behavior.
 
 `src/config/navigation.ts`, routes, permission config, backend service code, and the Phoenix vendor stylesheet are intentionally not modified for this work.
 
 ## Verification Plan
 
-### Unit And Architecture Tests
-
-1. Render a permitted leaf and assert it has the Phoenix icon/text wrapper structure and an active class on its current route.
-2. Render the catalogue parent and assert the Template2-style anchor has a disclosure wrapper, `aria-controls`, correct `aria-expanded`, and `collapsed` when closed.
-3. Mount on a catalogue child route and assert its parent starts expanded, its parent is active, and the matching child is active.
-4. Toggle the parent and assert Vue state updates `aria-expanded`, `collapsed`, and `collapse.show` together.
-5. Render mobile mode, click a leaf, and assert one `close-mobile` event. Confirm a parent click expands rather than closing the drawer.
-6. Assert `tag` renders as its own AppIcon shape rather than falling back to `grid`.
-7. Add a static Phoenix contract assertion for `dropdown-indicator-icon-wrapper`, `dropdown-indicator-icon`, child `nav-link-text`, and the reactive `collapsed` class.
-
-### Browser Tests
-
-1. At the desktop projects, assert a `15.875rem` sidebar, the expected visible group/entry order, a blue active route, and child indentation greater than its parent row.
-2. Toggle the sidebar and assert the document owns `navbar-vertical-collapsed`, the existing app-shell compatibility class remains, and the content edge follows Phoenix's compact rail rather than overflowing the viewport.
-3. At the tablet and phone projects, open the mobile drawer, expand a parent, navigate through a child, and assert the drawer closes with no page errors or horizontal overflow.
-4. Re-run the route and responsive matrices to verify permission-filtered menus and every authenticated route still render in the viewport.
-
 ### Quality Gates
-
-Run the project typecheck, lint, unit tests, focused Playwright shell coverage, and the responsive matrix. Inspect desktop and mobile screenshots before reporting completion. No code change is considered complete solely because markup tests pass.
 
 ## Risks And Mitigations
 

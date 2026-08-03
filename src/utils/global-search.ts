@@ -5,6 +5,7 @@ import {
 } from "@/config/permissions";
 import { visibleNavigation } from "@/config/navigation";
 import type { AuthMenuItem } from "@/views/Account/types";
+import { routeQueryText } from "@/utils/route-query";
 
 export interface GlobalSearchTarget {
   path: string;
@@ -28,7 +29,7 @@ export const globalSearchTargets: readonly GlobalSearchTarget[] = Object.freeze(
 );
 
 export function searchQueryFromRoute(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+  return routeQueryText(value);
 }
 
 export function globalSearchTarget(

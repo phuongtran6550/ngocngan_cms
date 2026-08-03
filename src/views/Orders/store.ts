@@ -26,6 +26,8 @@ export const useOrderStore = defineStore("orders", {
     type: "" as OrderTypeFilter,
     status: "" as OrderStatus | "",
     customerInfoStatus: "" as CustomerInfoStatus | "",
+    from: "",
+    to: "",
     counts: { all: 0, completed: 0, returned: 0, cancelled: 0, complete: 0, ocrProcessing: 0, reviewRequired: 0, manualRequired: 0 } as OrderStatusCounts,
     sortBy: "updatedAt" as (typeof orderSortKeys)[number],
     sortDirection: "desc" as "asc" | "desc",
@@ -61,6 +63,8 @@ export const useOrderStore = defineStore("orders", {
           type: this.type || undefined,
           status: this.status || undefined,
           customerInfoStatus: this.customerInfoStatus || undefined,
+          from: this.from || undefined,
+          to: this.to || undefined,
           sortBy: this.sortBy,
           sortDirection: this.sortDirection,
         }, this.listController.signal);

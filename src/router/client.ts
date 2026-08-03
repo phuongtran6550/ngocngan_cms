@@ -66,7 +66,7 @@ const clientRoutes: ClientRoute[] = [
     meta: {
       auth: true,
       title: "Tạo đơn hàng",
-      permission: PERMISSIONS.ordersCreate,
+      permission: [PERMISSIONS.ordersView, PERMISSIONS.ordersCreate],
     },
     component: () => import("@/views/Orders/add.vue"),
   },
@@ -212,6 +212,26 @@ const clientRoutes: ClientRoute[] = [
       permission: PERMISSIONS.warehouseView,
     },
     component: () => import("@/views/WarehousedGoods/detail.vue"),
+  },
+  {
+    path: "/print-devices",
+    name: "print-devices",
+    meta: {
+      auth: true,
+      title: "Thiết bị in",
+      permission: PERMISSIONS.warehouseUpdate,
+    },
+    component: () => import("@/views/PrintDevices/index.vue"),
+  },
+  {
+    path: "/print-guide",
+    name: "print-guide",
+    meta: {
+      auth: true,
+      title: "Hướng dẫn cài đặt máy in",
+      permission: PERMISSIONS.warehouseView,
+    },
+    component: () => import("@/views/PrintDevices/guide.vue"),
   },
   {
     path: "/source-of-goods",

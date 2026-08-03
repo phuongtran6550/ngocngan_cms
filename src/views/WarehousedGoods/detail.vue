@@ -9,10 +9,7 @@
       {{ pageError }}
     </div>
     <template v-else-if="item">
-      <PageHeader
-        :title="item.name"
-        :breadcrumbs="breadcrumbs"
-      >
+      <PageHeader :title="item.name" :breadcrumbs="breadcrumbs">
         <template #actions>
           <RouterLink
             class="btn btn-sm btn-phoenix-secondary"
@@ -93,189 +90,146 @@
       </div>
 
       <div class="product-detail-main">
-          <div class="product-hero">
-            <div
-              class="product-media-frame border border-translucent rounded-3 bg-body-emphasis"
+        <div class="product-hero">
+          <div
+            class="product-media-frame border border-translucent rounded-3 bg-body-emphasis"
+          >
+            <ResourceImageCard
+              :src="assetUrl(item.thumbnail)"
+              :alt="`Ảnh sản phẩm ${item.name}`"
+              @preview="preview = assetUrl(item.thumbnail)"
+            />
+          </div>
+          <div class="product-intro">
+            <div class="product-intro-label">Thông tin sản phẩm</div>
+            <h2 class="product-intro-name">{{ item.name }}</h2>
+            <p
+              class="product-price fw-bold text-body-emphasis mb-1"
+              data-testid="product-price-range"
             >
-              <ResourceImageCard
-                :src="assetUrl(item.thumbnail)"
-                :alt="`Ảnh sản phẩm ${item.name}`"
-                @preview="preview = assetUrl(item.thumbnail)"
-              />
+              {{ summary.price }}
+            </p>
+            <p
+              class="text-success fw-semibold mb-0"
+              data-testid="product-total-stock"
+            >
+              Còn {{ summary.stock }} sản phẩm trong kho
+            </p>
+            <div class="product-classification">
+              <span v-if="item.category">
+                <small>Danh mục</small>{{ item.category }}
+              </span>
+              <span v-if="item.material">
+                <small>Chất liệu</small>{{ item.material }}
+              </span>
+              <span v-if="item.pattern">
+                <small>Mẫu</small>{{ item.pattern }}
+              </span>
+              <span v-if="item.pricingType" class="pricing-type">
+                <small>Loại sản phẩm</small>{{ item.pricingType }}
+              </span>
             </div>
-            <div class="product-intro">
-              <div class="product-intro-label">Thông tin sản phẩm</div>
-              <h2 class="product-intro-name">{{ item.name }}</h2>
-              <p
-                class="product-price fw-bold text-body-emphasis mb-1"
-                data-testid="product-price-range"
-              >
-                {{ summary.price }}
-              </p>
-              <p
-                class="text-success fw-semibold mb-0"
-                data-testid="product-total-stock"
-              >
-                Còn {{ summary.stock }} sản phẩm trong kho
-              </p>
-              <div class="product-classification">
-                <span v-if="item.category">{{ item.category }}</span>
-                <span v-if="item.material">{{ item.material }}</span>
-                <span v-if="item.pattern">{{ item.pattern }}</span>
-                <span v-if="item.pricingType" class="pricing-type">
-                  {{ item.pricingType }}
-                </span>
+            <dl class="product-inline-summary mb-0">
+              <div>
+                <dt>Số SKU</dt>
+                <dd>{{ summary.skuCount }}</dd>
               </div>
-              <dl class="product-inline-summary mb-0">
-                <div>
-                  <dt>Số SKU</dt>
-                  <dd>{{ summary.skuCount }}</dd>
-                </div>
-                <div>
-                  <dt>Giá từ</dt>
-                  <dd>{{ compactPrice(minimumSellingPrice) }}</dd>
-                </div>
-              </dl>
-              <div class="product-print-note mt-3 p-3 rounded-2">
-                Tem trang sức 28 x 12 mm x 2, đuôi 30 mm, tối ưu cho máy GoDEX
-                G500. Tem được gửi trực tiếp đến máy in, không qua hộp thoại in
-                của trình duyệt.
+              <div>
+                <dt>Giá từ</dt>
+                <dd>{{ compactPrice(minimumSellingPrice) }}</dd>
               </div>
+              <div>
+                <dt>Trọng lượng</dt>
+                <dd data-testid="product-weight-range">{{ summary.weight }}</dd>
+              </div>
+              <div>
+                <dt>Ni tay</dt>
+                <dd data-testid="product-size-range">{{ summary.size }}</dd>
+              </div>
+            </dl>
+            <p v-if="item.updatedAt" class="text-body-tertiary fs-10 mt-3 mb-0">
+              Cập nhật {{ formatDateTime(item.updatedAt) }}
+            </p>
+            <div class="product-print-note mt-3 p-3 rounded-2">
+              Tem trang sức 28 x 12 mm x 2, đuôi 30 mm, tối ưu cho máy GoDEX
+              G500. Tem được gửi trực tiếp đến máy in, không qua hộp thoại in
+              của trình duyệt.
             </div>
           </div>
+        </div>
 
-          <div class="sku-title-row">
-            <div>
-              <h2>Danh sách SKU</h2>
-              <p>
-                Mỗi dòng đủ khoảng thở; trên mobile tự chuyển thành thẻ hai cột.
-              </p>
-            </div>
-            <span class="sku-count">
-              {{ summary.skuCount }} SKU
-            </span>
+        <div class="sku-title-row">
+          <div>
+            <h2>Danh sách SKU</h2>
+            <p>
+              Mỗi dòng đủ khoảng thở; trên mobile tự chuyển thành thẻ hai cột.
+            </p>
           </div>
+          <span class="sku-count"> {{ summary.skuCount }} SKU </span>
+        </div>
 
-          <div class="sku-table-wrap">
-            <table
-              class="sku-table"
-              :class="{ 'sku-table-weighted': isWeighted }"
-            >
-              <thead>
-                <tr>
-                  <th scope="col">SKU</th>
-                  <th scope="col">Ni tay</th>
-                  <th scope="col" class="sku-numeric">Trọng lượng</th>
-                  <th v-if="isWeighted" scope="col" class="sku-numeric">
-                    Tiền công
-                  </th>
-                  <th v-if="isWeighted" scope="col" class="sku-numeric">
-                    Tiền xi
-                  </th>
-                  <th v-else scope="col" class="sku-numeric">Giá nhập</th>
-                  <th scope="col" class="sku-numeric">Giá bán</th>
-                  <th scope="col" class="sku-numeric">Tồn kho</th>
-                  <th
-                    scope="col"
-                    class="sku-numeric"
-                    data-testid="sku-actions-heading"
-                  >
-                    <span class="visually-hidden">Thao tác</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(sku, index) in displaySkus"
-                  :key="sku.id || index"
-                  data-testid="desktop-sku-row"
+        <div class="sku-table-wrap">
+          <table
+            class="sku-table"
+            :class="{ 'sku-table-weighted': isWeighted }"
+          >
+            <thead>
+              <tr>
+                <th scope="col">SKU</th>
+                <th scope="col">Ni tay</th>
+                <th scope="col" class="sku-numeric">Trọng lượng</th>
+                <th v-if="isWeighted" scope="col" class="sku-numeric">
+                  Tiền công
+                </th>
+                <th v-if="isWeighted" scope="col" class="sku-numeric">
+                  Tiền xi
+                </th>
+                <th v-else scope="col" class="sku-numeric">Giá nhập</th>
+                <th scope="col" class="sku-numeric">Giá bán</th>
+                <th scope="col" class="sku-numeric">Tồn kho</th>
+                <th
+                  scope="col"
+                  class="sku-numeric position-relative"
+                  data-testid="sku-actions-heading"
                 >
-                  <td>
-                    <code class="sku-code-cell">{{ sku.code || "—" }}</code>
-                    <span class="sku-code-sub">
-                      SKU {{ String(index + 1).padStart(2, "0") }} ·
-                      {{ item.pricingType || "—" }}
-                    </span>
-                  </td>
-                  <td>{{ sku.size || "—" }}</td>
-                  <td class="sku-numeric">
-                    {{ weight(sku.weight) }}
-                  </td>
-                  <td v-if="isWeighted" class="sku-numeric">
-                    {{ money(sku.laborCost) }}
-                  </td>
-                  <td v-if="isWeighted" class="sku-numeric">
-                    {{ money(sku.platingCost) }}
-                  </td>
-                  <td v-else class="sku-numeric">
-                    {{ money(sku.importPrice) }}
-                  </td>
-                  <td class="sku-numeric sku-sale-price">
-                    {{ money(sku.price) }}
-                  </td>
-                  <td class="sku-numeric" :data-testid="`sku-stock-${index}`">
-                    <span class="sku-stock-value">{{ sku.stock }}</span>
-                  </td>
-                  <td class="sku-numeric">
-                    <div class="sku-row-actions">
-                      <RouterLink
-                        v-if="sku.id"
-                        class="sku-history-action"
-                        :to="`/products/${sku.id}#history`"
-                        :aria-label="`Xem lịch sử SKU ${sku.code}`"
-                      >
-                        <AppIcon name="history" />
-                        Lịch sử
-                      </RouterLink>
-                      <button
-                        type="button"
-                        class="sku-print-action"
-                        data-testid="print-sku-label"
-                        :aria-label="
-                          printingSkuId === sku.id
-                            ? `Đang gửi tem ${sku.code}`
-                            : `In tem ${sku.code}`
-                        "
-                        :aria-busy="printingSkuId === sku.id"
-                        :disabled="Boolean(printingSkuId)"
-                        @click="openPrintDialog(sku)"
-                      >
-                        <span
-                          v-if="printingSkuId === sku.id"
-                          class="spinner-border spinner-border-sm"
-                          aria-hidden="true"
-                        />
-                        <span v-else aria-hidden="true">▥</span>
-                        {{ printingSkuId === sku.id ? "Đang gửi" : "In tem" }}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="mobile-sku-list gap-3">
-            <article
-              v-for="(sku, index) in displaySkus"
-              :key="`mobile-${sku.id || index}`"
-              class="card shadow-none border border-translucent"
-              data-testid="mobile-sku-card"
-            >
-              <div class="card-body p-3">
-                <div
-                  class="d-flex align-items-start justify-content-between gap-3 pb-3 border-bottom border-translucent"
-                >
-                  <div class="min-w-0">
-                    <code class="sku-code-cell text-break">
-                      {{ sku.code || "—" }}
-                    </code>
-                    <span class="sku-code-sub">
-                      SKU {{ String(index + 1).padStart(2, "0") }} ·
-                      {{ item.pricingType || "—" }}
-                    </span>
-                  </div>
-                  <div class="sku-row-actions flex-shrink-0">
+                  <span class="visually-hidden">Thao tác</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(sku, index) in displaySkus"
+                :key="sku.id || index"
+                data-testid="desktop-sku-row"
+              >
+                <td>
+                  <code class="sku-code-cell">{{ sku.code || "—" }}</code>
+                  <span class="sku-code-sub">
+                    SKU {{ String(index + 1).padStart(2, "0") }} ·
+                    {{ item.pricingType || "—" }}
+                  </span>
+                </td>
+                <td>{{ sku.size || "—" }}</td>
+                <td class="sku-numeric">
+                  {{ weight(sku.weight) }}
+                </td>
+                <td v-if="isWeighted" class="sku-numeric">
+                  {{ money(sku.laborCost) }}
+                </td>
+                <td v-if="isWeighted" class="sku-numeric">
+                  {{ money(sku.platingCost) }}
+                </td>
+                <td v-else class="sku-numeric">
+                  {{ money(sku.importPrice) }}
+                </td>
+                <td class="sku-numeric sku-sale-price">
+                  {{ money(sku.price) }}
+                </td>
+                <td class="sku-numeric" :data-testid="`sku-stock-${index}`">
+                  <span class="sku-stock-value">{{ sku.stock }}</span>
+                </td>
+                <td class="sku-numeric">
+                  <div class="sku-row-actions">
                     <RouterLink
                       v-if="sku.id"
                       class="sku-history-action"
@@ -307,57 +261,122 @@
                       {{ printingSkuId === sku.id ? "Đang gửi" : "In tem" }}
                     </button>
                   </div>
-                </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-                <dl class="mobile-sku-grid mb-0 mt-3">
-                  <div>
-                    <dt>Ni tay</dt>
-                    <dd>{{ sku.size || "—" }}</dd>
-                  </div>
-                  <div>
-                    <dt>Trọng lượng</dt>
-                    <dd>{{ weight(sku.weight) }}</dd>
-                  </div>
-                  <template v-if="isWeighted">
-                    <div>
-                      <dt>Tiền công</dt>
-                      <dd>{{ money(sku.laborCost) }}</dd>
-                    </div>
-                    <div>
-                      <dt>Tiền xi</dt>
-                      <dd>{{ money(sku.platingCost) }}</dd>
-                    </div>
-                  </template>
-                  <div v-else>
-                    <dt>Giá nhập</dt>
-                    <dd>{{ money(sku.importPrice) }}</dd>
-                  </div>
-                  <div>
-                    <dt>Giá bán</dt>
-                    <dd class="text-body-emphasis fw-bold">
-                      {{ money(sku.price) }}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Tồn kho</dt>
-                    <dd>{{ sku.stock }} sản phẩm</dd>
-                  </div>
-                </dl>
+        <div class="mobile-sku-list gap-3">
+          <article
+            v-for="(sku, index) in displaySkus"
+            :key="`mobile-${sku.id || index}`"
+            class="card shadow-none border border-translucent"
+            data-testid="mobile-sku-card"
+          >
+            <div class="card-body p-3">
+              <div
+                class="d-flex align-items-start justify-content-between gap-3 pb-3 border-bottom border-translucent"
+              >
+                <div class="min-w-0">
+                  <code class="sku-code-cell text-break">
+                    {{ sku.code || "—" }}
+                  </code>
+                  <span class="sku-code-sub">
+                    SKU {{ String(index + 1).padStart(2, "0") }} ·
+                    {{ item.pricingType || "—" }}
+                  </span>
+                </div>
+                <div class="sku-row-actions flex-shrink-0">
+                  <RouterLink
+                    v-if="sku.id"
+                    class="sku-history-action"
+                    :to="`/products/${sku.id}#history`"
+                    :aria-label="`Xem lịch sử SKU ${sku.code}`"
+                  >
+                    <AppIcon name="history" />
+                    Lịch sử
+                  </RouterLink>
+                  <button
+                    type="button"
+                    class="sku-print-action"
+                    data-testid="print-sku-label"
+                    :aria-label="
+                      printingSkuId === sku.id
+                        ? `Đang gửi tem ${sku.code}`
+                        : `In tem ${sku.code}`
+                    "
+                    :aria-busy="printingSkuId === sku.id"
+                    :disabled="Boolean(printingSkuId)"
+                    @click="openPrintDialog(sku)"
+                  >
+                    <span
+                      v-if="printingSkuId === sku.id"
+                      class="spinner-border spinner-border-sm"
+                      aria-hidden="true"
+                    />
+                    <span v-else aria-hidden="true">▥</span>
+                    {{ printingSkuId === sku.id ? "Đang gửi" : "In tem" }}
+                  </button>
+                </div>
               </div>
-            </article>
-          </div>
+
+              <dl class="mobile-sku-grid mb-0 mt-3">
+                <div>
+                  <dt>Ni tay</dt>
+                  <dd>{{ sku.size || "—" }}</dd>
+                </div>
+                <div>
+                  <dt>Trọng lượng</dt>
+                  <dd>{{ weight(sku.weight) }}</dd>
+                </div>
+                <template v-if="isWeighted">
+                  <div>
+                    <dt>Tiền công</dt>
+                    <dd>{{ money(sku.laborCost) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Tiền xi</dt>
+                    <dd>{{ money(sku.platingCost) }}</dd>
+                  </div>
+                </template>
+                <div v-else>
+                  <dt>Giá nhập</dt>
+                  <dd>{{ money(sku.importPrice) }}</dd>
+                </div>
+                <div>
+                  <dt>Giá bán</dt>
+                  <dd class="text-body-emphasis fw-bold">
+                    {{ money(sku.price) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Tồn kho</dt>
+                  <dd>{{ sku.stock }} sản phẩm</dd>
+                </div>
+              </dl>
+            </div>
+          </article>
+        </div>
       </div>
     </template>
 
     <PrintLabelDialog
       :open="Boolean(printSku)"
       :sku-code="printSku?.code || ''"
+      :stock="printSku?.stock ?? 0"
       :model-value="printQuantity"
       :busy="Boolean(printingSkuId)"
-      :error="printDialogError"
+      :error="printQuantityError"
+      :submission-error="printSubmissionError"
+      :printer-status="printPrinterStatus"
+      :status-busy="printStatusBusy"
+      :setup-allowed="auth.can(permissions.warehouseUpdate)"
       @update:model-value="updatePrintQuantity"
       @cancel="closePrintDialog"
       @confirm="confirmPrintLabel"
+      @retry-status="loadPrintStatus"
+      @open-setup="openPrintSetup"
     />
 
     <ConfirmDialog
@@ -386,6 +405,12 @@ import ResourceImageCard from "@/components/media/ResourceImageCard.vue";
 import LoadingSkeleton from "@/components/placeholder/LoadingSkeleton.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import { apiError, assetUrl } from "@/request";
+import {
+  labelPrintFailureMessage,
+  printDevicePresentation,
+} from "@/views/PrintDevices/presentation";
+import { printDeviceService } from "@/views/PrintDevices/service";
+import type { DefaultPrintDeviceStatus } from "@/views/PrintDevices/types";
 import PrintLabelDialog from "@/views/WarehousedGoods/components/PrintLabelDialog.vue";
 import { isInventoryBarcode } from "@/views/WarehousedGoods/inventory-barcode";
 import { productSkuSummary } from "@/views/WarehousedGoods/product-summary";
@@ -395,7 +420,7 @@ import type {
   WarehouseSku,
 } from "@/views/WarehousedGoods/types";
 import { authenStore } from "@/stores/app-authen";
-import { formatMoney } from "@/utils/resource-display";
+import { formatDateTime, formatMoney } from "@/utils/resource-display";
 
 const decimalFormatter = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 3,
@@ -424,7 +449,12 @@ export default defineComponent({
       printSuccess: "",
       printSku: null as WarehouseSku | null,
       printQuantity: "1",
-      printDialogError: "",
+      printQuantityError: "",
+      printSubmissionError: "",
+      printPrinterStatus: null as DefaultPrintDeviceStatus | null,
+      printStatusBusy: false,
+      printStatusController: null as AbortController | null,
+      printStatusRequestId: 0,
     };
   },
   computed: {
@@ -458,12 +488,19 @@ export default defineComponent({
         .filter(Number.isFinite);
       return prices.length ? Math.min(...prices) : null;
     },
+    printReady(): boolean {
+      return printDevicePresentation(this.printPrinterStatus).ready;
+    },
   },
   mounted() {
     void this.load();
   },
+  beforeUnmount() {
+    this.printStatusController?.abort();
+  },
   methods: {
     assetUrl,
+    formatDateTime,
     money(value: number | null): string {
       return formatMoney(value);
     },
@@ -490,15 +527,13 @@ export default defineComponent({
     async openPrintDialog(sku: WarehouseSku): Promise<void> {
       if (!this.item || this.printingSkuId) return;
       if (!isInventoryBarcode(sku.barcode)) {
-        this.printError =
-          `SKU ${sku.code || "không xác định"} chưa có barcode hợp lệ.`;
+        this.printError = `SKU ${sku.code || "không xác định"} chưa có barcode hợp lệ.`;
         this.printSuccess = "";
         await this.focusPrintError();
         return;
       }
       if (!sku.id) {
-        this.printError =
-          `SKU ${sku.code || "không xác định"} chưa có định danh hợp lệ.`;
+        this.printError = `SKU ${sku.code || "không xác định"} chưa có định danh hợp lệ.`;
         this.printSuccess = "";
         await this.focusPrintError();
         return;
@@ -506,23 +541,79 @@ export default defineComponent({
 
       this.printError = "";
       this.printSuccess = "";
-      this.printDialogError = "";
-      this.printQuantity = "1";
+      this.printQuantityError = "";
+      this.printSubmissionError = "";
+      this.printPrinterStatus = null;
       this.printSku = sku;
+      this.printQuantity = String(sku.stock);
+      if (sku.stock < 1) {
+        this.printQuantityError = "SKU này hiện không có tồn kho để in tem";
+      } else if (sku.stock > 100) {
+        this.printQuantityError =
+          "Tồn kho vượt quá giới hạn 100 tem mỗi lệnh. Vui lòng chia thành nhiều lần in";
+      }
+      await this.loadPrintStatus();
+    },
+    async loadPrintStatus(): Promise<void> {
+      if (!this.printSku) return;
+      this.printStatusController?.abort();
+      const controller = new AbortController();
+      const requestId = this.printStatusRequestId + 1;
+      this.printStatusRequestId = requestId;
+      this.printStatusController = controller;
+      this.printStatusBusy = true;
+      this.printSubmissionError = "";
+      try {
+        const status = await printDeviceService.defaultStatus(
+          controller.signal,
+        );
+        if (requestId === this.printStatusRequestId && this.printSku) {
+          this.printPrinterStatus = status;
+        }
+      } catch {
+        if (
+          !controller.signal.aborted &&
+          requestId === this.printStatusRequestId &&
+          this.printSku
+        ) {
+          this.printPrinterStatus = null;
+        }
+      } finally {
+        if (requestId === this.printStatusRequestId) {
+          this.printStatusBusy = false;
+          this.printStatusController = null;
+        }
+      }
     },
     updatePrintQuantity(value: string | number): void {
       this.printQuantity = String(value);
-      if (this.printDialogError) this.printDialogError = "";
+      if (this.printQuantityError) this.printQuantityError = "";
     },
     closePrintDialog(): void {
       if (this.printingSkuId) return;
+      this.printStatusController?.abort();
+      this.printStatusRequestId += 1;
+      this.printStatusController = null;
+      this.printStatusBusy = false;
       this.printSku = null;
       this.printQuantity = "1";
-      this.printDialogError = "";
+      this.printQuantityError = "";
+      this.printSubmissionError = "";
+      this.printPrinterStatus = null;
+    },
+    async openPrintSetup(): Promise<void> {
+      this.closePrintDialog();
+      await this.$router.push("/print-devices");
     },
     async confirmPrintLabel(): Promise<void> {
       const sku = this.printSku;
       if (!this.item || !sku || this.printingSkuId) return;
+      if (!this.printReady) {
+        this.printSubmissionError = printDevicePresentation(
+          this.printPrinterStatus,
+        ).title;
+        return;
+      }
       const rawQuantity = this.printQuantity.trim();
       const quantity = Number(rawQuantity);
       if (
@@ -531,11 +622,12 @@ export default defineComponent({
         quantity < 1 ||
         quantity > 100
       ) {
-        this.printDialogError = "Số lượng tem phải là số nguyên từ 1 đến 100";
+        this.printQuantityError = "Số lượng tem phải là số nguyên từ 1 đến 100";
         return;
       }
 
-      this.printDialogError = "";
+      this.printQuantityError = "";
+      this.printSubmissionError = "";
       this.printingSkuId = sku.id;
       try {
         const result = await warehouseService.printLabel(
@@ -546,19 +638,20 @@ export default defineComponent({
         if (!result.queued) {
           throw new Error("Máy chủ không xác nhận lệnh in");
         }
-        const job = result.jobId ? ` (${result.jobId})` : "";
         const printedQuantity = result.quantity || quantity;
+        const skuLabel = sku.code || "không xác định";
         this.printSuccess =
-          `Đã gửi ${printedQuantity} tem SKU ${sku.code || "không xác định"} đến ` +
-          `${result.printer || "GoDEX G500"}${job}.`;
-        this.printSku = null;
-        this.printQuantity = "1";
+          result.transport === "agent"
+            ? `Đã xếp hàng ${printedQuantity} tem SKU ${skuLabel}.`
+            : `Đã gửi ${printedQuantity} tem SKU ${skuLabel} đến GoDEX G500.`;
+        this.printingSkuId = "";
+        this.closePrintDialog();
       } catch (error) {
         const normalized = apiError(error);
-        this.printDialogError =
-          normalized.status && normalized.status < 500
-            ? normalized.message
-            : `Không thể gửi tem SKU ${sku.code || "không xác định"} đến máy in GoDEX G500.`;
+        this.printSubmissionError = labelPrintFailureMessage(
+          normalized.code,
+          sku.code,
+        );
       } finally {
         this.printingSkuId = "";
       }
@@ -675,6 +768,9 @@ export default defineComponent({
 }
 
 .product-classification span {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: baseline;
   padding: 0.375rem 0.5625rem;
   border-radius: 999px;
   color: var(--phoenix-body-color);
@@ -682,6 +778,13 @@ export default defineComponent({
   font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1;
+}
+
+.product-classification small {
+  color: var(--phoenix-tertiary-color);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .product-classification .pricing-type {

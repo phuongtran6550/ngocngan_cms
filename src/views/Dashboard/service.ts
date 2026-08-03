@@ -1,5 +1,9 @@
 import { request } from "@/request";
-import type { DashboardOverview } from "@/views/Dashboard/types";
+import { dashboardQueryParams } from "@/views/Dashboard/period";
+import type {
+  DashboardOverview,
+  DashboardQuery,
+} from "@/views/Dashboard/types";
 
 function exportFilename(header: unknown): string {
   const match = /filename="?([^";]+)"?/i.exec(String(header || ""));
@@ -7,15 +11,35 @@ function exportFilename(header: unknown): string {
 }
 
 export const dashboardService = {
-  async overview(signal?: AbortSignal): Promise<DashboardOverview> {
-    const { data } = await request.get<DashboardOverview>("/dashboard/overview", { signal });
+  async overview(
+    queryOrSignal?: DashboardQuery | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<DashboardOverview> {
+    const query = isAbortSignal(queryOrSignal) ? undefined : queryOrSignal;
+    const requestSignal = isAbortSignal(queryOrSignal) ? queryOrSignal : signal;
+    const config = query
+      ? { params: dashboardQueryParams(query), signal: requestSignal }
+      : { signal: requestSignal };
+    const { data } = await request.get<DashboardOverview>("/dashboard/overview", config);
     return data;
   },
-  async exportOrders(): Promise<{ blob: Blob; filename: string }> {
-    const response = await request.get<Blob>("/export/orders", { responseType: "blob" });
+  async exportOrders(query?: DashboardQuery): Promise<{ blob: Blob; filename: string }> {
+    const config = query
+      ? { responseType: "blob" as const, params: dashboardQueryParams(query) }
+      : { responseType: "blob" as const };
+    const response = await request.get<Blob>("/export/orders", config);
     return {
       blob: response.data,
       filename: exportFilename(response.headers["content-disposition"]),
     };
   },
 };
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "aborted" in value &&
+      typeof (value as AbortSignal).addEventListener === "function",
+  );
+}

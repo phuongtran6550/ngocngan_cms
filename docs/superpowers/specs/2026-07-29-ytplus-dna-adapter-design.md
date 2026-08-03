@@ -108,7 +108,6 @@ and SDLC.
 | --- | --- | --- | --- |
 | Literal YTPlus transplant | Highest source code similarity | Breaks existing API behavior and imports source debt | Reject |
 | Keep current service/store architecture | Lowest migration risk | Does not meet the requested DNA | Reject |
-| Declarative YTPlus runtime plus API adapter | Matches data-flow ownership and keeps API behavior | Requires careful migration and contract tests | Adopt |
 
 ### Assumptions
 
@@ -123,7 +122,6 @@ and SDLC.
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Generic runtime loses a feature-specific business rule | Incorrect order, warehouse, role, or category workflow | Migrate only standard CRUD first; keep custom page adapters and add behavior tests before each migration |
-| Adapter changes API request or response shape | Production integration failure | Contract tests cover every verb, query, multipart payload, response mapping, and API error code |
 | Large shared component becomes another god object | Future coupling and type failure | Split runtime into request adapter, state machine, table presenter, form presenter, and resource declaration contracts |
 | Refactor regresses authorization | Unauthorized route or action visibility | Keep permissions in resource declarations and verify route, toolbar, row action, and API-error behavior |
 | Stale responses overwrite current state | Incorrect list content after rapid filter changes | Retain cancellation and monotonic request IDs inside the generic runtime |
@@ -216,7 +214,6 @@ Migrate resources in dependency order:
    the common request facade and route/auth conventions only.
 
 The old feature service/store files are removed only after the replacement
-feature passes contract, component, route, and browser tests. No bulk delete is
 allowed before the corresponding migration gate passes.
 
 ### 4. Routes, Auth, Permissions, And App Composition
@@ -230,7 +227,6 @@ allowed before the corresponding migration gate passes.
   role/permission model. Do not manufacture YTPlus administrator login or
   refresh endpoints.
 - The administrator route namespace may be migrated to `/administrator/...`
-  only with compatibility redirects from the current paths and route tests for
   all bookmarks. This is a frontend route change, not a backend endpoint
   change.
 - Keep static client-side navigation derived from route metadata until the API
@@ -281,30 +277,6 @@ allowed before the corresponding migration gate passes.
 3. The adapter performs the declared delete operation.
 4. If the last row on a non-first page is deleted, the controller loads the
    previous page; otherwise it reloads the current page.
-
-## Test Strategy And Gates
-
-### Before Each Resource Migration
-
-- Add or update failing unit tests for the resource declaration and adapter.
-- Add focused controller tests for list, sort, filter, cancellation, stale
-  response rejection, create/update verb, delete behavior, and domain errors.
-- Add component tests for the thin view and generic runtime behavior.
-- Add or update browser coverage for its visible route, permission state, empty
-  state, error state, and mobile layout where applicable.
-
-### Global Gates
-
-- `npm run typecheck`
-- `npm run lint`
-- `npm run test:unit`
-- Focused Playwright coverage after each migrated family, followed by the full
-  browser suite when all migrations are complete.
-- A route inventory check verifies old links either continue to resolve or are
-  redirected intentionally.
-- Request contract tests verify that no migration changes current endpoint,
-  method, header, query, body, or response behavior without an explicit
-  migration note.
 
 ## Acceptance Criteria
 

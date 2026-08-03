@@ -166,32 +166,6 @@ Switching views does not call the endpoint, reset pagination, clear filters, or 
 - Unknown cell types continue through the existing cell registry fallback.
 - Empty, loading, and API error states remain owned by `ListShell` and are identical in both modes.
 
-## Testing Strategy
-
-### Unit Tests
-
-- Defaults to table at desktop width when no preference exists.
-- Defaults to grid at mobile width when no preference exists.
-- Restores a valid saved preference for the current resource.
-- Stores a manual preference under a per-resource key.
-- Ignores malformed values and handles storage exceptions.
-- Switches between table and grid without replacing rows or emitting a page request.
-- Renders the compact Phoenix icon-button classes and the borderless body-color selected state.
-- Renders hierarchical cards using visible columns.
-- Reuses formatted cells and re-emits cell actions.
-- Re-emits view, edit, and delete actions with row-level permission checks.
-- Preserves the table renderer and existing table behavior.
-
-### Responsive and Browser Tests
-
-- Mobile list routes display Card Grid by default when storage is clear.
-- Desktop list routes display DataTable by default when storage is clear.
-- The view toggle is available and usable at both viewport classes.
-- The view toggle remains compact and does not visually compete with the primary create action.
-- Manual preferences survive a reload for the same resource.
-- Different resources can retain different preferences.
-- Grid pages do not introduce horizontal document overflow at required breakpoints.
-
 ## Acceptance Criteria
 
 - Users can switch between DataTable and Card Grid on every standard shared ListLayout page.
@@ -202,4 +176,3 @@ Switching views does not call the endpoint, reset pagination, clear filters, or 
 - Card Grid follows the approved hierarchical-card design.
 - Table and card views expose equivalent data formatting and permitted actions.
 - Switching views preserves the current data, filters, and pagination state.
-- The feature passes targeted unit tests, responsive tests, type checking, and the production build.

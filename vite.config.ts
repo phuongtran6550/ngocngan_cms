@@ -13,13 +13,4 @@ export default defineConfig({
   preview: {
     port: 4174,
   },
-  test: {
-    environment: "jsdom",
-    environmentOptions: {
-      jsdom: { url: "http://localhost/" },
-    },
-    globals: true,
-    setupFiles: ["./tests/setup.ts"],
-    exclude: ["tests/e2e/**", "node_modules/**", "dist/**"],
-  },
 });

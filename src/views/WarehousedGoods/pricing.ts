@@ -5,6 +5,14 @@ const FIXED_PRICE_MARKS = [
   950_000, 1_000_000, 1_100_000,
 ] as const;
 
+const PIECE_PRICE_MULTIPLIERS = [2, 1.9, 1.8, 1.7, 1.6] as const;
+
+export interface PieceImportPriceCandidate {
+  importPrice: number;
+  multiplier: number;
+  discountRate: number;
+}
+
 function numeric(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -52,6 +60,48 @@ export function calculatePiecePrice(importPrice: number): {
     multiplier,
     discountRate: Number((1 - multiplier / 2).toFixed(2)),
   };
+}
+
+export function estimatePieceImportPrices(
+  sellingPrice: number,
+): PieceImportPriceCandidate[] {
+  const price = numeric(sellingPrice);
+  if (price <= 0) return [];
+
+  return PIECE_PRICE_MULTIPLIERS.map((multiplier) => ({
+    importPrice: Math.round(price / multiplier),
+    multiplier,
+    discountRate: Number((1 - multiplier / 2).toFixed(2)),
+  }))
+    .filter(
+      (candidate) =>
+        candidate.importPrice > 0 &&
+        piecePriceMultiplier(candidate.importPrice) === candidate.multiplier,
+    )
+    .filter(
+      (candidate, index, rows) =>
+        rows.findIndex(
+          (row) => row.importPrice === candidate.importPrice,
+        ) === index,
+    );
+}
+
+export function estimatePieceImportPrice(
+  sellingPrice: number,
+  currentImportPrice = 0,
+): PieceImportPriceCandidate | null {
+  const candidates = estimatePieceImportPrices(sellingPrice);
+  if (!candidates.length) return null;
+
+  const currentMultiplier =
+    numeric(currentImportPrice) > 0
+      ? piecePriceMultiplier(currentImportPrice)
+      : null;
+  return (
+    candidates.find(
+      (candidate) => candidate.multiplier === currentMultiplier,
+    ) || candidates[0]
+  );
 }
 
 export function calculateWeightedPrice(input: {

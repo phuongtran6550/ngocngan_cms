@@ -60,11 +60,3 @@ The field exposes four useful states: checking, available, adjusted automatic co
 ## Concurrency
 
 Availability checks are advisory because another request can claim a code immediately afterward. Persistence therefore keeps the unique index and retry behavior for automatic codes. Manual codes are rejected on a late conflict so user-entered identifiers are never changed without consent.
-
-## Testing
-
-- API helper/service tests cover deterministic batch allocation and manual conflicts.
-- Validator and route tests cover authentication, request shape, limits, and code modes.
-- CMS service tests cover the request contract.
-- Form tests cover automatic adjustment, manual conflict, immediate submit checking, stale responses, and stable generated codes.
-- Warehouse browser tests cover the visible explanation and the final persisted code.

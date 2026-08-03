@@ -378,7 +378,7 @@
                         :described-by="
                           hasFieldError(`skus.${index}.importPrice`)
                             ? fieldErrorId(`skus.${index}.importPrice`)
-                            : ''
+                            : `${skuFieldId(index, 'importPrice')}-note`
                         "
                         required
                         @update:model-value="
@@ -389,9 +389,53 @@
                         :id="fieldErrorId(`skus.${index}.importPrice`)"
                         :message="fieldError(`skus.${index}.importPrice`)"
                       />
+                      <small
+                        :id="`${skuFieldId(index, 'importPrice')}-note`"
+                        class="text-body-tertiary"
+                      >
+                        Nhập giá nhập để hệ thống tự tính giá bán.
+                      </small>
                     </div>
 
-                    <div class="col-12">
+                    <div v-if="isPiece" class="col-12">
+                      <label
+                        class="form-label"
+                        :for="skuFieldId(index, 'price')"
+                      >
+                        Giá bán <span class="text-danger">*</span>
+                      </label>
+                      <MoneyInput
+                        :id="skuFieldId(index, 'price')"
+                        :name="`skus[${index}].price`"
+                        :model-value="sku.price"
+                        :disabled="submitting"
+                        :invalid="hasFieldError(`skus.${index}.price`)"
+                        :described-by="
+                          hasFieldError(`skus.${index}.price`)
+                            ? fieldErrorId(`skus.${index}.price`)
+                            : `${skuFieldId(index, 'price')}-note`
+                        "
+                        required
+                        @update:model-value="
+                          updateSkuMoney(index, 'price', $event)
+                        "
+                      />
+                      <FieldError
+                        :id="fieldErrorId(`skus.${index}.price`)"
+                        :message="fieldError(`skus.${index}.price`)"
+                      />
+                      <small
+                        :id="`${skuFieldId(index, 'price')}-note`"
+                        class="text-body-tertiary"
+                      >
+                        Nhập giá bán để hệ thống tự quy ngược giá nhập.
+                      </small>
+                    </div>
+
+                    <div
+                      v-if="!isPiece"
+                      class="col-12"
+                    >
                       <label
                         class="form-label"
                         :for="skuFieldId(index, 'price')"
@@ -520,7 +564,7 @@
                         </div>
                       </dl>
                       <div class="formula-total">
-                        <span>Giá bán làm tròn</span>
+                        <span>Giá bán áp dụng</span>
                         <strong>{{ money(sku.price) }}</strong>
                       </div>
                     </template>
@@ -738,6 +782,8 @@ import { formatMoney, formatNumberValue } from "@/utils/resource-display";
 import {
   calculatePiecePrice,
   calculateWeightedPrice,
+  estimatePieceImportPrice,
+  estimatePieceImportPrices,
 } from "@/views/WarehousedGoods/pricing";
 import {
   normalizeSkuCode,
@@ -755,7 +801,7 @@ import {
 } from "@/views/WarehousedGoods/types";
 
 type ProductTextKey = "name" | "categoryId" | "materialId" | "patternId";
-type SkuMoneyKey = "laborCost" | "platingCost" | "importPrice";
+type SkuMoneyKey = "laborCost" | "platingCost" | "importPrice" | "price";
 
 interface SkuCodeCheckRow {
   index: number;
@@ -919,7 +965,9 @@ export default defineComponent({
       return (Number(sku.importPrice) || 0) * 2;
     },
     pieceDiscountLabel(sku: WarehouseSkuFormModel): string {
-      const percentage = Math.round(this.piecePreview(sku).discountRate * 100);
+      const percentage = Math.round(
+        this.piecePreview(sku).discountRate * 100,
+      );
       return percentage ? `giảm ${percentage}%` : "không giảm";
     },
     optionName(options: InventoryOption[], id: string): string {
@@ -947,11 +995,18 @@ export default defineComponent({
         };
       }
       if (pricingType === "Đồ món") {
+        const enteredPrice = Number(sku.price) || 0;
+        const keepsEnteredPrice = estimatePieceImportPrices(enteredPrice).some(
+          (candidate) =>
+            candidate.importPrice === Number(sku.importPrice),
+        );
         return {
           ...sku,
           laborCost: 0,
           platingCost: 0,
-          price: this.piecePreview(sku).price,
+          price: keepsEnteredPrice
+            ? enteredPrice
+            : this.piecePreview(sku).price,
         };
       }
       return { ...sku, price: 0 };
@@ -1144,7 +1199,41 @@ export default defineComponent({
     ): void {
       this.clearFieldError(`skus.${index}.${key}`);
       const next = copyForm(this.draft);
-      next.skus[index] = { ...next.skus[index], [key]: value };
+      if (this.isPiece && key === "importPrice") {
+        this.clearFieldError(`skus.${index}.price`);
+        const importPrice = value;
+        next.skus[index] = {
+          ...next.skus[index],
+          importPrice,
+          price: calculatePiecePrice(Number(importPrice) || 0).price,
+        };
+        this.commit(this.withCalculatedPrices(next));
+        return;
+      }
+      if (this.isPiece && key === "price") {
+        this.clearFieldError(`skus.${index}.importPrice`);
+        const price = value ?? 0;
+        if (!(price > 0)) {
+          next.skus[index] = { ...next.skus[index], price: 0 };
+          this.commit(next);
+          return;
+        }
+        const estimate = estimatePieceImportPrice(
+          price,
+          Number(next.skus[index].importPrice) || 0,
+        );
+        next.skus[index] = {
+          ...next.skus[index],
+          price,
+          importPrice: estimate?.importPrice ?? null,
+        };
+        this.commit(this.withCalculatedPrices(next));
+        return;
+      }
+      next.skus[index] = {
+        ...next.skus[index],
+        [key]: key === "importPrice" ? value : value ?? 0,
+      };
       this.commit(this.withCalculatedPrices(next));
     },
     updatePricingType(event: Event): void {
@@ -1156,7 +1245,11 @@ export default defineComponent({
       next.skus = next.skus.map((sku) => {
         if (pricingType === "Đồ cân") return { ...sku, importPrice: null };
         if (pricingType === "Đồ món") {
-          return { ...sku, laborCost: 0, platingCost: 0 };
+          return {
+            ...sku,
+            laborCost: 0,
+            platingCost: 0,
+          };
         }
         return sku;
       });
@@ -1257,12 +1350,21 @@ export default defineComponent({
           );
           return null;
         }
-        if (this.isPiece && !(Number(sku.importPrice) > 0)) {
-          this.setLocalFieldError(
-            `skus.${index}.importPrice`,
-            `SKU ${index + 1}: Giá nhập phải lớn hơn 0`,
-          );
-          return null;
+        if (this.isPiece) {
+          if (!(Number(sku.importPrice) > 0)) {
+            this.setLocalFieldError(
+              `skus.${index}.importPrice`,
+              `SKU ${index + 1}: Giá nhập phải lớn hơn 0`,
+            );
+            return null;
+          }
+          if (!(Number(sku.price) > 0)) {
+            this.setLocalFieldError(
+              `skus.${index}.price`,
+              `SKU ${index + 1}: Giá bán phải lớn hơn 0`,
+            );
+            return null;
+          }
         }
       }
       prepared.code = prepared.skus[0]?.code || "";

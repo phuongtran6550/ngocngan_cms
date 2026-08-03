@@ -27,6 +27,7 @@
         >
           <AppIcon name="filter" class="me-sm-2" />
           <span class="d-none d-sm-inline">Bộ lọc</span>
+          <span v-if="activeFilterCount" class="badge text-bg-primary ms-2 d-none d-sm-inline">{{ activeFilterCount }}</span>
         </button>
       </template>
     </ListShell>
@@ -99,6 +100,13 @@
             <option value="Đồ món">Đồ món</option>
           </select>
         </div>
+        <div>
+          <label class="form-label fw-bold mb-1" for="warehouse-stock-filter">Mức tồn kho</label>
+          <select id="warehouse-stock-filter" v-model="store.stockLevel" class="form-select" @change="store.applyFilters">
+            <option value="">Tất cả</option>
+            <option value="low">Sắp hết hàng (từ 2 trở xuống)</option>
+          </select>
+        </div>
       </form>
     </DrawerPanel>
   </div>
@@ -114,9 +122,12 @@ import AppIcon from "@/components/ui/AppIcon.vue";
 import { warehouseDefinition } from "@/views/WarehousedGoods/config";
 import { productSkuSummary } from "@/views/WarehousedGoods/product-summary";
 import { useWarehouseStore } from "@/views/WarehousedGoods/store";
-import type { WarehouseItem } from "@/views/WarehousedGoods/types";
+import type { StockLevelFilter, WarehouseItem } from "@/views/WarehousedGoods/types";
 import { authenStore } from "@/stores/app-authen";
 import type { ResourceDefinition, ResourceRow } from "@/config/resource";
+import { routeQueryEnum } from "@/utils/route-query";
+
+const stockLevels: readonly Exclude<StockLevelFilter, "">[] = ["low"];
 
 export default defineComponent({
   name: "WarehouseListPage",
@@ -135,6 +146,16 @@ export default defineComponent({
     },
     canCreate(): boolean {
       return this.auth.can(warehouseDefinition.permission.create);
+    },
+    activeFilterCount(): number {
+      return [
+        this.store.query,
+        this.store.categoryId,
+        this.store.materialId,
+        this.store.patternId,
+        this.store.pricingType,
+        this.store.stockLevel,
+      ].filter(Boolean).length;
     },
     rows(): ResourceRow[] {
       return this.store.items.map((item) => ({
@@ -163,6 +184,14 @@ export default defineComponent({
   },
   mounted() {
     this.store.query = searchQueryFromRoute(this.$route.query.query);
+    const stockLevel = routeQueryEnum(this.$route.query.stockLevel, stockLevels);
+    if (stockLevel === "low") {
+      this.store.categoryId = "";
+      this.store.materialId = "";
+      this.store.patternId = "";
+      this.store.pricingType = "";
+    }
+    this.store.stockLevel = stockLevel;
     void Promise.all([this.store.load(1), this.store.loadOptions()]);
   },
   methods: {

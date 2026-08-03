@@ -99,6 +99,17 @@
             <option value="cancelled">Đã hủy</option>
           </select>
         </div>
+        <div class="row g-2">
+          <div class="col-12 col-sm-6">
+            <label class="form-label fw-bold mb-1" for="order-from-filter">Từ ngày hoạt động</label>
+            <input id="order-from-filter" v-model="draftFrom" type="date" class="form-control" />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label fw-bold mb-1" for="order-to-filter">Đến ngày hoạt động</label>
+            <input id="order-to-filter" v-model="draftTo" type="date" class="form-control" />
+          </div>
+        </div>
+        <div v-if="filterError" class="alert alert-subtle-danger mb-0" role="alert">{{ filterError }}</div>
         <div class="d-flex gap-2 pt-2">
           <button type="submit" class="btn btn-primary flex-grow-1">
             Áp dụng
@@ -143,6 +154,10 @@ import type {
 } from "@/views/Orders/types";
 import { authenStore } from "@/stores/app-authen";
 import type { ResourceDefinition, ResourceRow } from "@/config/resource";
+import { inclusiveDateRangeError } from "@/utils/date-range";
+import { routeQueryDate, routeQueryEnum } from "@/utils/route-query";
+
+const orderStatuses: readonly OrderStatus[] = ["completed", "returned", "cancelled"];
 
 export default defineComponent({
   name: "OrderListPage",
@@ -153,6 +168,9 @@ export default defineComponent({
       draftType: "" as OrderTypeFilter,
       draftStatus: "" as OrderStatus | "",
       draftCustomerInfoStatus: "" as CustomerInfoStatus | "",
+      draftFrom: "",
+      draftTo: "",
+      filterError: "",
     };
   },
   computed: {
@@ -162,11 +180,11 @@ export default defineComponent({
     incompleteCount(): number { return this.store.counts.ocrProcessing + this.store.counts.reviewRequired + this.store.counts.manualRequired; },
     activeFilterCount(): number {
       return [this.store.type, this.store.status, this.store.customerInfoStatus]
-        .filter(Boolean).length;
+        .filter(Boolean).length + (this.store.from || this.store.to ? 1 : 0);
     },
     draftFilterCount(): number {
       return [this.draftType, this.draftStatus, this.draftCustomerInfoStatus]
-        .filter(Boolean).length;
+        .filter(Boolean).length + (this.draftFrom || this.draftTo ? 1 : 0);
     },
     effectiveDefinition(): ResourceDefinition {
       return {
@@ -185,6 +203,21 @@ export default defineComponent({
   },
   mounted() {
     this.store.query = searchQueryFromRoute(this.$route.query.query);
+    const status = routeQueryEnum(this.$route.query.status, orderStatuses);
+    const from = routeQueryDate(this.$route.query.from);
+    const to = routeQueryDate(this.$route.query.to);
+    const hasReportFilter = Boolean(this.$route.query.status || this.$route.query.from || this.$route.query.to);
+    if (hasReportFilter) {
+      this.store.type = "";
+      this.store.customerInfoStatus = "";
+    }
+    this.store.status = status;
+    this.store.from = "";
+    this.store.to = "";
+    if (!inclusiveDateRangeError(from, to)) {
+      this.store.from = from;
+      this.store.to = to;
+    }
     void Promise.all([this.store.load(1), this.store.loadCounts()]);
   },
   methods: {
@@ -196,19 +229,29 @@ export default defineComponent({
       this.draftType = this.store.type;
       this.draftStatus = this.store.status;
       this.draftCustomerInfoStatus = this.store.customerInfoStatus;
+      this.draftFrom = this.store.from;
+      this.draftTo = this.store.to;
+      this.filterError = "";
       this.filterOpen = true;
     },
     resetDraftFilters(): void {
       this.draftType = "";
       this.draftStatus = "";
       this.draftCustomerInfoStatus = "";
+      this.draftFrom = "";
+      this.draftTo = "";
+      this.filterError = "";
     },
     commitDraftFilters(): void {
       this.store.type = this.draftType;
       this.store.status = this.draftStatus;
       this.store.customerInfoStatus = this.draftCustomerInfoStatus;
+      this.store.from = this.draftFrom;
+      this.store.to = this.draftTo;
     },
     async applyFilters(): Promise<void> {
+      this.filterError = inclusiveDateRangeError(this.draftFrom, this.draftTo);
+      if (this.filterError) return;
       this.commitDraftFilters();
       await this.store.applyFilters();
       this.filterOpen = false;

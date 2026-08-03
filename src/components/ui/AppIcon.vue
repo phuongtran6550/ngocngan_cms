@@ -172,6 +172,13 @@ const icons: Record<string, IconShape[]> = {
     { type: "line", x1: 14, y1: 11, x2: 14, y2: 17 }
   ],
   refresh: [{ type: "path", value: "M20 11a8 8 0 1 0 2 5.3M20 4v7h-7" }],
+  download: [
+    { type: "path", value: "M12 3v12M7 10l5 5 5-5M5 21h14" },
+  ],
+  "help-circle": [
+    { type: "circle", cx: 12, cy: 12, r: 10 },
+    { type: "path", value: "M9.1 9a3 3 0 1 1 5.3 1.9c-.9.8-2.4 1.4-2.4 3.1M12 18h.01" },
+  ],
   history: [
     { type: "path", value: "M3 12a9 9 0 1 0 3-6.7L3 8" },
     { type: "path", value: "M3 3v5h5M12 7v5l3 2" },

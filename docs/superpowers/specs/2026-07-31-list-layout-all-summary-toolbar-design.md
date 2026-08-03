@@ -36,7 +36,6 @@ The total comes directly from `pagination.total`. This is a presentation-only ch
 
 ## Accessibility
 
-- Add `data-testid="list-total-summary"` for stable testing.
 - Add `aria-label="Tổng số bản ghi: <total>"` so the English visual label remains understandable in the Vietnamese application.
 - Do not add button, tab, or link semantics because the summary has no interaction.
 
@@ -44,12 +43,7 @@ The total comes directly from `pagination.total`. This is a presentation-only ch
 
 - Modify the toolbar markup and scoped styles in `src/components/ListLayout/ListShell.vue`.
 - Reuse `pagination.total`; do not add a new prop or computed count.
-- Extend the existing ListShell unit test with visible text and ARIA assertions.
-- Extend responsive E2E coverage with left/right position and no-overflow assertions.
 - Keep DataTable, Card Grid, tabs, filters, pagination, view persistence, and Card Grid surface behavior unchanged.
 
 ## Verification
 
-- Unit tests confirm `ALL (total)`, the ARIA label, and the existing view-switch behavior.
-- Responsive E2E confirms the summary is left of the view selector on desktop and mobile when they share a row.
-- Related unit tests, responsive E2E, typecheck, ESLint, focused Prettier, and production build pass.

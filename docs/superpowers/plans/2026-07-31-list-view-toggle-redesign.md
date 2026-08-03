@@ -4,56 +4,15 @@
 
 **Goal:** Replace the oversized dark Table/Card Grid buttons with the approved compact labeled segmented control while preserving view switching, persistence, and accessibility.
 
-**Architecture:** Keep the existing `useListViewMode` behavior unchanged. Update only `ListShell.vue` presentation markup and scoped styles, then extend the current ListShell unit and responsive E2E coverage so the visual contract is explicit and regression-resistant.
-
-**Tech Stack:** Vue 3, TypeScript, scoped CSS, Vitest, Vue Test Utils, Playwright.
-
 **Project restriction:** Do not run Git commands. Commit steps are intentionally omitted.
 
 ---
-
-### Task 1: Lock the approved toggle contract with a failing unit test
-
-**Files:**
-
-- Modify: `tests/unit/components/ListLayout/index.test.ts`
-- Test: `tests/unit/components/ListLayout/index.test.ts`
-
-- [ ] **Step 1: Extend the switching test with visible labels and dedicated state classes**
-
-Add assertions before and after the existing grid click:
-
-```ts
-const tableToggle = wrapper.get('[data-testid="view-mode-table"]');
-const gridToggle = wrapper.get('[data-testid="view-mode-grid"]');
-
-expect(tableToggle.text()).toContain("Bảng");
-expect(gridToggle.text()).toContain("Thẻ");
-expect(tableToggle.classes()).toContain("is-active");
-expect(gridToggle.classes()).not.toContain("is-active");
-
-await gridToggle.trigger("click");
-
-expect(tableToggle.classes()).not.toContain("is-active");
-expect(gridToggle.classes()).toContain("is-active");
-```
-
-- [ ] **Step 2: Run the focused test and verify the new contract fails**
-
-Run:
-
-```bash
-npm run test:unit -- tests/unit/components/ListLayout/index.test.ts
-```
-
-Expected: FAIL because the current icon-only Bootstrap buttons do not contain the visible `Bảng`/`Thẻ` labels or `is-active` class.
 
 ### Task 2: Implement visual option A in ListShell
 
 **Files:**
 
 - Modify: `src/components/ListLayout/ListShell.vue`
-- Test: `tests/unit/components/ListLayout/index.test.ts`
 
 - [ ] **Step 1: Replace Bootstrap button-group presentation with dedicated semantic classes**
 
@@ -151,51 +110,13 @@ Add a scoped style block to `ListShell.vue`:
 }
 ```
 
-- [ ] **Step 3: Run the focused unit test and verify it passes**
-
-Run:
-
-```bash
-npm run test:unit -- tests/unit/components/ListLayout/index.test.ts
-```
-
-Expected: PASS with both responsive default and switching/persistence tests green.
-
 ### Task 3: Verify responsive layout and production safety
 
 **Files:**
 
-- Modify: `tests/e2e/responsive-matrix.spec.ts`
-- Test: `tests/e2e/responsive-matrix.spec.ts`
-
 - [ ] **Step 1: Assert the visible labels and compact dimensions on the categories route**
 
 Inside the existing `/categories` branch, assert both labels and bound the toggle height:
-
-```ts
-const viewToggle = page.getByTestId("view-mode-toggle");
-await expect(viewToggle).toContainText("Bảng");
-await expect(viewToggle).toContainText("Thẻ");
-
-const toggleBox = await viewToggle.boundingBox();
-expect(toggleBox).not.toBeNull();
-expect(toggleBox?.height || 0).toBeLessThanOrEqual(44);
-```
-
-- [ ] **Step 2: Run focused unit, responsive E2E, typecheck, lint, formatting, and build checks**
-
-Run:
-
-```bash
-npm run test:unit -- tests/unit/components/ListLayout/index.test.ts
-npx playwright test tests/e2e/responsive-matrix.spec.ts --project=desktop-1440 --project=mobile-390
-npm run typecheck
-npm run lint
-npx prettier --check src/components/ListLayout/ListShell.vue tests/unit/components/ListLayout/index.test.ts tests/e2e/responsive-matrix.spec.ts
-npm run build
-```
-
-Expected: all focused checks exit with code 0. The pre-existing repository-wide `npm run format:check` failure is outside this focused redesign and must not be auto-fixed.
 
 - [ ] **Step 3: Visually inspect desktop and mobile**
 

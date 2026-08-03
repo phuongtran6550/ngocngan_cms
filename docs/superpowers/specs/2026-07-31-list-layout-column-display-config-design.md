@@ -37,12 +37,3 @@ const columns: ColumnDefinition[] = [
 ## Architecture
 
 A shared pure helper owns the visibility rule so DataTable and Card Grid cannot diverge. Both renderers call the helper with their target mode instead of duplicating conditional expressions.
-
-## Testing
-
-- Verify omitted `displayIn` and `"both"` are visible in both modes.
-- Verify `"table"` is visible only in DataTable.
-- Verify `"card"` is visible only in Card Grid.
-- Verify `visible: false` remains hidden.
-- Verify Card Grid chooses title/status/metadata after applying the card-specific filter.
-- Run related unit tests, typecheck, lint, formatting, responsive E2E, and production build.

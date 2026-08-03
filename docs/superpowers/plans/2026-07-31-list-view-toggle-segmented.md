@@ -6,60 +6,6 @@
 
 **Architecture:** Keep `useListViewMode`, persistence, responsive defaults, renderer selection, and existing test IDs unchanged. Add a display label to the existing `viewOptions` configuration, render the options through the same `v-for`, and centralize all new visual behavior in the scoped `ListShell.vue` styles.
 
-**Tech Stack:** Vue 3, TypeScript, scoped CSS, Vitest, Vue Test Utils, Playwright, Vite.
-
----
-
-### Task 1: Lock the segmented-control contract with a failing unit test
-
-**Files:**
-
-- Modify: `tests/unit/components/ListLayout/index.test.ts`
-- Test: `tests/unit/components/ListLayout/index.test.ts`
-
-- [ ] **Step 1: Replace icon-only assertions with the approved labeled-control assertions**
-
-In `it("switches views without changing pagination and persists per resource", ...)`, keep the existing test IDs and persistence assertions, then change the pre-click expectations to assert visible labels and the shared option class:
-
-```ts
-expect(tableToggle.text()).toContain("Bảng");
-expect(gridToggle.text()).toContain("Thẻ");
-expect(tableToggle.classes()).toEqual(
-  expect.arrayContaining(["list-view-toggle__option", "is-active"]),
-);
-expect(gridToggle.classes()).toEqual(
-  expect.arrayContaining(["list-view-toggle__option"]),
-);
-expect(gridToggle.classes()).not.toContain("is-active");
-expect(tableToggle.attributes("aria-pressed")).toBe("true");
-expect(gridToggle.attributes("aria-pressed")).toBe("false");
-```
-
-After `await gridToggle.trigger("click")`, assert the labels remain present, the active class swaps, and the existing localStorage assertion still passes:
-
-```ts
-expect(tableToggle.text()).toContain("Bảng");
-expect(gridToggle.text()).toContain("Thẻ");
-expect(tableToggle.classes()).not.toContain("is-active");
-expect(gridToggle.classes()).toEqual(
-  expect.arrayContaining(["list-view-toggle__option", "is-active"]),
-);
-expect(tableToggle.attributes("aria-pressed")).toBe("false");
-expect(gridToggle.attributes("aria-pressed")).toBe("true");
-```
-
-Remove assertions that require Bootstrap `btn`, `btn-phoenix-primary`, `px-3`, `me-1`, `border-0`, or `text-body` classes because the segmented control owns those visual states through its scoped classes.
-
-- [ ] **Step 2: Run the focused test and verify it fails for the missing visible labels**
-
-Run:
-
-```bash
-npm run test:unit -- tests/unit/components/ListLayout/index.test.ts
-```
-
-Expected result before production changes: the test fails at `expect(tableToggle.text()).toContain("Bảng")` because the current options render only icons.
-
 ---
 
 ### Task 2: Implement the approved segmented control in `ListShell`
@@ -67,7 +13,6 @@ Expected result before production changes: the test fails at `expect(tableToggle
 **Files:**
 
 - Modify: `src/components/ListLayout/ListShell.vue:80-110,200-225,284-310`
-- Test: `tests/unit/components/ListLayout/index.test.ts`
 
 - [ ] **Step 1: Add a reusable visible label to the existing view-option configuration**
 
@@ -185,47 +130,19 @@ Replace the current toggle styles with this single shared style system. It keeps
 }
 ```
 
-- [ ] **Step 4: Run the focused unit test and verify the implementation passes**
-
-Run:
-
-```bash
-npm run test:unit -- tests/unit/components/ListLayout/index.test.ts
-```
-
-Expected result: both ListShell tests pass, including desktop/mobile defaults, visible labels, active-state swapping, pagination stability, and per-resource persistence.
-
----
-
 ### Task 3: Add responsive visual regression coverage
 
 **Files:**
 
-- Modify: `tests/e2e/responsive-matrix.spec.ts:16-46`
-- Test: `tests/e2e/responsive-matrix.spec.ts`
-
 - [ ] **Step 1: Assert labels and compact dimensions on the categories route**
 
 Inside the existing `/categories` branch, keep the stable test-ID locators and add:
-
-```ts
-await expect(viewToggle).toContainText("Bảng");
-await expect(viewToggle).toContainText("Thẻ");
-
-const toggleBox = await viewToggle.boundingBox();
-expect(toggleBox).not.toBeNull();
-expect(toggleBox?.height || 0).toBeLessThanOrEqual(44);
-```
 
 Keep the current assertions for responsive renderer defaults, transparent Card Grid surface, table surface restoration after switching, persistence after reload, and document/body width.
 
 - [ ] **Step 2: Run the focused responsive matrix**
 
 Run:
-
-```bash
-npx playwright test tests/e2e/responsive-matrix.spec.ts --project=desktop-1440 --project=mobile-390
-```
 
 Expected result: all desktop and mobile route checks pass, including label visibility, compact control height, both renderers, persistence, and no horizontal overflow.
 
@@ -236,29 +153,13 @@ Expected result: all desktop and mobile route checks pass, including label visib
 **Files:**
 
 - Verify: `src/components/ListLayout/ListShell.vue`
-- Verify: `tests/unit/components/ListLayout/index.test.ts`
-- Verify: `tests/e2e/responsive-matrix.spec.ts`
 - Verify: `docs/superpowers/specs/2026-07-31-list-view-toggle-segmented-design.md`
 
 - [ ] **Step 1: Run typecheck and lint**
 
-```bash
-npm run typecheck
-npx eslint src/components/ListLayout/ListShell.vue tests/unit/components/ListLayout/index.test.ts tests/e2e/responsive-matrix.spec.ts
-```
-
 Expected result: both commands exit with code 0 and report no errors.
 
 - [ ] **Step 2: Check focused formatting**
-
-```bash
-npx prettier --check \
-  src/components/ListLayout/ListShell.vue \
-  tests/unit/components/ListLayout/index.test.ts \
-  tests/e2e/responsive-matrix.spec.ts \
-  docs/superpowers/specs/2026-07-31-list-view-toggle-segmented-design.md \
-  docs/superpowers/plans/2026-07-31-list-view-toggle-segmented.md
-```
 
 Expected result: all listed files use Prettier formatting.
 

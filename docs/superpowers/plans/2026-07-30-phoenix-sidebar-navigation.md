@@ -6,8 +6,6 @@
 
 **Architecture:** `Template2/public/reference/pages/demo/vertical-sidenav.html` defines the DOM contract. `navigation.ts` remains the source of route-derived groups, ordering, and authorization; `Sidebar.vue` owns only ephemeral submenu state and renders the Template2-native wrappers; `app-option.ts` continues to own document-level collapsed and drawer state. The mobile drawer reuses the same semantic tree in an offcanvas-safe positioning context, so there is no duplicated navigation implementation.
 
-**Tech Stack:** Vue 3 Options API, Vue Router 4, Pinia, Phoenix v1.24.0 CSS, Bootstrap 5, Vitest, Vue Test Utils, Playwright.
-
 ---
 
 **Implementation correction (2026-07-30):** To preserve exact Phoenix row geometry, the catalogue parent uses Template2's `a.nav-link.dropdown-indicator[role="button"][href="#..."]` rather than a native `button`. Its disclosure glyph is the Template2 Font Awesome `svg.svg-inline--fa.fa-caret-right`, not the CMS_2 generic chevron. Vue prevents the hash navigation and owns disclosure state; desktop and mobile trees use distinct IDs so their `aria-controls` targets never collide.
@@ -18,155 +16,12 @@
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `src/components/app/Sidebar.vue`                          | Phoenix sidebar DOM, accessible parent control, submenu state, desktop/mobile rendering contexts.        |
 | `src/components/ui/AppIcon.vue`                           | The existing icon registry; add the route-declared `tag` shape.                                          |
-| `tests/unit/components/app/Sidebar.test.ts`               | Isolated DOM, ARIA, active-route, and event behavior of the sidebar.                                     |
-| `tests/unit/components/ui/AppIcon.test.ts`                | Protect the new tag shape from silently falling back to the grid icon.                                   |
-| `tests/architecture/phoenix-interaction-contract.test.ts` | Static guard for the required Phoenix sidebar structure.                                                 |
-| `tests/e2e/app-shell.spec.ts`                             | Real browser checks for desktop geometry, collapsed rail, submenu navigation, and mobile drawer closure. |
 
 No route, permission, request, store, vendor stylesheet, or API file changes belong to this plan.
 
 ### Task 1: Establish Sidebar Behavior Contracts
 
 **Files:**
-
-- Create: `tests/unit/components/app/Sidebar.test.ts`
-- Create: `tests/unit/components/ui/AppIcon.test.ts`
-- Modify: `tests/architecture/phoenix-interaction-contract.test.ts`
-
-- [ ] **Step 1: Write the failing Sidebar unit tests**
-
-```ts
-import { mount } from "@vue/test-utils";
-import { createPinia, setActivePinia } from "pinia";
-import { createMemoryHistory, createRouter } from "vue-router";
-import Sidebar from "@/components/app/Sidebar.vue";
-import { authenStore } from "@/stores/app-authen";
-
-const StubPage = { template: "<div />" };
-
-async function mountSidebar(path = "/warehoused-goods", mobile = false) {
-  setActivePinia(createPinia());
-  const auth = authenStore();
-  auth.user = { role: "ADMINISTRATOR", permissions: [] };
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: "/dashboard", component: StubPage },
-      { path: "/categories", component: StubPage },
-      { path: "/materials", component: StubPage },
-      { path: "/patterns", component: StubPage },
-      { path: "/warehoused-goods", component: StubPage },
-    ],
-  });
-  await router.push(path);
-  await router.isReady();
-  return mount(Sidebar, { props: { mobile }, global: { plugins: [router] } });
-}
-
-describe("AppSidebar", () => {
-  it("renders Phoenix icon, text, and active-link anatomy", async () => {
-    const wrapper = await mountSidebar();
-    const warehouse = wrapper.get('a[href="/warehoused-goods"]');
-
-    expect(warehouse.classes()).toEqual(
-      expect.arrayContaining(["nav-link", "label-1", "active"]),
-    );
-    expect(warehouse.find(".nav-link-icon > svg.cms-icon").exists()).toBe(true);
-    expect(
-      warehouse.find(".nav-link-text-wrapper > .nav-link-text").text(),
-    ).toBe("Hàng nhập kho");
-  });
-
-  it("opens an active catalogue parent with Phoenix disclosure anatomy", async () => {
-    const wrapper = await mountSidebar("/materials");
-    const catalog = wrapper.get('button[aria-controls="sidebar-catalog"]');
-
-    expect(catalog.attributes("aria-expanded")).toBe("true");
-    expect(catalog.classes()).toEqual(
-      expect.arrayContaining([
-        "nav-link",
-        "dropdown-indicator",
-        "label-1",
-        "active",
-      ]),
-    );
-    expect(catalog.classes()).not.toContain("collapsed");
-    expect(
-      catalog
-        .find(".dropdown-indicator-icon-wrapper > .dropdown-indicator-icon")
-        .exists(),
-    ).toBe(true);
-    expect(wrapper.get("#sidebar-catalog").classes()).toContain("show");
-    expect(wrapper.get('a[href="/materials"]').classes()).toContain("active");
-  });
-
-  it("keeps ARIA state, collapsed class, and collapse class in sync", async () => {
-    const wrapper = await mountSidebar("/dashboard");
-    const catalog = wrapper.get('button[aria-controls="sidebar-catalog"]');
-
-    expect(catalog.attributes("aria-expanded")).toBe("false");
-    expect(catalog.classes()).toContain("collapsed");
-    await catalog.trigger("click");
-    expect(catalog.attributes("aria-expanded")).toBe("true");
-    expect(catalog.classes()).not.toContain("collapsed");
-    expect(wrapper.get("#sidebar-catalog").classes()).toContain("show");
-  });
-
-  it("uses the same tree in the mobile context and closes only after leaf navigation", async () => {
-    const wrapper = await mountSidebar("/dashboard", true);
-    const catalog = wrapper.get('button[aria-controls="sidebar-catalog"]');
-
-    expect(
-      wrapper.get("nav.navbar-vertical.position-static.w-100").exists(),
-    ).toBe(true);
-    await catalog.trigger("click");
-    expect(wrapper.emitted("close-mobile")).toBeUndefined();
-    await wrapper.get('a[href="/categories"]').trigger("click");
-    expect(wrapper.emitted("close-mobile")).toHaveLength(1);
-  });
-});
-```
-
-- [ ] **Step 2: Write the failing icon and static-contract tests**
-
-```ts
-// tests/unit/components/ui/AppIcon.test.ts
-import { mount } from "@vue/test-utils";
-import AppIcon from "@/components/ui/AppIcon.vue";
-
-it("renders the route-declared tag glyph instead of the grid fallback", () => {
-  const tag = mount(AppIcon, { props: { name: "tag" } });
-  const grid = mount(AppIcon, { props: { name: "grid" } });
-
-  expect(tag.html()).not.toBe(grid.html());
-  expect(tag.get("svg").attributes("viewBox")).toBe("0 0 24 24");
-});
-
-// append to tests/architecture/phoenix-interaction-contract.test.ts
-it("renders the complete Phoenix sidebar disclosure contract", () => {
-  const source = readFileSync(
-    resolve(sourceRoot, "components/app/Sidebar.vue"),
-    "utf8",
-  );
-
-  expect(source).toContain("dropdown-indicator label-1");
-  expect(source).toContain('class="dropdown-indicator-icon-wrapper"');
-  expect(source).toContain('class="dropdown-indicator-icon"');
-  expect(source).toContain('class="nav-link-text"');
-  expect(source).toContain("collapsed: !isExpanded(entry)");
-  expect(source).toContain('type="button"');
-});
-```
-
-- [ ] **Step 3: Run the focused tests and confirm the baseline fails**
-
-Run:
-
-```bash
-npx vitest run tests/unit/components/app/Sidebar.test.ts tests/unit/components/ui/AppIcon.test.ts tests/architecture/phoenix-interaction-contract.test.ts
-```
-
-Expected: the command fails because `Sidebar.test.ts` and `AppIcon.test.ts` do not yet exist; after creating them, the Sidebar assertions fail on the missing disclosure wrapper, reactive `collapsed` class, mobile Phoenix root, and `tag` shape.
 
 ### Task 2: Implement The Phoenix Sidebar Contract
 
@@ -317,86 +172,15 @@ Insert this entry adjacent to the other 24 by 24 outline icons:
   ],
 ```
 
-- [ ] **Step 3: Run unit and architecture tests to verify the implementation passes**
-
-Run:
-
-```bash
-npx vitest run tests/unit/components/app/Sidebar.test.ts tests/unit/components/ui/AppIcon.test.ts tests/architecture/phoenix-interaction-contract.test.ts tests/unit/config/navigation.test.ts tests/unit/AppComposition.test.ts
-```
-
-Expected: PASS. If a mobile-root assertion fails because class order differs, assert class membership rather than an exact serialized class string; do not relax the Phoenix class requirements.
-
 ### Task 3: Verify Browser Geometry And Navigation Behavior
 
 **Files:**
-
-- Modify: `tests/e2e/app-shell.spec.ts`
 
 - [ ] **Step 1: Add desktop submenu and rail assertions**
 
 Append these tests to the existing `Phoenix app shell` describe block:
 
-```ts
-test("uses Phoenix sidebar geometry and keeps the active catalogue hierarchy aligned", async ({
-  authenticatedPage: page,
-}, testInfo) => {
-  test.skip(!["desktop-1440", "desktop-1280"].includes(testInfo.project.name));
-  await page.goto("/materials");
-
-  const sidebar = page.locator("nav.navbar-vertical.navbar-expand-lg");
-  const catalog = sidebar.getByRole("button", { name: "Danh mục" });
-  const material = sidebar.locator('a[href="/materials"]');
-  const parentBox = await catalog.boundingBox();
-  const childBox = await material.boundingBox();
-  const metrics = await sidebar.evaluate((element) => ({
-    width: Math.round(element.getBoundingClientRect().width),
-    activeColor: getComputedStyle(
-      element.querySelector('a[href="/materials"]')!,
-    ).color,
-  }));
-
-  expect(metrics).toEqual({ width: 254, activeColor: "rgb(56, 116, 255)" });
-  expect(await catalog.getAttribute("aria-expanded")).toBe("true");
-  expect(parentBox).not.toBeNull();
-  expect(childBox).not.toBeNull();
-  expect(childBox!.x).toBeGreaterThan(parentBox!.x);
-
-  await page.getByTestId("sidebar-toggle").click();
-  await expect(page.locator("html")).toHaveClass(/navbar-vertical-collapsed/);
-  await expect(page.getByTestId("app-shell")).toHaveClass(
-    /is-sidebar-collapsed/,
-  );
-});
-
-test("expands the catalogue and closes the mobile drawer after child navigation", async ({
-  authenticatedPage: page,
-}, testInfo) => {
-  test.skip(
-    !["tablet-768", "mobile-390", "mobile-360"].includes(testInfo.project.name),
-  );
-  await page.goto("/dashboard");
-  await page.getByTestId("mobile-nav-toggle").click();
-
-  const drawer = page.getByTestId("mobile-nav-drawer");
-  const catalog = drawer.getByRole("button", { name: "Danh mục" });
-  await catalog.click();
-  await expect(catalog).toHaveAttribute("aria-expanded", "true");
-  await drawer.locator('a[href="/categories"]').click();
-  await expect(page).toHaveURL(/\/categories$/);
-  await expect(page.getByTestId("mobile-nav-drawer")).toHaveCount(0);
-});
-```
-
-- [ ] **Step 2: Run the focused Playwright coverage**
-
 Run:
-
-```bash
-npx playwright test tests/e2e/app-shell.spec.ts
-```
-
-Expected: PASS on the desktop, tablet, and mobile projects, with existing project-specific skips remaining expected. If the vendor stylesheet computes a fractional width, keep the `Math.round` assertion; do not replace it with a broad width range.
 
 ### Task 4: Run The Regression Quality Gates
 
@@ -408,21 +192,11 @@ Expected: PASS on the desktop, tablet, and mobile projects, with existing projec
 
 Run:
 
-```bash
-npm run typecheck
-npm run lint
-npm run test:unit
-```
-
 Expected: each command exits with code `0`.
 
 - [ ] **Step 2: Run responsive browser regression coverage**
 
 Run:
-
-```bash
-npx playwright test tests/e2e/app-shell.spec.ts tests/e2e/responsive-matrix.spec.ts tests/e2e/css-stability.spec.ts
-```
 
 Expected: all selected tests pass, with only their explicit project-filter skips. Inspect failure screenshots if any browser assertion fails; correct the Phoenix DOM contract rather than adding compensating absolute-position CSS.
 

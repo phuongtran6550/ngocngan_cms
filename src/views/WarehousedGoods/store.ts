@@ -3,6 +3,7 @@ import { apiError } from "@/request";
 import { warehouseService } from "@/views/WarehousedGoods/service";
 import type {
   InventoryPricingType,
+  StockLevelFilter,
   WarehouseItem,
   WarehouseOptionsResponse,
 } from "@/views/WarehousedGoods/types";
@@ -22,6 +23,7 @@ export const useWarehouseStore = defineStore("warehouse", {
     materialId: "",
     patternId: "",
     pricingType: "" as InventoryPricingType,
+    stockLevel: "" as StockLevelFilter,
     sortBy: "updatedAt" as
       "name" | "code" | "importPrice" | "price" | "stock" | "updatedAt",
     sortDirection: "desc" as "asc" | "desc",
@@ -58,6 +60,7 @@ export const useWarehouseStore = defineStore("warehouse", {
             materialId: this.materialId || undefined,
             patternId: this.patternId || undefined,
             pricingType: this.pricingType || undefined,
+            stockLevel: this.stockLevel || undefined,
             sortBy: this.sortBy,
             sortDirection: this.sortDirection,
           },

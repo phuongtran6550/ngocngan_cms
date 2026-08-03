@@ -67,13 +67,9 @@ The control remains a secondary toolbar action. The page's `Thêm mới` button 
 
 - Modify only the view-toggle markup and scoped styles in `src/components/ListLayout/ListShell.vue`.
 - Reuse the existing `viewOptions`, `AppIcon`, `setViewMode`, and data-test IDs.
-- Extend `tests/unit/components/ListLayout/index.test.ts` with visible label, active-state, and button-structure assertions.
-- Extend `tests/e2e/responsive-matrix.spec.ts` with label visibility, focus/size, and no-overflow assertions for the toggle.
 
 ## Verification
 
-- Focused ListShell unit test passes for desktop/mobile defaults, labels, active state, switching, and persistence.
-- Responsive E2E passes at desktop and mobile sizes, including both view modes and no horizontal overflow.
 - Typecheck, ESLint, focused Prettier, and production build pass.
 
 ## Review Checklist
