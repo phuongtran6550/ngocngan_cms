@@ -1,4 +1,4 @@
-export type PrintPlatform = "windows" | "macos";
+export type PrintPlatform = "windows";
 export type PrintReadiness =
   | "ready"
   | "offline"

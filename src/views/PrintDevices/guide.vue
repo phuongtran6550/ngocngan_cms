@@ -260,17 +260,12 @@ const platforms: Array<{
     shortLabel: "W",
     description: "Windows 10 hoặc 11",
   },
-  {
-    value: "macos",
-    label: "macOS",
-    shortLabel: "M",
-    description: "Máy Mac",
-  },
 ];
 
+// Ứng dụng in chỉ có bản Windows vì nó gửi dữ liệu tem qua RAW spooler
+// của Windows tới GoDEX G500.
 function browserPlatform(): PrintPlatform {
-  const signature = `${navigator.platform || ""} ${navigator.userAgent || ""}`;
-  return /Macintosh|Mac OS X|MacIntel/i.test(signature) ? "macos" : "windows";
+  return "windows";
 }
 
 const sizeFormatter = new Intl.NumberFormat("vi-VN", {

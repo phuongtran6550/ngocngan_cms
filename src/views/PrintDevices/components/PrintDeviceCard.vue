@@ -121,7 +121,7 @@ export default defineComponent({
   },
   computed: {
     platformLabel(): string {
-      return this.device.platform === "macos" ? "macOS" : "Windows";
+      return "Windows";
     },
     statusLabel(): string {
       if (this.device.status === "revoked") return "Đã ngắt kết nối";
