@@ -1,20 +1,40 @@
-.DS_Store
-/.superpowers/
+# ---------------------------------------------------------------
+# Ngọc Châu CMS v2 — Vue 3 + Vite + TypeScript
+#
+# Nguyên tắc: chỉ ignore thứ (a) sinh lại được bằng lệnh build,
+# (b) chứa bí mật, hoặc (c) là state cục bộ của máy / editor / tooling.
+# Mọi thứ còn lại — kể cả asset trong public/ và CSS vendor
+# trong src/styles/vendor/ — PHẢI được commit vì build phụ thuộc vào chúng.
+# ---------------------------------------------------------------
+
+# --- Dependencies (npm ci dựng lại từ package-lock.json) ---
 /node_modules/
+
+# --- Build output (Jenkins tự build, xem deploy/jenkins/Jenkinsfile.cms) ---
 /dist/
 /build/
+
+# --- Cache của tooling ---
 /.cache/
 /.vite/
 /tmp/
+.eslintcache
+*.tsbuildinfo
+vite.config.ts.timestamp-*
 
-# Local environment files
-.env.local
-.env.*.local
-.env.*
+# --- State nội bộ của agent tooling (không thuộc mã nguồn) ---
+/.superpowers/
+
+# --- Biến môi trường: KHÔNG BAO GIỜ commit giá trị thật ---
+# Chỉ .env.example được phép lên repo, làm tài liệu cho
+# VITE_API_BASE_URL / VITE_ASSET_BASE_URL (xem src/request/index.ts).
 .env
+.env.local
+.env.*
+.env.*.local
 !.env.example
 
-# Log files
+# --- Log & process ---
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -23,11 +43,21 @@ pnpm-debug.log*
 *.pid
 *.pid.lock
 
-# Editor directories and files
+# --- Test coverage (nếu về sau thêm test runner) ---
+/coverage/
+
+# --- Editor / IDE ---
 .idea
 .vscode
+!.vscode/extensions.json
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# --- Rác hệ điều hành ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
