@@ -1,8 +1,8 @@
 <template>
   <div>
     <PageHeader
-      title="Hướng dẫn cài đặt máy in"
-      description="Thiết lập một lần để in tem GoDEX G500 trực tiếp từ website."
+      title="Tải và cài Ứng dụng in"
+      description="Bộ cài production cho GoDEX G500, tải trực tiếp từ hệ thống Ngọc Châu."
       :breadcrumbs="breadcrumbs"
     >
     </PageHeader>
@@ -80,10 +80,11 @@
               <div class="step-layout">
                 <span class="step-number">2</span>
                 <div class="min-w-0">
-                  <h2 class="h5 mb-2">Cài Ứng dụng in Ngọc Châu</h2>
+                  <h2 class="h5 mb-2">Tải bộ cài production</h2>
                   <p class="text-body-tertiary mb-3">
-                    Tải đúng bộ cài cho {{ selectedPlatformLabel }}, mở tệp vừa
-                    tải và làm theo hướng dẫn trên màn hình.
+                    Bấm Tải bộ cài, mở tệp vừa tải và bấm Install. Bộ cài tự
+                    đặt ứng dụng vào Program Files, tạo mục gỡ cài đặt Windows
+                    và cấu hình tự chạy cùng máy tính.
                   </p>
 
                   <div
@@ -172,10 +173,11 @@
               <div class="step-layout">
                 <span class="step-number">3</span>
                 <div class="min-w-0">
-                  <h2 class="h5 mb-2">Mở ứng dụng và in ngay</h2>
+                  <h2 class="h5 mb-2">Bấm Chạy và in ngay</h2>
                   <p class="text-body-tertiary mb-3">
-                    Mở Ứng dụng in Ngọc Châu trên máy đã nối GoDEX G500. Ứng dụng
-                    tự gọi API và chờ lệnh in; không cần đăng ký, token hay mã kết nối.
+                    Mở Ứng dụng in Ngọc Châu trên máy đã nối GoDEX G500 rồi bấm
+                    Chạy. Có thể bấm Dừng bất kỳ lúc nào; không cần đăng ký,
+                    token hay mã kết nối.
                   </p>
                 </div>
               </div>
@@ -264,7 +266,7 @@ export default defineComponent({
     breadcrumbs(): Array<{ label: string; to?: string }> {
       return [
         { label: "Hàng nhập kho", to: "/warehoused-goods" },
-        { label: "Hướng dẫn cài đặt máy in" },
+        { label: "Tải và cài Ứng dụng in" },
       ];
     },
     selectedPlatformLabel(): string {
