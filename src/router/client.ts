@@ -218,10 +218,10 @@ const clientRoutes: ClientRoute[] = [
     name: "print-devices",
     meta: {
       auth: true,
-      title: "Thiết bị in",
-      permission: PERMISSIONS.warehouseUpdate,
+      title: "Ứng dụng in",
+      permission: PERMISSIONS.warehouseView,
     },
-    component: () => import("@/views/PrintDevices/index.vue"),
+    component: () => import("@/views/PrintDevices/guide.vue"),
   },
   {
     path: "/print-guide",

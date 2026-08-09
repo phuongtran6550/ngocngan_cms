@@ -369,14 +369,9 @@
       :busy="Boolean(printingSkuId)"
       :error="printQuantityError"
       :submission-error="printSubmissionError"
-      :printer-status="printPrinterStatus"
-      :status-busy="printStatusBusy"
-      :setup-allowed="auth.can(permissions.warehouseUpdate)"
       @update:model-value="updatePrintQuantity"
       @cancel="closePrintDialog"
       @confirm="confirmPrintLabel"
-      @retry-status="loadPrintStatus"
-      @open-setup="openPrintSetup"
     />
 
     <ConfirmDialog
@@ -407,10 +402,7 @@ import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import { apiError, assetUrl } from "@/request";
 import {
   labelPrintFailureMessage,
-  printDevicePresentation,
 } from "@/views/PrintDevices/presentation";
-import { printDeviceService } from "@/views/PrintDevices/service";
-import type { DefaultPrintDeviceStatus } from "@/views/PrintDevices/types";
 import PrintLabelDialog from "@/views/WarehousedGoods/components/PrintLabelDialog.vue";
 import { isInventoryBarcode } from "@/views/WarehousedGoods/inventory-barcode";
 import { productSkuSummary } from "@/views/WarehousedGoods/product-summary";
@@ -451,10 +443,6 @@ export default defineComponent({
       printQuantity: "1",
       printQuantityError: "",
       printSubmissionError: "",
-      printPrinterStatus: null as DefaultPrintDeviceStatus | null,
-      printStatusBusy: false,
-      printStatusController: null as AbortController | null,
-      printStatusRequestId: 0,
     };
   },
   computed: {
@@ -488,15 +476,9 @@ export default defineComponent({
         .filter(Number.isFinite);
       return prices.length ? Math.min(...prices) : null;
     },
-    printReady(): boolean {
-      return printDevicePresentation(this.printPrinterStatus).ready;
-    },
   },
   mounted() {
     void this.load();
-  },
-  beforeUnmount() {
-    this.printStatusController?.abort();
   },
   methods: {
     assetUrl,
@@ -543,7 +525,6 @@ export default defineComponent({
       this.printSuccess = "";
       this.printQuantityError = "";
       this.printSubmissionError = "";
-      this.printPrinterStatus = null;
       this.printSku = sku;
       this.printQuantity = String(sku.stock);
       if (sku.stock < 1) {
@@ -552,38 +533,6 @@ export default defineComponent({
         this.printQuantityError =
           "Tồn kho vượt quá giới hạn 100 tem mỗi lệnh. Vui lòng chia thành nhiều lần in";
       }
-      await this.loadPrintStatus();
-    },
-    async loadPrintStatus(): Promise<void> {
-      if (!this.printSku) return;
-      this.printStatusController?.abort();
-      const controller = new AbortController();
-      const requestId = this.printStatusRequestId + 1;
-      this.printStatusRequestId = requestId;
-      this.printStatusController = controller;
-      this.printStatusBusy = true;
-      this.printSubmissionError = "";
-      try {
-        const status = await printDeviceService.defaultStatus(
-          controller.signal,
-        );
-        if (requestId === this.printStatusRequestId && this.printSku) {
-          this.printPrinterStatus = status;
-        }
-      } catch {
-        if (
-          !controller.signal.aborted &&
-          requestId === this.printStatusRequestId &&
-          this.printSku
-        ) {
-          this.printPrinterStatus = null;
-        }
-      } finally {
-        if (requestId === this.printStatusRequestId) {
-          this.printStatusBusy = false;
-          this.printStatusController = null;
-        }
-      }
     },
     updatePrintQuantity(value: string | number): void {
       this.printQuantity = String(value);
@@ -591,29 +540,14 @@ export default defineComponent({
     },
     closePrintDialog(): void {
       if (this.printingSkuId) return;
-      this.printStatusController?.abort();
-      this.printStatusRequestId += 1;
-      this.printStatusController = null;
-      this.printStatusBusy = false;
       this.printSku = null;
       this.printQuantity = "1";
       this.printQuantityError = "";
       this.printSubmissionError = "";
-      this.printPrinterStatus = null;
-    },
-    async openPrintSetup(): Promise<void> {
-      this.closePrintDialog();
-      await this.$router.push("/print-devices");
     },
     async confirmPrintLabel(): Promise<void> {
       const sku = this.printSku;
       if (!this.item || !sku || this.printingSkuId) return;
-      if (!this.printReady) {
-        this.printSubmissionError = printDevicePresentation(
-          this.printPrinterStatus,
-        ).title;
-        return;
-      }
       const rawQuantity = this.printQuantity.trim();
       const quantity = Number(rawQuantity);
       if (
