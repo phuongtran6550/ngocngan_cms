@@ -220,6 +220,12 @@ const clientRoutes: ClientRoute[] = [
       auth: true,
       title: "Ứng dụng in",
       permission: PERMISSIONS.warehouseView,
+      navigation: {
+        group: "commerce",
+        groupLabel: "Nghiệp vụ",
+        icon: "download",
+        order: 60,
+      },
     },
     component: () => import("@/views/PrintDevices/guide.vue"),
   },

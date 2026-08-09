@@ -25,6 +25,16 @@
           <AppIcon v-else name="download" />
           <span class="d-none d-lg-inline ms-2">{{ exporting ? "Đang xuất..." : "Xuất đơn hàng" }}</span>
         </button>
+        <RouterLink
+          v-if="auth.can(PERMISSIONS.warehouseView)"
+          to="/print-devices"
+          class="btn btn-primary"
+          title="Tải và cài ứng dụng in"
+          data-testid="download-print-bridge"
+        >
+          <AppIcon name="download" />
+          <span class="d-none d-lg-inline ms-2">Tải ứng dụng in</span>
+        </RouterLink>
       </template>
     </PageHeader>
 
