@@ -67,6 +67,20 @@
       >
         Đã cập nhật hàng nhập kho
       </div>
+      <div
+        v-if="actionSuccess"
+        class="alert alert-subtle-success d-flex align-items-center justify-content-between"
+        role="status"
+        data-testid="sku-action-success-alert"
+      >
+        <span>{{ actionSuccess }}</span>
+        <button
+          type="button"
+          class="btn-close"
+          aria-label="Đóng"
+          @click="actionSuccess = ''"
+        />
+      </div>
       <div v-if="pageError" class="alert alert-subtle-danger" role="alert">
         {{ pageError }}
       </div>
@@ -165,7 +179,19 @@
               Mỗi dòng đủ khoảng thở; trên mobile tự chuyển thành thẻ hai cột.
             </p>
           </div>
-          <span class="sku-count"> {{ summary.skuCount }} SKU </span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="sku-count"> {{ summary.skuCount }} SKU </span>
+            <button
+              v-if="auth.can(permissions.warehouseUpdate)"
+              type="button"
+              class="btn btn-sm btn-primary"
+              data-testid="add-new-sku-btn"
+              @click="openAddSkuModal"
+            >
+              <AppIcon name="plus" class="me-1" />
+              Thêm SKU mới
+            </button>
+          </div>
         </div>
 
         <div class="sku-table-wrap">
@@ -283,6 +309,31 @@
                       <span v-else aria-hidden="true">▥</span>
                       {{ printingSkuId === sku.id ? "Đang gửi" : "In tem" }}
                     </button>
+                    <button
+                      v-if="auth.can(permissions.warehouseUpdate)"
+                      type="button"
+                      class="sku-edit-action"
+                      :data-testid="`edit-sku-${index}`"
+                      :aria-label="`Sửa SKU ${sku.code}`"
+                      title="Sửa SKU"
+                      @click="openEditSkuModal(sku)"
+                    >
+                      <AppIcon name="edit" />
+                      Sửa
+                    </button>
+                    <button
+                      v-if="auth.can(permissions.warehouseUpdate)"
+                      type="button"
+                      class="sku-delete-action"
+                      :class="{ 'opacity-50': displaySkus.length <= 1 }"
+                      :data-testid="`delete-sku-${index}`"
+                      :aria-label="`Xóa SKU ${sku.code}`"
+                      :title="displaySkus.length <= 1 ? 'Sản phẩm phải có ít nhất 1 SKU' : `Xóa SKU ${sku.code}`"
+                      @click="requestDeleteSku(sku)"
+                    >
+                      <AppIcon name="trash-2" />
+                      Xóa
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -340,6 +391,31 @@
                     />
                     <span v-else aria-hidden="true">▥</span>
                     {{ printingSkuId === sku.id ? "Đang gửi" : "In tem" }}
+                  </button>
+                  <button
+                    v-if="auth.can(permissions.warehouseUpdate)"
+                    type="button"
+                    class="sku-edit-action"
+                    :data-testid="`mobile-edit-sku-${index}`"
+                    :aria-label="`Sửa SKU ${sku.code}`"
+                    title="Sửa SKU"
+                    @click="openEditSkuModal(sku)"
+                  >
+                    <AppIcon name="edit" />
+                    Sửa
+                  </button>
+                  <button
+                    v-if="auth.can(permissions.warehouseUpdate)"
+                    type="button"
+                    class="sku-delete-action"
+                    :class="{ 'opacity-50': displaySkus.length <= 1 }"
+                    :data-testid="`mobile-delete-sku-${index}`"
+                    :aria-label="`Xóa SKU ${sku.code}`"
+                    :title="displaySkus.length <= 1 ? 'Sản phẩm phải có ít nhất 1 SKU' : `Xóa SKU ${sku.code}`"
+                    @click="requestDeleteSku(sku)"
+                  >
+                    <AppIcon name="trash-2" />
+                    Xóa
                   </button>
                 </div>
               </div>
@@ -424,6 +500,28 @@
       @open-setup="openPrintSetup"
     />
 
+    <WarehouseSkuModal
+      v-if="item"
+      :open="skuModalOpen"
+      :sku="editingSku"
+      :product="item"
+      :silver-price="silverPrice"
+      :existing-codes="existingSkuCodes"
+      :submitting="skuModalSubmitting"
+      :error="skuModalError"
+      @cancel="closeSkuModal"
+      @submit="saveSku"
+    />
+
+    <ConfirmDialog
+      :open="deleteSkuOpen"
+      title="Xóa SKU"
+      :message="deleteSkuMessage"
+      confirm-label="Xóa SKU"
+      @cancel="cancelDeleteSku"
+      @confirm="confirmDeleteSku"
+    />
+
     <ConfirmDialog
       :open="deleteOpen"
       title="Xóa hàng nhập kho"
@@ -457,12 +555,16 @@ import {
 import { printDeviceService } from "@/views/PrintDevices/service";
 import type { DefaultPrintDeviceStatus } from "@/views/PrintDevices/types";
 import PrintLabelDialog from "@/views/WarehousedGoods/components/PrintLabelDialog.vue";
+import WarehouseSkuModal from "@/views/WarehousedGoods/components/WarehouseSkuModal.vue";
 import { isInventoryBarcode } from "@/views/WarehousedGoods/inventory-barcode";
 import { productSkuSummary } from "@/views/WarehousedGoods/product-summary";
 import { warehouseService } from "@/views/WarehousedGoods/service";
-import type {
-  WarehouseItem,
-  WarehouseSku,
+import { useWarehouseStore } from "@/views/WarehousedGoods/store";
+import {
+  warehouseFormFromItem,
+  type WarehouseItem,
+  type WarehouseSku,
+  type WarehouseSkuFormModel,
 } from "@/views/WarehousedGoods/types";
 import { authenStore } from "@/stores/app-authen";
 import { formatDateTime, formatMoney } from "@/utils/resource-display";
@@ -481,6 +583,7 @@ export default defineComponent({
     PageHeader,
     PrintLabelDialog,
     ResourceImageCard,
+    WarehouseSkuModal,
   },
   data() {
     return {
@@ -489,6 +592,14 @@ export default defineComponent({
       deleteOpen: false,
       error: "",
       preview: "",
+      actionSuccess: "",
+      skuModalOpen: false,
+      editingSku: null as WarehouseSku | null,
+      skuModalSubmitting: false,
+      skuModalError: "",
+      deleteSkuOpen: false,
+      deletingSku: null as WarehouseSku | null,
+      deleteSkuSubmitting: false,
       printingSkuId: "",
       printError: "",
       printSuccess: "",
@@ -509,6 +620,9 @@ export default defineComponent({
     auth() {
       return authenStore();
     },
+    store() {
+      return useWarehouseStore();
+    },
     breadcrumbs(): Array<{ label: string; to?: string }> {
       return [
         { label: "Hàng nhập kho", to: "/warehoused-goods" },
@@ -521,8 +635,14 @@ export default defineComponent({
     isWeighted(): boolean {
       return this.item?.pricingType === "Đồ cân";
     },
+    silverPrice(): number | null {
+      return this.store.options.silverPrice;
+    },
     displaySkus(): WarehouseSku[] {
       return this.item?.skus || [];
+    },
+    existingSkuCodes(): string[] {
+      return this.displaySkus.map((s) => s.code);
     },
     summary() {
       return productSkuSummary(this.displaySkus);
@@ -536,9 +656,15 @@ export default defineComponent({
     printReady(): boolean {
       return printDevicePresentation(this.printPrinterStatus).ready;
     },
+    deleteSkuMessage(): string {
+      if (!this.deletingSku) return "";
+      const sizeText = this.deletingSku.size ? `Ni ${this.deletingSku.size}, ` : "";
+      return `Bạn có chắc chắn muốn xóa SKU "${this.deletingSku.code}" (${sizeText}${this.deletingSku.weight} chỉ)? Thao tác này sẽ cập nhật lại kho hàng.`;
+    },
   },
   mounted() {
     void this.load();
+    void this.store.loadOptions();
   },
   beforeUnmount() {
     this.printStatusController?.abort();
@@ -724,6 +850,98 @@ export default defineComponent({
         await this.$router.replace("/warehoused-goods");
       } catch (error) {
         this.error = apiError(error).message;
+      }
+    },
+    openAddSkuModal(): void {
+      this.editingSku = null;
+      this.skuModalError = "";
+      this.skuModalOpen = true;
+    },
+    openEditSkuModal(sku: WarehouseSku): void {
+      this.editingSku = sku;
+      this.skuModalError = "";
+      this.skuModalOpen = true;
+    },
+    closeSkuModal(): void {
+      if (this.skuModalSubmitting) return;
+      this.skuModalOpen = false;
+      this.editingSku = null;
+      this.skuModalError = "";
+    },
+    async saveSku(skuForm: WarehouseSkuFormModel): Promise<void> {
+      if (!this.item) return;
+      this.skuModalSubmitting = true;
+      this.skuModalError = "";
+      try {
+        const baseForm = warehouseFormFromItem(this.item);
+        let updatedSkus: WarehouseSkuFormModel[];
+        if (this.editingSku) {
+          const targetId = this.editingSku.id;
+          const targetCode = this.editingSku.code;
+          updatedSkus = baseForm.skus.map((s) => {
+            if ((targetId && s.id === targetId) || s.code === targetCode) {
+              return { ...s, ...skuForm };
+            }
+            return s;
+          });
+        } else {
+          updatedSkus = [...baseForm.skus, skuForm];
+        }
+        const updatePayload = {
+          ...baseForm,
+          skus: updatedSkus,
+        };
+        this.item = await warehouseService.update(this.item.id, updatePayload);
+        this.actionSuccess = this.editingSku
+          ? `Đã cập nhật SKU ${skuForm.code} thành công.`
+          : `Đã thêm mới SKU ${skuForm.code} thành công.`;
+        this.closeSkuModal();
+      } catch (error) {
+        this.skuModalError = apiError(error).message;
+      } finally {
+        this.skuModalSubmitting = false;
+      }
+    },
+    requestDeleteSku(sku: WarehouseSku): void {
+      if (this.displaySkus.length <= 1) {
+        this.error = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa SKU cuối cùng.";
+        return;
+      }
+      this.deletingSku = sku;
+      this.deleteSkuOpen = true;
+    },
+    cancelDeleteSku(): void {
+      if (this.deleteSkuSubmitting) return;
+      this.deleteSkuOpen = false;
+      this.deletingSku = null;
+    },
+    async confirmDeleteSku(): Promise<void> {
+      if (!this.item || !this.deletingSku) return;
+      this.deleteSkuSubmitting = true;
+      const skuToDelete = this.deletingSku;
+      try {
+        const baseForm = warehouseFormFromItem(this.item);
+        const updatedSkus = baseForm.skus.filter((s) => {
+          if (skuToDelete.id && s.id) {
+            return s.id !== skuToDelete.id;
+          }
+          return s.code !== skuToDelete.code;
+        });
+        if (updatedSkus.length === 0) {
+          throw new Error("Sản phẩm phải có ít nhất 1 SKU");
+        }
+        const updatePayload = {
+          ...baseForm,
+          skus: updatedSkus,
+        };
+        this.item = await warehouseService.update(this.item.id, updatePayload);
+        this.actionSuccess = `Đã xóa SKU ${skuToDelete.code} thành công.`;
+        this.cancelDeleteSku();
+      } catch (error) {
+        this.error = apiError(error).message;
+        this.cancelDeleteSku();
+      } finally {
+        this.deleteSkuSubmitting = false;
       }
     },
   },
@@ -995,7 +1213,9 @@ export default defineComponent({
 }
 
 .sku-print-action,
-.sku-history-action {
+.sku-history-action,
+.sku-edit-action,
+.sku-delete-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1011,17 +1231,39 @@ export default defineComponent({
   line-height: 0.8125rem;
   white-space: nowrap;
   cursor: pointer;
+  transition: all 0.15s ease-in-out;
 }
 
-.sku-history-action {
+.sku-history-action,
+.sku-edit-action {
   border-color: var(--phoenix-border-color);
   color: var(--phoenix-body-color);
   background: var(--phoenix-body-bg);
   text-decoration: none;
 }
 
+.sku-edit-action:hover {
+  background: var(--phoenix-secondary-bg);
+  color: var(--phoenix-primary);
+  border-color: var(--phoenix-primary);
+}
+
+.sku-delete-action {
+  border-color: rgba(229, 62, 62, 0.3);
+  color: #e53e3e;
+  background: rgba(229, 62, 62, 0.08);
+}
+
+.sku-delete-action:hover:not(:disabled) {
+  background: rgba(229, 62, 62, 0.16);
+  color: #c53030;
+  border-color: #e53e3e;
+}
+
 .sku-print-action:focus-visible,
-.sku-history-action:focus-visible {
+.sku-history-action:focus-visible,
+.sku-edit-action:focus-visible,
+.sku-delete-action:focus-visible {
   outline: 2px solid var(--phoenix-primary);
   outline-offset: 2px;
 }
@@ -1076,8 +1318,10 @@ export default defineComponent({
   }
 
   .mobile-sku-list .sku-row-actions {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.375rem;
   }
 }
 

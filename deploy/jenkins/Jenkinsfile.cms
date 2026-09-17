@@ -156,7 +156,7 @@ pipeline {
               scp_to_deploy_host cms-dist.tgz "$DEPLOY_HOST:$archive"
 
               ssh_to_deploy_host \
-                "bash -s -- '$BUILD_NUMBER' '$archive' '$SKIP_SMOKE_TESTS' '$PUBLIC_URL'" <<'REMOTE'
+                "bash -s -- '$BUILD_NUMBER' '$archive' '${SKIP_SMOKE_TESTS:-false}' '$PUBLIC_URL'" <<'REMOTE'
                 set -Eeuo pipefail
                 build_number="$1"
                 archive="$2"

@@ -1,0 +1,758 @@
+<template>
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="modalTitleId"
+      data-testid="warehouse-sku-modal"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <form class="modal-content shadow-lg border-translucent" @submit.prevent="submit">
+          <div class="modal-header border-bottom border-translucent px-4 py-3">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              <span class="sku-modal-icon d-inline-flex align-items-center justify-content-center" aria-hidden="true">
+                <AppIcon name="tag" />
+              </span>
+              <div class="min-w-0">
+                <h3 :id="modalTitleId" class="modal-title fs-7 mb-0">
+                  {{ isEdit ? "Cập nhật SKU" : "Thêm SKU mới" }}
+                </h3>
+                <p class="fs-10 text-body-tertiary mb-0 text-truncate">
+                  {{ isEdit ? (draft.code || "SKU") : product.name }} · {{ product.pricingType || "Hàng hóa" }}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Đóng"
+              :disabled="submitting"
+              @click="$emit('cancel')"
+            />
+          </div>
+
+          <div class="modal-body p-4 p-lg-5">
+            <div
+              v-if="localError || error"
+              class="alert alert-subtle-danger mb-4"
+              role="alert"
+            >
+              {{ localError || error }}
+            </div>
+
+            <div class="row g-4">
+              <div class="col-12 col-lg-7">
+                <div class="row g-3">
+                  <!-- Mã SKU -->
+                  <div class="col-12">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-code">
+                      Mã SKU <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                      <input
+                        id="sku-modal-code"
+                        class="form-control font-monospace text-uppercase"
+                        :class="{ 'is-invalid': hasFieldError('code') }"
+                        :value="draft.code"
+                        placeholder="Tự tạo từ phân loại và quy cách"
+                        maxlength="100"
+                        required
+                        :disabled="submitting"
+                        :aria-invalid="hasFieldError('code') ? 'true' : undefined"
+                        @input="updateCode"
+                        @blur="handleCodeBlur"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-phoenix-secondary"
+                        :disabled="submitting"
+                        @click="regenerateCode"
+                      >
+                        <AppIcon name="refresh-cw" class="me-1" />
+                        Tạo lại mã
+                      </button>
+                    </div>
+                    <FieldError id="sku-modal-code-err" :message="fieldError('code')" />
+                    <small class="text-body-tertiary fs-10">
+                      Tự động ghép phân loại sản phẩm, trọng lượng và ni tay.
+                    </small>
+                  </div>
+
+                  <!-- Ni tay -->
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-size">
+                      Kích cỡ / Ni tay
+                    </label>
+                    <input
+                      id="sku-modal-size"
+                      class="form-control"
+                      :class="{ 'is-invalid': hasFieldError('size') }"
+                      :value="draft.size"
+                      placeholder="Ví dụ: Ni 12"
+                      maxlength="50"
+                      :disabled="submitting"
+                      :aria-invalid="hasFieldError('size') ? 'true' : undefined"
+                      @input="updateSize"
+                      @blur="checkSkuCodeAvailability"
+                    />
+                    <FieldError id="sku-modal-size-err" :message="fieldError('size')" />
+                  </div>
+
+                  <!-- Trọng lượng -->
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-weight">
+                      Trọng lượng chỉ <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                      <input
+                        id="sku-modal-weight"
+                        class="form-control"
+                        :class="{ 'is-invalid': hasFieldError('weight') }"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        :value="draft.weight || ''"
+                        placeholder="0"
+                        required
+                        :disabled="submitting"
+                        :aria-invalid="hasFieldError('weight') ? 'true' : undefined"
+                        @input="updateWeight"
+                        @blur="checkSkuCodeAvailability"
+                      />
+                      <span class="input-group-text">chỉ</span>
+                    </div>
+                    <FieldError id="sku-modal-weight-err" :message="fieldError('weight')" />
+                  </div>
+
+                  <!-- Tồn kho -->
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-stock">
+                      Tồn kho <span class="text-danger">*</span>
+                    </label>
+                    <input
+                      id="sku-modal-stock"
+                      class="form-control"
+                      :class="{ 'is-invalid': hasFieldError('stock') }"
+                      type="number"
+                      inputmode="numeric"
+                      min="0"
+                      step="1"
+                      :value="draft.stock"
+                      required
+                      :disabled="submitting"
+                      :aria-invalid="hasFieldError('stock') ? 'true' : undefined"
+                      @input="updateStock"
+                    />
+                    <FieldError id="sku-modal-stock-err" :message="fieldError('stock')" />
+                  </div>
+
+                  <!-- Trường tính tiền cho Đồ cân -->
+                  <template v-if="isWeighted">
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label fs-9 fw-bold" for="sku-modal-labor-cost">
+                        Tiền công
+                      </label>
+                      <MoneyInput
+                        id="sku-modal-labor-cost"
+                        name="laborCost"
+                        :model-value="draft.laborCost"
+                        :disabled="submitting"
+                        :invalid="hasFieldError('laborCost')"
+                        @update:model-value="updateLaborCost"
+                      />
+                      <FieldError id="sku-modal-labor-cost-err" :message="fieldError('laborCost')" />
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label fs-9 fw-bold" for="sku-modal-plating-cost">
+                        Tiền xi
+                      </label>
+                      <MoneyInput
+                        id="sku-modal-plating-cost"
+                        name="platingCost"
+                        :model-value="draft.platingCost"
+                        :disabled="submitting"
+                        :invalid="hasFieldError('platingCost')"
+                        @update:model-value="updatePlatingCost"
+                      />
+                      <FieldError id="sku-modal-plating-cost-err" :message="fieldError('platingCost')" />
+                    </div>
+
+                    <div class="col-12">
+                      <label class="form-label fs-9 fw-bold" for="sku-modal-selling-price">
+                        Giá bán sau làm tròn
+                      </label>
+                      <div class="input-group input-group-lg selling-price-input">
+                        <input
+                          id="sku-modal-selling-price"
+                          class="form-control fw-bold"
+                          type="text"
+                          :value="formatMoney(draft.price)"
+                          readonly
+                        />
+                        <span class="input-group-text">₫</span>
+                      </div>
+                      <small class="text-body-tertiary fs-10">
+                        Tự động tính từ (Trọng lượng × Giá bạc) + Tiền công + Tiền xi.
+                      </small>
+                    </div>
+                  </template>
+
+                  <!-- Trường tính tiền cho Đồ món -->
+                  <template v-if="isPiece">
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label fs-9 fw-bold" for="sku-modal-import-price">
+                        Giá nhập <span class="text-danger">*</span>
+                      </label>
+                      <MoneyInput
+                        id="sku-modal-import-price"
+                        name="importPrice"
+                        :model-value="draft.importPrice"
+                        :disabled="submitting"
+                        :invalid="hasFieldError('importPrice')"
+                        required
+                        @update:model-value="updatePieceImportPrice"
+                      />
+                      <FieldError id="sku-modal-import-price-err" :message="fieldError('importPrice')" />
+                      <small class="text-body-tertiary fs-10">
+                        Nhập giá nhập để hệ thống tự tính giá bán.
+                      </small>
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label fs-9 fw-bold" for="sku-modal-piece-price">
+                        Giá bán <span class="text-danger">*</span>
+                      </label>
+                      <MoneyInput
+                        id="sku-modal-piece-price"
+                        name="price"
+                        :model-value="draft.price"
+                        :disabled="submitting"
+                        :invalid="hasFieldError('price')"
+                        required
+                        @update:model-value="updatePiecePrice"
+                      />
+                      <FieldError id="sku-modal-piece-price-err" :message="fieldError('price')" />
+                      <small class="text-body-tertiary fs-10">
+                        Có thể điều chỉnh để quy ngược giá nhập.
+                      </small>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Cột phải: Formula Preview Card -->
+              <div class="col-12 col-lg-5">
+                <aside class="pricing-formula h-100 rounded-3 p-3 p-lg-4">
+                  <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="formula-icon d-inline-flex align-items-center justify-content-center" aria-hidden="true">
+                      <AppIcon name="calculator" />
+                    </span>
+                    <div>
+                      <h5 class="fs-9 mb-0">Cách tính giá SKU</h5>
+                      <p class="fs-10 text-body-tertiary mb-0">Chi phí tạo nên giá bán</p>
+                      <code class="pricing-sku-code mt-1">
+                        {{ draft.code || "Chưa có mã SKU" }}
+                      </code>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="isWeighted && !hasSilverPrice"
+                    class="alert alert-subtle-warning fs-9 mb-0"
+                    role="status"
+                  >
+                    Chưa cấu hình giá bạc hiện tại. Vui lòng cập nhật tại trang Cài đặt.
+                  </div>
+                  <template v-else>
+                    <dl class="formula-list mb-3">
+                      <template v-if="isWeighted">
+                        <div>
+                          <dt>Giá bạc hiện tại</dt>
+                          <dd>{{ formatMoney(silverPrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Trọng lượng</dt>
+                          <dd>{{ draft.weight || 0 }} chỉ</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền bạc</dt>
+                          <dd>{{ formatMoney(silverValue) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền công</dt>
+                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền xi</dt>
+                          <dd>{{ formatMoney(draft.platingCost) }}</dd>
+                        </div>
+                      </template>
+                      <template v-else-if="isPiece">
+                        <div>
+                          <dt>Giá nhập</dt>
+                          <dd>{{ formatMoney(draft.importPrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Giá nhân đôi</dt>
+                          <dd>{{ formatMoney((Number(draft.importPrice) || 0) * 2) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Mức giảm</dt>
+                          <dd>{{ pieceDiscountLabel }}</dd>
+                        </div>
+                      </template>
+                      <div class="formula-subtotal">
+                        <dt>Tạm tính</dt>
+                        <dd>{{ formatMoney(rawPrice) }}</dd>
+                      </div>
+                    </dl>
+                    <div class="formula-total">
+                      <span>Giá bán áp dụng</span>
+                      <strong>{{ formatMoney(draft.price) }}</strong>
+                    </div>
+                  </template>
+                </aside>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer border-top border-translucent px-4 py-3">
+            <button
+              type="button"
+              class="btn btn-phoenix-secondary"
+              :disabled="submitting"
+              @click="$emit('cancel')"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary px-4"
+              :disabled="submitting"
+            >
+              <span
+                v-if="submitting"
+                class="spinner-border spinner-border-sm me-1"
+                aria-hidden="true"
+              />
+              <AppIcon v-else :name="isEdit ? 'check' : 'plus'" class="me-1" />
+              {{ isEdit ? "Lưu thay đổi" : "Thêm SKU" }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <button
+      v-if="open"
+      type="button"
+      class="modal-backdrop fade show border-0 p-0"
+      aria-label="Đóng"
+      @click="$emit('cancel')"
+    />
+  </Teleport>
+</template>
+
+<script lang="ts">
+import { defineComponent, type PropType } from "vue";
+import AppIcon from "@/components/ui/AppIcon.vue";
+import MoneyInput from "@/components/form/MoneyInput.vue";
+import FieldError from "@/components/form/FieldError.vue";
+import { createOverlayBehavior } from "@/components/overlay/behavior";
+import { formatMoney } from "@/utils/resource-display";
+import {
+  calculatePiecePrice,
+  estimatePieceImportPrice,
+  roundSellingPrice,
+} from "@/views/WarehousedGoods/pricing";
+import { warehouseService } from "@/views/WarehousedGoods/service";
+import { normalizeSkuCode, suggestSkuCodes } from "@/views/WarehousedGoods/sku-code";
+import {
+  emptyWarehouseSku,
+  type WarehouseItem,
+  type WarehouseSku,
+  type WarehouseSkuFormModel,
+} from "@/views/WarehousedGoods/types";
+
+function copySku(source?: WarehouseSku | null): WarehouseSkuFormModel {
+  if (!source) {
+    return emptyWarehouseSku({
+      codeMode: "auto",
+    });
+  }
+  return {
+    clientId: source.id || `sku-${Date.now()}`,
+    id: source.id || undefined,
+    code: source.code || "",
+    codeMode: "manual",
+    codeSource: source.code || "",
+    size: source.size || "",
+    weight: Number(source.weight) || 0,
+    price: Number(source.price) || 0,
+    laborCost: Number(source.laborCost) || 0,
+    platingCost: Number(source.platingCost) || 0,
+    importPrice: source.importPrice === null || source.importPrice === undefined
+      ? null
+      : Number(source.importPrice),
+    stock: Number(source.stock) || 0,
+    printCount: Number(source.printCount) || 0,
+  };
+}
+
+export default defineComponent({
+  name: "WarehouseSkuModal",
+  components: { AppIcon, FieldError, MoneyInput },
+  props: {
+    open: { type: Boolean, default: false },
+    sku: { type: Object as PropType<WarehouseSku | null>, default: null },
+    product: { type: Object as PropType<WarehouseItem>, required: true },
+    silverPrice: { type: Number as PropType<number | null>, default: null },
+    existingCodes: { type: Array as PropType<string[]>, default: () => [] },
+    submitting: { type: Boolean, default: false },
+    error: { type: String, default: "" },
+  },
+  emits: ["cancel", "submit"],
+  data() {
+    return {
+      draft: copySku(this.sku),
+      localError: "",
+      fieldErrors: {} as Record<string, string>,
+      overlay: createOverlayBehavior(() => this.$emit("cancel")),
+      skuCodeCheckController: null as AbortController | null,
+    };
+  },
+  computed: {
+    isEdit(): boolean {
+      return Boolean(this.sku?.id);
+    },
+    modalTitleId(): string {
+      return `sku-modal-title-${this.draft.clientId}`;
+    },
+    isWeighted(): boolean {
+      return this.product.pricingType === "Đồ cân";
+    },
+    isPiece(): boolean {
+      return this.product.pricingType === "Đồ món";
+    },
+    hasSilverPrice(): boolean {
+      return Number(this.silverPrice) > 0;
+    },
+    silverValue(): number {
+      return Math.round((Number(this.silverPrice) || 0) * (Number(this.draft.weight) || 0));
+    },
+    rawPrice(): number {
+      if (this.isWeighted) {
+        return this.silverValue + (Number(this.draft.laborCost) || 0) + (Number(this.draft.platingCost) || 0);
+      }
+      if (this.isPiece) {
+        return calculatePiecePrice(Number(this.draft.importPrice) || 0).rawPrice;
+      }
+      return 0;
+    },
+    pieceDiscountLabel(): string {
+      const discount = calculatePiecePrice(Number(this.draft.importPrice) || 0).discountRate;
+      const percentage = Math.round(discount * 100);
+      return percentage ? `giảm ${percentage}%` : "không giảm";
+    },
+  },
+  watch: {
+    open: {
+      immediate: true,
+      handler(isOpen: boolean) {
+        this.overlay.sync(isOpen);
+        if (isOpen) {
+          this.localError = "";
+          this.fieldErrors = {};
+          this.draft = copySku(this.sku);
+          if (!this.isEdit && this.draft.codeMode === "auto") {
+            this.applySuggestedCode();
+          }
+          this.recalculatePrice();
+        }
+      },
+    },
+    sku(newSku) {
+      if (this.open) {
+        this.draft = copySku(newSku);
+        this.recalculatePrice();
+      }
+    },
+  },
+  beforeUnmount() {
+    this.overlay.dispose();
+    this.skuCodeCheckController?.abort();
+  },
+  methods: {
+    formatMoney(val: number | null | undefined): string {
+      return formatMoney(val ?? 0);
+    },
+    hasFieldError(field: string): boolean {
+      return Boolean(this.fieldErrors[field]);
+    },
+    fieldError(field: string): string {
+      return this.fieldErrors[field] || "";
+    },
+    clearFieldError(field: string): void {
+      if (this.fieldErrors[field]) {
+        const { [field]: _removed, ...rest } = this.fieldErrors;
+        this.fieldErrors = rest;
+      }
+      this.localError = "";
+    },
+    applySuggestedCode(): void {
+      if (this.draft.codeMode === "manual") return;
+      const context = {
+        pricingType: this.product.pricingType,
+        name: this.product.name,
+        category: this.product.category,
+        material: this.product.material,
+        pattern: this.product.pattern,
+      };
+      const [suggested] = suggestSkuCodes([this.draft], context);
+      if (suggested?.code) {
+        this.draft.code = suggested.code;
+        this.draft.codeSource = suggested.codeSource;
+      }
+    },
+    recalculatePrice(): void {
+      if (this.isWeighted) {
+        const calculated = roundSellingPrice(this.rawPrice);
+        this.draft.price = calculated;
+        this.draft.importPrice = null;
+      } else if (this.isPiece) {
+        this.draft.laborCost = 0;
+        this.draft.platingCost = 0;
+        if (!this.draft.price && this.draft.importPrice) {
+          this.draft.price = calculatePiecePrice(Number(this.draft.importPrice) || 0).price;
+        }
+      }
+    },
+    updateCode(e: Event): void {
+      this.clearFieldError("code");
+      const val = (e.target as HTMLInputElement).value;
+      this.draft.code = val;
+      this.draft.codeMode = "manual";
+      this.draft.codeSource = "";
+    },
+    async handleCodeBlur(): Promise<void> {
+      this.draft.code = normalizeSkuCode(this.draft.code);
+      await this.checkSkuCodeAvailability();
+    },
+    async regenerateCode(): Promise<void> {
+      this.clearFieldError("code");
+      this.draft.codeMode = "auto";
+      this.draft.codeSource = "";
+      this.applySuggestedCode();
+      await this.checkSkuCodeAvailability();
+    },
+    updateSize(e: Event): void {
+      this.clearFieldError("size");
+      this.draft.size = (e.target as HTMLInputElement).value;
+      if (this.draft.codeMode === "auto") {
+        this.applySuggestedCode();
+      }
+    },
+    updateWeight(e: Event): void {
+      this.clearFieldError("weight");
+      const val = (e.target as HTMLInputElement).value;
+      this.draft.weight = val === "" ? 0 : Number(val);
+      if (this.draft.codeMode === "auto") {
+        this.applySuggestedCode();
+      }
+      this.recalculatePrice();
+    },
+    updateStock(e: Event): void {
+      this.clearFieldError("stock");
+      const val = (e.target as HTMLInputElement).value;
+      this.draft.stock = val === "" ? 0 : Math.trunc(Number(val));
+    },
+    updateLaborCost(val: number | null): void {
+      this.clearFieldError("laborCost");
+      this.draft.laborCost = val ?? 0;
+      this.recalculatePrice();
+    },
+    updatePlatingCost(val: number | null): void {
+      this.clearFieldError("platingCost");
+      this.draft.platingCost = val ?? 0;
+      this.recalculatePrice();
+    },
+    updatePieceImportPrice(val: number | null): void {
+      this.clearFieldError("importPrice");
+      this.clearFieldError("price");
+      this.draft.importPrice = val;
+      this.draft.price = calculatePiecePrice(Number(val) || 0).price;
+    },
+    updatePiecePrice(val: number | null): void {
+      this.clearFieldError("price");
+      this.clearFieldError("importPrice");
+      const price = val ?? 0;
+      this.draft.price = price;
+      if (price > 0) {
+        const estimate = estimatePieceImportPrice(price, Number(this.draft.importPrice) || 0);
+        this.draft.importPrice = estimate?.importPrice ?? null;
+      }
+    },
+    async checkSkuCodeAvailability(): Promise<void> {
+      const code = normalizeSkuCode(this.draft.code);
+      if (!code) return;
+      if (this.isEdit && code === normalizeSkuCode(this.sku?.code)) return;
+
+      this.skuCodeCheckController?.abort();
+      const controller = new AbortController();
+      this.skuCodeCheckController = controller;
+      try {
+        const response = await warehouseService.checkSkuCodes([{ code }], controller.signal);
+        const suggested = response.items?.[0]?.code;
+        if (suggested && suggested !== code) {
+          this.draft.code = suggested;
+        }
+      } catch {
+        // Silently skip if aborted or network issue
+      } finally {
+        if (this.skuCodeCheckController === controller) {
+          this.skuCodeCheckController = null;
+        }
+      }
+    },
+    validate(): boolean {
+      this.fieldErrors = {};
+      this.localError = "";
+
+      const code = normalizeSkuCode(this.draft.code);
+      if (!code) {
+        this.fieldErrors.code = "Mã SKU là bắt buộc";
+      } else if (code.length > 100) {
+        this.fieldErrors.code = "Mã SKU không được vượt quá 100 ký tự";
+      } else {
+        // Check duplicate within the same product
+        const originalCode = normalizeSkuCode(this.sku?.code);
+        const isDuplicate = this.existingCodes.some((c) => {
+          const norm = normalizeSkuCode(c);
+          return norm === code && (!this.isEdit || norm !== originalCode);
+        });
+        if (isDuplicate) {
+          this.fieldErrors.code = `Mã SKU "${code}" đã tồn tại trong sản phẩm này`;
+        }
+      }
+
+      if (!(Number(this.draft.weight) > 0)) {
+        this.fieldErrors.weight = "Trọng lượng chỉ phải lớn hơn 0";
+      }
+
+      if (!Number.isInteger(this.draft.stock) || this.draft.stock < 0) {
+        this.fieldErrors.stock = "Tồn kho phải là số nguyên không âm";
+      }
+
+      if (this.isWeighted) {
+        if (!this.hasSilverPrice) {
+          this.localError = "Chưa cấu hình giá bạc hiện tại. Không thể tính giá đồ cân.";
+        }
+      } else if (this.isPiece) {
+        if (!(Number(this.draft.importPrice) > 0)) {
+          this.fieldErrors.importPrice = "Giá nhập phải lớn hơn 0";
+        }
+        if (!(Number(this.draft.price) > 0)) {
+          this.fieldErrors.price = "Giá bán phải lớn hơn 0";
+        }
+      }
+
+      return Object.keys(this.fieldErrors).length === 0 && !this.localError;
+    },
+    submit(): void {
+      if (!this.validate()) return;
+      this.draft.code = normalizeSkuCode(this.draft.code);
+      this.$emit("submit", { ...this.draft });
+    },
+  },
+});
+</script>
+
+<style scoped>
+.sku-modal-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--phoenix-primary-subtle);
+  color: var(--phoenix-primary);
+}
+
+.pricing-formula {
+  background: var(--phoenix-body-highlight-bg);
+  border: 1px solid var(--phoenix-border-color-translucent);
+}
+
+.formula-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: rgba(240, 171, 0, 0.15);
+  color: #c17b00;
+}
+
+.pricing-sku-code {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(240, 171, 0, 0.28);
+  border-radius: 0.4rem;
+  color: var(--phoenix-warning-text-emphasis);
+  background: rgba(240, 171, 0, 0.1);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.formula-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  font-size: 0.78rem;
+  border-bottom: 1px dashed rgba(82, 91, 117, 0.18);
+}
+
+.formula-list dt {
+  color: var(--phoenix-tertiary-color);
+  font-weight: 600;
+}
+
+.formula-list dd {
+  margin: 0;
+  color: var(--phoenix-emphasis-color);
+  font-weight: 700;
+  text-align: right;
+}
+
+.formula-list .formula-subtotal {
+  padding-top: 0.7rem;
+  border-bottom: 0;
+}
+
+.formula-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  color: #fff;
+  background: linear-gradient(135deg, #8a5a00, #c17b00);
+}
+
+.formula-total span {
+  font-size: 0.7rem;
+  opacity: 0.78;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.formula-total strong {
+  font-size: 1.2rem;
+}
+
+.selling-price-input .form-control {
+  color: var(--phoenix-warning-text-emphasis);
+  background: var(--phoenix-emphasis-bg);
+}
+</style>
