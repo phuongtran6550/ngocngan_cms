@@ -77,13 +77,13 @@ export function getAbbreviatedName(
       text = text.replace(/(?:^|[^A-Z0-9])N\s*\d+(?=[^A-Z0-9]|$)/g, " ");
     }
     const tokens = text.match(/[A-Z0-9]+/g) || [];
-    const initials = tokens.map((t) => t[0]).join("");
+    const initials = tokens.map((t) => (/\d/.test(t) ? t : t[0])).join("");
     if (initials) return initials;
   }
 
   const normFallback = ascii(fallback);
   const fallbackTokens = normFallback.match(/[A-Z0-9]+/g) || [];
-  return fallbackTokens.map((t) => t[0]).join("");
+  return fallbackTokens.map((t) => (/\d/.test(t) ? t : t[0])).join("");
 }
 
 export function abbreviateSkuPart(value: unknown): string {
