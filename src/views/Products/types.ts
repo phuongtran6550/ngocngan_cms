@@ -10,6 +10,7 @@ export type ProductSortField =
   | "stock"
   | "weight"
   | "size"
+  | "printCount"
   | "updatedAt";
 
 export interface ProductOption {
@@ -41,6 +42,7 @@ export interface ProductSku {
   platingCost: number;
   importPrice: number | null;
   status: ProductStatus;
+  printCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }

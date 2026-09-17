@@ -1,3 +1,15 @@
+// Pipeline deploy CMS Ngọc Châu — build tĩnh bằng Vite, phát hành blue/green
+// qua symlink, nginx phục vụ từ /home/https/www/cms/dist.
+//
+// YÊU CẦU TRÊN JENKINS:
+//   - Plugin: NodeJS, SSH Agent
+//   - Tool NodeJS đặt tên đúng 'Node 20'
+//   - Credentials: YTPlus_SSH (SSH, đọc GitHub), NGOCCHAU_SERVER_SSH (SSH, vào server),
+//     NGOCCHAU_SERVER_HOST_KEY (Secret text, nội dung dòng known_hosts).
+//
+// Lưu ý: VITE_* là biến build-time, được nướng thẳng vào bundle. Đổi giá trị
+// thì phải build lại, sửa .env trên server không có tác dụng.
+
 pipeline {
   agent any
 
@@ -12,11 +24,30 @@ pipeline {
     timeout(time: 1, unit: 'HOURS')
   }
 
+  parameters {
+    string(
+      name: 'BRANCH',
+      defaultValue: 'main',
+      description: 'Nhánh cần deploy.'
+    )
+    booleanParam(
+      name: 'SKIP_LINT',
+      defaultValue: false,
+      description: 'Bỏ qua lint và typecheck. Chỉ dùng khi cần hotfix gấp.'
+    )
+    booleanParam(
+      name: 'SKIP_SMOKE_TESTS',
+      defaultValue: false,
+      description: 'Bỏ qua kiểm tra HTTP public. Chỉ dùng khi domain chưa trỏ xong.'
+    )
+  }
+
   environment {
-    REPOSITORY = 'git@github.com:phuongtran6550/ngocngan_cms.git'
-    DEPLOY_HOST = 'root@149.28.144.156'
-    VITE_API_BASE_URL = 'https://api.tiembacngocchau.vn/api'
+    REPOSITORY          = 'git@github.com:phuongtran6550/ngocngan_cms.git'
+    DEPLOY_HOST         = 'root@149.28.144.156'
+    VITE_API_BASE_URL   = 'https://api.tiembacngocchau.vn/api'
     VITE_ASSET_BASE_URL = 'https://api.tiembacngocchau.vn'
+    PUBLIC_URL          = 'https://cms.tiembacngocchau.vn'
   }
 
   stages {
@@ -26,12 +57,36 @@ pipeline {
         script {
           def source = checkout([
             $class: 'GitSCM',
-            branches: [[name: '*/main']],
+            branches: [[name: "*/${params.BRANCH}"]],
             userRemoteConfigs: [[url: env.REPOSITORY, credentialsId: 'YTPlus_SSH']]
           ])
           env.SOURCE_REVISION = source.GIT_COMMIT
-          currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.SOURCE_REVISION.take(8)}"
+          currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.BRANCH}@${env.SOURCE_REVISION.take(8)}"
         }
+      }
+    }
+
+    stage('Install') {
+      steps {
+        sh '''
+          set -eu
+          node --version
+          npm --version
+          npm ci
+        '''
+      }
+    }
+
+    stage('Verify') {
+      when {
+        expression { return !params.SKIP_LINT }
+      }
+      steps {
+        // npm run build đã gọi vue-tsc --noEmit, nên ở đây chỉ chạy lint.
+        sh '''
+          set -eu
+          npm run lint
+        '''
       }
     }
 
@@ -39,12 +94,15 @@ pipeline {
       steps {
         sh '''
           set -eu
-          node --version
-          npm --version
-          npm ci
-          npm run lint
           npm run build
-          test -s dist/index.html
+
+          test -s dist/index.html || {
+            echo 'Build không sinh ra dist/index.html' >&2
+            exit 1
+          }
+
+          echo "Kích thước bản build:"
+          du -sh dist
           tar -czf cms-dist.tgz dist
         '''
       }
@@ -83,7 +141,7 @@ pipeline {
                 trap - EXIT
                 set +e
                 if ! ssh_to_deploy_host "rm -f '$archive'" >/dev/null 2>&1; then
-                  echo "Warning: remote cleanup failed for CMS transfer artifacts" >&2
+                  echo "Cảnh báo: không dọn được file tạm trên server" >&2
                 fi
                 rm -f "$known_hosts_file"
                 exit "$status"
@@ -96,27 +154,39 @@ pipeline {
               ssh_to_deploy_host \
                 "find /tmp -maxdepth 1 -type f -name 'ngocchau-cms-*.tgz' -mmin +120 -delete"
               scp_to_deploy_host cms-dist.tgz "$DEPLOY_HOST:$archive"
+
               ssh_to_deploy_host \
-                "bash -s -- '$BUILD_NUMBER' '$archive'" <<'REMOTE'
+                "bash -s -- '$BUILD_NUMBER' '$archive' '$SKIP_SMOKE_TESTS' '$PUBLIC_URL'" <<'REMOTE'
                 set -Eeuo pipefail
                 build_number="$1"
                 archive="$2"
+                skip_smoke="$3"
+                public_url="$4"
+
                 release_root="/home/https/releases/ngocchau/cms"
                 active_path="/home/https/www/cms"
                 release_path="$release_root/release-$build_number"
                 previous_path=""
                 legacy_backup=""
 
+                # Lần đầu chuyển sang cơ chế symlink, active_path còn là thư
+                # mục thật — dời sang một bên để còn đường lùi.
                 if [ -L "$active_path" ]; then
                   previous_path="$(readlink -f "$active_path")"
                 elif [ -d "$active_path" ]; then
                   legacy_backup="${active_path}.legacy-$(date +%Y%m%d%H%M%S)"
                   mv "$active_path" "$legacy_backup"
+                  echo "Đã lưu bản thư mục cũ tại $legacy_backup"
                 fi
 
                 verify_cms_http() {
-                  status_code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 2 https://cms.tiembacngocchau.vn/)"
-                  [ "$status_code" = "200" ]
+                  [ "$skip_smoke" = "true" ] && return 0
+                  status_code="$(curl -sS -o /dev/null -w '%{http_code}' \
+                    --retry 5 --retry-delay 2 "$public_url/")"
+                  [ "$status_code" = "200" ] || {
+                    echo "$public_url trả $status_code, cần 200" >&2
+                    return 1
+                  }
                 }
 
                 verify_cms_release() {
@@ -137,28 +207,33 @@ pipeline {
                   status="$?"
                   trap - ERR
                   set +e
+                  echo "=== Deploy hỏng, đang rollback ===" >&2
                   rollback_ok=1
                   rm -f "$active_path" "${active_path}.new" || rollback_ok=0
                   if [ -n "$previous_path" ] && [ -d "$previous_path" ]; then
                     [ "$rollback_ok" -eq 1 ] && ln -s "$previous_path" "$active_path" || rollback_ok=0
                     [ "$rollback_ok" -eq 1 ] && verify_cms_release "$previous_path" || rollback_ok=0
+                    [ "$rollback_ok" -eq 1 ] && echo "Đã quay về $previous_path" >&2
                   elif [ -n "$legacy_backup" ] && [ -d "$legacy_backup" ]; then
                     [ "$rollback_ok" -eq 1 ] && mv "$legacy_backup" "$active_path" || rollback_ok=0
                     [ "$rollback_ok" -eq 1 ] && verify_legacy_cms || rollback_ok=0
+                    [ "$rollback_ok" -eq 1 ] && echo "Đã khôi phục thư mục cũ" >&2
                   fi
                   rm -f "$archive"
-                  if [ "$rollback_ok" -ne 1 ]; then
-                    echo "Rollback failed: CMS was not restored to a healthy release" >&2
-                  fi
+                  [ "$rollback_ok" -ne 1 ] && \
+                    echo "ROLLBACK THẤT BẠI: CMS chưa về được bản lành — cần vào server xử lý tay" >&2
                   exit "$status"
                 }
                 trap rollback ERR
 
-                install -d -m 755 "$release_root"
+                install -d -m 755 "$release_root" "$(dirname "$active_path")"
                 rm -rf "$release_path"
                 install -d -m 755 "$release_path"
                 tar -xzf "$archive" -C "$release_path"
                 test -s "$release_path/dist/index.html"
+
+                # nginx đọc qua symlink nên cần quyền duyệt thư mục.
+                chmod -R a+rX "$release_path"
 
                 ln -sfn "$release_path" "${active_path}.new"
                 mv -Tf "${active_path}.new" "$active_path"
@@ -167,6 +242,7 @@ pipeline {
                 trap - ERR
                 rm -f "$archive"
                 ls -1dt "$release_root"/release-* 2>/dev/null | tail -n +4 | xargs -r rm -rf
+                echo "=== Deploy CMS thành công: release-$build_number ==="
 REMOTE
             '''
           }
@@ -179,6 +255,12 @@ REMOTE
     always {
       sh 'rm -f cms-dist.tgz'
       deleteDir()
+    }
+    success {
+      echo "CMS deploy xong: ${env.SOURCE_REVISION?.take(8)} (build #${env.BUILD_NUMBER})"
+    }
+    failure {
+      echo 'CMS deploy hỏng — server đã tự rollback. Xem log stage Deploy để biết verify nào trượt.'
     }
   }
 }

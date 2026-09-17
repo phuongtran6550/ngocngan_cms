@@ -28,6 +28,12 @@ export const productDefinition: ResourceDefinition = {
       sortable: true,
     },
     { key: "size", label: "Ni", type: "text", sortable: true },
+    {
+      key: "printCount",
+      label: "Số lần in",
+      type: "number",
+      sortable: true,
+    },
     { key: "classificationTags", label: "Phân loại", type: "tags" },
     {
       key: "updatedAt",

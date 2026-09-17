@@ -1,3 +1,10 @@
+// Deploy cả hệ thống theo thứ tự API trước, CMS sau.
+//
+// Thứ tự này quan trọng: CMS gọi API, nên API phải lên trước để CMS mới
+// không gọi vào endpoint chưa tồn tại. API hỏng thì dừng luôn, không deploy CMS.
+//
+// Hai job con phải được tạo sẵn với đúng tên trong biến bên dưới.
+
 pipeline {
   agent any
 
@@ -5,20 +12,72 @@ pipeline {
     timestamps()
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '10'))
-    timeout(time: 1, unit: 'HOURS')
+    timeout(time: 2, unit: 'HOURS')
+  }
+
+  parameters {
+    string(
+      name: 'BRANCH',
+      defaultValue: 'main',
+      description: 'Nhánh áp dụng cho cả hai job con.'
+    )
+    booleanParam(
+      name: 'SKIP_SMOKE_TESTS',
+      defaultValue: false,
+      description: 'Bỏ qua smoke test HTTP ở cả hai job.'
+    )
+  }
+
+  environment {
+    API_JOB = 'Ngoc Chau - API'
+    CMS_JOB = 'Ngoc Chau - CMS'
   }
 
   stages {
     stage('Deploy API') {
       steps {
-        build job: 'Ngoc Chau - API', wait: true, propagate: true
+        script {
+          def result = build(
+            job: env.API_JOB,
+            wait: true,
+            propagate: true,
+            parameters: [
+              string(name: 'BRANCH', value: params.BRANCH),
+              booleanParam(name: 'SKIP_SMOKE_TESTS', value: params.SKIP_SMOKE_TESTS)
+            ]
+          )
+          echo "API build #${result.number}: ${result.result}"
+        }
       }
     }
 
     stage('Deploy CMS') {
       steps {
-        build job: 'Ngoc Chau - CMS', wait: true, propagate: true
+        script {
+          def result = build(
+            job: env.CMS_JOB,
+            wait: true,
+            propagate: true,
+            parameters: [
+              string(name: 'BRANCH', value: params.BRANCH),
+              booleanParam(name: 'SKIP_SMOKE_TESTS', value: params.SKIP_SMOKE_TESTS)
+            ]
+          )
+          echo "CMS build #${result.number}: ${result.result}"
+        }
       }
+    }
+  }
+
+  post {
+    success {
+      echo "Deploy toàn hệ thống thành công (nhánh ${params.BRANCH})."
+    }
+    failure {
+      echo '''Deploy toàn hệ thống hỏng.
+Mỗi job con tự rollback phần của nó. Lưu ý: nếu API xong mà CMS hỏng thì
+API vẫn đang chạy bản mới còn CMS ở bản cũ — kiểm tra xem hai bên có lệch
+hợp đồng API không.'''
     }
   }
 }
