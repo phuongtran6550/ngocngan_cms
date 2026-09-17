@@ -20,6 +20,7 @@ export interface WarehouseSku {
   platingCost: number;
   importPrice: number | null;
   stock: number;
+  printCount?: number;
 }
 
 export interface WarehouseSkuFormModel
@@ -147,6 +148,7 @@ export function emptyWarehouseSku(
       input.stock === null || input.stock === undefined
         ? 0
         : Number(input.stock) || 0,
+    printCount: Number(input.printCount) || 0,
   };
 }
 

@@ -42,11 +42,11 @@
           <div>
             <h3 class="fs-7 mb-1">Hình ảnh sản phẩm</h3>
             <p class="text-body-tertiary fs-9 mb-0">
-              Dùng ảnh rõ sản phẩm để dễ nhận diện khi nhập và xuất kho.
+              Dùng ảnh rõ sản phẩm để dễ nhận diện khi nhập và xuất kho. Nếu để trống, hệ thống sẽ sử dụng ảnh mặc định.
             </p>
           </div>
-          <span class="badge badge-phoenix badge-phoenix-warning"
-            >Bắt buộc</span
+          <span class="badge badge-phoenix badge-phoenix-secondary"
+            >Không bắt buộc</span
           >
         </div>
         <div :class="{ 'is-invalid': hasFieldError('thumbnail') }">
@@ -977,6 +977,8 @@ export default defineComponent({
       return {
         ...input,
         skus: suggestSkuCodes(input.skus, {
+          pricingType: input.pricingType,
+          name: input.name,
           category: this.optionName(this.options.categories, input.categoryId),
           material: this.optionName(this.options.materials, input.materialId),
           pattern: this.optionName(this.options.patterns, input.patternId),
@@ -1036,9 +1038,9 @@ export default defineComponent({
     },
     skuCodeCheckRows(input: WarehouseFormModel): SkuCodeCheckRow[] {
       const autoReady = Boolean(
-        input.categoryId &&
-        input.materialId &&
-        input.patternId &&
+        (input.name || input.categoryId) &&
+        (input.materialId ||
+          /(?:^|[^A-Z0-9])(?:XV|XK)(?=[^A-Z0-9]|N\d+|$)/i.test(input.name)) &&
         input.skus.some((sku) => sku.weight > 0),
       );
       return input.skus.flatMap((sku, index) => {
@@ -1275,11 +1277,6 @@ export default defineComponent({
       options: { allowDuplicateCodes?: boolean } = {},
     ): WarehouseFormModel | null {
       const required: Array<[boolean, string, string]> = [
-        [
-          Boolean(this.draft.thumbnail || this.existingThumbnail),
-          "thumbnail",
-          "Vui lòng chọn hình ảnh sản phẩm",
-        ],
         [Boolean(this.draft.name.trim()), "name", "Vui lòng nhập tên sản phẩm"],
         [
           Boolean(this.draft.categoryId),

@@ -1,14 +1,16 @@
 import type { WarehouseSkuFormModel } from "@/views/WarehousedGoods/types";
 
 export interface SkuCodeSource {
-  category: string;
-  material: string;
-  pattern: string;
+  pricingType?: string;
+  name?: string;
+  category?: string;
+  material?: string;
+  pattern?: string;
   weight: number;
   size: string;
 }
 
-function ascii(value: unknown): string {
+export function ascii(value: unknown): string {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -22,6 +24,66 @@ export function normalizeSkuCode(value: unknown): string {
     .replace(/[^A-Z0-9]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+export function getMaterialPrefix(name?: string, material?: string): string {
+  const normName = ascii(name);
+
+  if (/(?:^|[^A-Z0-9])XV(?=[^A-Z0-9]|N\d+|$)/.test(normName)) {
+    return "V";
+  }
+  if (/(?:^|[^A-Z0-9])XK(?=[^A-Z0-9]|N\d+|$)/.test(normName)) {
+    return "K";
+  }
+
+  const normMat = ascii(material);
+  if (normMat.includes("XI VANG") || normMat.includes("VANG")) {
+    return "V";
+  }
+  if (normMat.includes("XI KIM") || normMat.includes("KIM")) {
+    return "K";
+  }
+  if (normMat.includes("BAC")) {
+    return "B";
+  }
+
+  if (normMat.trim()) {
+    const firstChar = normMat.trim().charAt(0);
+    return /[A-Z]/.test(firstChar) ? firstChar : "B";
+  }
+
+  return "";
+}
+
+export function getNNumber(name?: string): string {
+  const normName = ascii(name);
+  const match = normName.match(/(?:^|[^A-Z0-9]|XV|XK)N\s*(\d+)(?=[^A-Z0-9]|$)/);
+  if (!match) return "";
+  return `N${match[1]}`;
+}
+
+export function getAbbreviatedName(
+  name?: string,
+  isPiece?: boolean,
+  fallback?: string,
+): string {
+  const normName = ascii(name);
+  if (normName.trim()) {
+    let text = normName.replace(
+      /(?:^|[^A-Z0-9])(?:XV|XK)(?=[^A-Z0-9]|N\d+|$)/g,
+      " ",
+    );
+    if (isPiece) {
+      text = text.replace(/(?:^|[^A-Z0-9])N\s*\d+(?=[^A-Z0-9]|$)/g, " ");
+    }
+    const tokens = text.match(/[A-Z0-9]+/g) || [];
+    const initials = tokens.map((t) => t[0]).join("");
+    if (initials) return initials;
+  }
+
+  const normFallback = ascii(fallback);
+  const fallbackTokens = normFallback.match(/[A-Z0-9]+/g) || [];
+  return fallbackTokens.map((t) => t[0]).join("");
 }
 
 export function abbreviateSkuPart(value: unknown): string {
@@ -45,35 +107,68 @@ export function abbreviateSkuPart(value: unknown): string {
 }
 
 export function formatSkuWeight(value: unknown): string {
-  const weight = Number(value);
-  if (!Number.isFinite(weight) || weight <= 0) return "";
-  return `${String(weight).replace(".", "P")}C`;
+  if (value === null || value === undefined || value === "") return "";
+  const num = Number(String(value).replace(",", "."));
+  if (!Number.isFinite(num) || num <= 0) return "";
+
+  const rounded = Number(num.toFixed(4));
+  const str = String(rounded);
+  const parts = str.split(".");
+  if (parts.length === 1) {
+    return `${parts[0]}C`;
+  }
+  return `${parts[0]}C${parts[1]}`;
 }
 
 export function formatSkuSize(value: unknown): string {
-  const normalized = ascii(value).trim();
-  if (!normalized) return "";
-  const numeric = normalized.match(/\d+(?:[.,]\d+)?/);
-  if (numeric) return `N${numeric[0].replace(/[.,]/g, "P")}`;
+  const str = String(value ?? "").trim();
+  if (!str) return "";
 
-  return normalizeSkuCode(
-    normalized
-      .replace(/\bNI\s*TAY\b/g, "")
-      .replace(/\bKICH\s*CO\b/g, "")
-      .replace(/\bSIZE\b/g, ""),
-  ).replace(/-/g, "");
+  const normalized = ascii(str)
+    .replace(/\b(?:NI\s*TAY|NI|KICH\s*CO|SIZE)\b/g, "")
+    .trim();
+
+  const clean = normalized.replace(/^NI\s*/i, "").trim();
+  return clean.replace(/[^A-Z0-9]+/g, "");
 }
 
 export function buildSkuCode(source: SkuCodeSource): string {
-  return [
-    abbreviateSkuPart(source.category),
-    abbreviateSkuPart(source.material),
-    abbreviateSkuPart(source.pattern),
-    formatSkuWeight(source.weight),
-    formatSkuSize(source.size),
-  ]
-    .filter(Boolean)
-    .join("-");
+  const isPiece =
+    source.pricingType === "Đồ món" ||
+    ascii(source.pricingType).includes("MON");
+
+  const matPrefix = getMaterialPrefix(source.name, source.material);
+
+  let firstPart = matPrefix;
+  if (isPiece) {
+    const nPart = getNNumber(source.name);
+    if (nPart) {
+      firstPart = `${matPrefix}${nPart}`;
+    }
+  }
+
+  const nameAbbr = getAbbreviatedName(
+    source.name,
+    isPiece,
+    source.category || source.pattern,
+  );
+
+  const sizePart = formatSkuSize(source.size);
+  const weightPart = formatSkuWeight(source.weight);
+
+  const restPart = `${nameAbbr}${sizePart}${weightPart}`;
+
+  if (!firstPart && !restPart) {
+    return "";
+  }
+  if (!firstPart) {
+    return restPart;
+  }
+  if (!restPart) {
+    return firstPart;
+  }
+
+  return `${firstPart}-${restPart}`;
 }
 
 function availableCode(base: string, used: Set<string>): string {

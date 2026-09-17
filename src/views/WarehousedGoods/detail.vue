@@ -187,6 +187,7 @@
                 <th v-else scope="col" class="sku-numeric">Giá nhập</th>
                 <th scope="col" class="sku-numeric">Giá bán</th>
                 <th scope="col" class="sku-numeric">Tồn kho</th>
+                <th scope="col" class="sku-numeric text-center">Số lần in</th>
                 <th
                   scope="col"
                   class="sku-numeric position-relative"
@@ -227,6 +228,28 @@
                 </td>
                 <td class="sku-numeric" :data-testid="`sku-stock-${index}`">
                   <span class="sku-stock-value">{{ sku.stock }}</span>
+                </td>
+                <td
+                  class="sku-numeric text-center"
+                  :data-testid="`sku-print-count-${index}`"
+                >
+                  <span
+                    v-if="!sku.printCount"
+                    class="badge badge-phoenix badge-phoenix-secondary fs-10"
+                  >
+                    Chưa in
+                  </span>
+                  <span
+                    v-else
+                    class="badge badge-phoenix fs-10"
+                    :class="
+                      sku.printCount === 1
+                        ? 'badge-phoenix-success'
+                        : 'badge-phoenix-warning'
+                    "
+                  >
+                    {{ sku.printCount }} lần
+                  </span>
                 </td>
                 <td class="sku-numeric">
                   <div class="sku-row-actions">
@@ -353,6 +376,28 @@
                 <div>
                   <dt>Tồn kho</dt>
                   <dd>{{ sku.stock }} sản phẩm</dd>
+                </div>
+                <div>
+                  <dt>Số lần in</dt>
+                  <dd>
+                    <span
+                      v-if="!sku.printCount"
+                      class="badge badge-phoenix badge-phoenix-secondary fs-10"
+                    >
+                      Chưa in
+                    </span>
+                    <span
+                      v-else
+                      class="badge badge-phoenix fs-10"
+                      :class="
+                        sku.printCount === 1
+                          ? 'badge-phoenix-success'
+                          : 'badge-phoenix-warning'
+                      "
+                    >
+                      {{ sku.printCount }} lần
+                    </span>
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -574,6 +619,7 @@ export default defineComponent({
         }
         const printedQuantity = result.quantity || quantity;
         const skuLabel = sku.code || "không xác định";
+        sku.printCount = (sku.printCount || 0) + 1;
         this.printSuccess =
           result.transport === "agent"
             ? `Đã xếp hàng ${printedQuantity} tem SKU ${skuLabel}.`
