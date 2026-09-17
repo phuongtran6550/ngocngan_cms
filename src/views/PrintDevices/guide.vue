@@ -1,20 +1,10 @@
 <template>
   <div>
     <PageHeader
-      title="Hướng dẫn cài đặt máy in"
-      description="Thiết lập một lần để in tem GoDEX G500 trực tiếp từ website."
+      title="Tải và cài Ứng dụng in"
+      description="Bộ cài production cho GoDEX G500, tải trực tiếp từ hệ thống Ngọc Châu."
       :breadcrumbs="breadcrumbs"
     >
-      <template #actions>
-        <RouterLink
-          v-if="canManageDevices"
-          to="/print-devices"
-          class="btn btn-phoenix-secondary"
-        >
-          <AppIcon name="settings" />
-          <span class="d-none d-sm-inline ms-1">Thiết bị in</span>
-        </RouterLink>
-      </template>
     </PageHeader>
 
     <div class="card border-0 guide-intro mb-4 overflow-hidden">
@@ -90,10 +80,11 @@
               <div class="step-layout">
                 <span class="step-number">2</span>
                 <div class="min-w-0">
-                  <h2 class="h5 mb-2">Cài Ứng dụng in Ngọc Châu</h2>
+                  <h2 class="h5 mb-2">Tải bộ cài production</h2>
                   <p class="text-body-tertiary mb-3">
-                    Tải đúng bộ cài cho {{ selectedPlatformLabel }}, mở tệp vừa
-                    tải và làm theo hướng dẫn trên màn hình.
+                    Bấm Tải bộ cài, mở tệp vừa tải và bấm Install. Bộ cài tự
+                    đặt ứng dụng vào Program Files, tạo mục gỡ cài đặt Windows
+                    và cấu hình tự chạy cùng máy tính.
                   </p>
 
                   <div
@@ -182,26 +173,12 @@
               <div class="step-layout">
                 <span class="step-number">3</span>
                 <div class="min-w-0">
-                  <h2 class="h5 mb-2">Nhập mã kết nối sáu số</h2>
+                  <h2 class="h5 mb-2">Bấm Chạy và in ngay</h2>
                   <p class="text-body-tertiary mb-3">
-                    Mở Ứng dụng in Ngọc Châu, sau đó tạo mã kết nối trên website
-                    và nhập mã đó vào ứng dụng. Mã chỉ dùng một lần.
+                    Mở Ứng dụng in Ngọc Châu trên máy đã nối GoDEX G500 rồi bấm
+                    Chạy. Có thể bấm Dừng bất kỳ lúc nào; không cần đăng ký,
+                    token hay mã kết nối.
                   </p>
-                  <RouterLink
-                    v-if="canManageDevices"
-                    to="/print-devices"
-                    class="btn btn-primary"
-                  >
-                    <AppIcon name="plus" />
-                    <span class="ms-1">Tạo mã kết nối</span>
-                  </RouterLink>
-                  <div v-else class="guide-note">
-                    <AppIcon name="help-circle" />
-                    <span>
-                      Hãy nhờ người quản lý có quyền thiết lập máy in tạo mã kết
-                      nối cho máy tính này.
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -238,9 +215,7 @@
 import { defineComponent } from "vue";
 import PageHeader from "@/components/app/PageHeader.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
-import { PERMISSIONS } from "@/config/permissions";
 import { apiError } from "@/request";
-import { authenStore } from "@/stores/app-authen";
 import { browserDownload } from "@/utils/file-download";
 import { printDeviceService } from "@/views/PrintDevices/service";
 import type {
@@ -288,16 +263,10 @@ export default defineComponent({
     };
   },
   computed: {
-    auth() {
-      return authenStore();
-    },
-    canManageDevices(): boolean {
-      return this.auth.can(PERMISSIONS.warehouseUpdate);
-    },
     breadcrumbs(): Array<{ label: string; to?: string }> {
       return [
         { label: "Hàng nhập kho", to: "/warehoused-goods" },
-        { label: "Hướng dẫn cài đặt máy in" },
+        { label: "Tải và cài Ứng dụng in" },
       ];
     },
     selectedPlatformLabel(): string {

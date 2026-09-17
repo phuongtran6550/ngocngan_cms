@@ -38,68 +38,13 @@
           </div>
 
           <div class="modal-body print-label-body">
-            <div
-              v-if="statusBusy"
-              class="printer-status printer-status-secondary"
-              role="status"
-              aria-live="polite"
-              data-testid="print-status-loading"
-            >
-              <span
-                class="spinner-border spinner-border-sm"
-                aria-hidden="true"
-              />
-              <div class="status-copy">
-                <strong>Đang kiểm tra GoDEX G500…</strong>
-                <p>Vui lòng chờ trong giây lát.</p>
-              </div>
-            </div>
-            <div
-              v-else
-              class="printer-status"
-              :class="`printer-status-${statusView.tone}`"
-              :role="statusView.ready ? 'status' : 'alert'"
-              aria-live="polite"
-              data-testid="print-device-status"
-            >
+            <div class="printer-status printer-status-success" role="status" aria-live="polite">
               <span class="printer-status-mark" aria-hidden="true">
-                {{ statusView.ready ? "✓" : "!" }}
+                ✓
               </span>
               <div class="status-copy min-w-0">
-                <strong>{{ statusView.title }}</strong>
-                <p>{{ statusView.description }}</p>
-              </div>
-              <div
-                v-if="!statusView.ready"
-                class="status-actions d-flex flex-wrap gap-2"
-              >
-                <RouterLink
-                  to="/print-guide"
-                  class="btn btn-sm btn-phoenix-secondary"
-                  aria-label="Mở hướng dẫn cài đặt"
-                  data-testid="open-print-guide"
-                >
-                  <AppIcon name="help-circle" />
-                  <span class="ms-1">Hướng dẫn</span>
-                </RouterLink>
-                <button
-                  v-if="statusView.action === 'setup' && setupAllowed"
-                  type="button"
-                  class="btn btn-sm btn-primary"
-                  data-testid="open-print-setup"
-                  @click="$emit('open-setup')"
-                >
-                  Thiết lập
-                </button>
-                <button
-                  v-if="statusView.action === 'retry'"
-                  type="button"
-                  class="btn btn-sm btn-phoenix-secondary"
-                  data-testid="retry-print-status"
-                  @click="$emit('retry-status')"
-                >
-                  Kiểm tra
-                </button>
+                <strong>GoDEX G500 sẵn sàng nhận lệnh</strong>
+                <p>Ứng dụng in sẽ tự nhận lệnh từ API và gửi tem xuống máy in.</p>
               </div>
             </div>
 
@@ -165,7 +110,7 @@
             <button
               type="submit"
               class="btn btn-primary"
-              :disabled="busy || statusBusy || !statusView.ready"
+              :disabled="busy"
             >
               <span
                 v-if="busy"
@@ -194,8 +139,6 @@
 import { defineComponent, type PropType } from "vue";
 import { createOverlayBehavior } from "@/components/overlay/behavior";
 import AppIcon from "@/components/ui/AppIcon.vue";
-import { printDevicePresentation } from "@/views/PrintDevices/presentation";
-import type { DefaultPrintDeviceStatus } from "@/views/PrintDevices/types";
 
 export default defineComponent({
   name: "PrintLabelDialog",
@@ -211,29 +154,14 @@ export default defineComponent({
     busy: Boolean,
     error: { type: String, default: "" },
     submissionError: { type: String, default: "" },
-    printerStatus: {
-      type: Object as PropType<DefaultPrintDeviceStatus | null>,
-      default: null,
-    },
-    statusBusy: Boolean,
-    setupAllowed: Boolean,
   },
-  emits: [
-    "cancel",
-    "confirm",
-    "retry-status",
-    "open-setup",
-    "update:modelValue",
-  ],
+  emits: ["cancel", "confirm", "update:modelValue"],
   data() {
     return {
       overlay: createOverlayBehavior(() => this.requestClose()),
     };
   },
   computed: {
-    statusView() {
-      return printDevicePresentation(this.printerStatus);
-    },
     confirmLabel(): string {
       const quantity = Number(this.modelValue);
       return Number.isInteger(quantity) && quantity > 0
@@ -267,7 +195,7 @@ export default defineComponent({
       if (!this.busy) this.$emit("cancel");
     },
     requestConfirm(): void {
-      if (!this.busy && !this.statusBusy && this.statusView.ready) {
+      if (!this.busy) {
         this.$emit("confirm");
       }
     },
