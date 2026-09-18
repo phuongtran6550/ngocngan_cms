@@ -132,22 +132,44 @@
                 <div class="col-12 col-lg-7">
                   <div class="row g-3">
                     <div class="col-12 sku-code-field">
-                      <label
-                        class="form-label"
-                        :for="skuFieldId(index, 'code')"
+                      <div
+                        class="d-flex justify-content-between align-items-center mb-1"
                       >
-                        Mã SKU <span class="text-danger">*</span>
-                      </label>
+                        <label
+                          class="form-label mb-0"
+                          :for="skuFieldId(index, 'code')"
+                        >
+                          Mã SKU <span class="text-danger">*</span>
+                        </label>
+                        <span
+                          v-if="sku.codeMode === 'auto'"
+                          class="badge badge-phoenix badge-phoenix-info fs-10"
+                        >
+                          Tự động sinh mã
+                        </span>
+                        <span
+                          v-else
+                          class="badge badge-phoenix badge-phoenix-warning fs-10"
+                        >
+                          Tự nhập mã
+                        </span>
+                      </div>
                       <div class="input-group">
                         <input
                           :id="skuFieldId(index, 'code')"
                           class="form-control font-monospace text-uppercase"
                           :class="{
                             'is-invalid': hasFieldError(`skus.${index}.code`),
+                            'bg-body-tertiary': sku.codeMode === 'auto',
                           }"
                           :name="`skus[${index}].code`"
                           :value="sku.code"
-                          placeholder="Tự tạo từ phân loại và quy cách"
+                          :readonly="sku.codeMode === 'auto'"
+                          :placeholder="
+                            sku.codeMode === 'auto'
+                              ? 'Tự tạo từ phân loại và quy cách'
+                              : 'Nhập mã SKU tùy chỉnh'
+                          "
                           maxlength="100"
                           required
                           :disabled="submitting"
@@ -167,15 +189,29 @@
                         <button
                           type="button"
                           class="btn btn-phoenix-secondary"
-                          :aria-label="`Tạo lại mã SKU ${index + 1}`"
+                          :aria-label="
+                            sku.codeMode === 'auto'
+                              ? `Tự nhập mã SKU ${index + 1}`
+                              : `Tạo tự động mã SKU ${index + 1}`
+                          "
                           :disabled="submitting"
-                          @click="regenerateSkuCode(index)"
+                          @click="toggleSkuCodeMode(index)"
                         >
                           <span
+                            v-if="sku.codeMode === 'auto'"
+                            class="fas fa-edit me-1"
+                            aria-hidden="true"
+                          />
+                          <span
+                            v-else
                             class="fas fa-sync-alt me-1"
                             aria-hidden="true"
                           />
-                          Tạo lại mã
+                          {{
+                            sku.codeMode === "auto"
+                              ? "Tự nhập mã"
+                              : "Tạo tự động"
+                          }}
                         </button>
                       </div>
                       <FieldError
@@ -183,8 +219,11 @@
                         :message="fieldError(`skus.${index}.code`)"
                       />
                       <small class="text-body-tertiary">
-                        Tự động ghép danh mục, chất liệu, mẫu, trọng lượng và
-                        ni.
+                        {{
+                          sku.codeMode === "auto"
+                            ? "Tự động ghép danh mục, chất liệu, mẫu, trọng lượng và ni."
+                            : "Mã SKU do bạn tự điều chỉnh, không bị tự động ghi đè khi đổi quy cách."
+                        }}
                       </small>
                     </div>
                     <div class="col-12 col-sm-6">
@@ -1169,6 +1208,28 @@ export default defineComponent({
     },
     async checkSkuCodesOnBlur(): Promise<void> {
       await this.checkSkuCodesNow();
+    },
+    async toggleSkuCodeMode(index: number): Promise<void> {
+      const current = this.draft.skus[index];
+      if (!current) return;
+      if (current.codeMode === "auto") {
+        this.clearFieldError(`skus.${index}.code`);
+        const next = copyForm(this.draft);
+        next.skus[index] = {
+          ...next.skus[index],
+          codeMode: "manual",
+          codeSource: "",
+        };
+        this.commit(this.withCalculatedPrices(next));
+        await this.$nextTick();
+        const el = document.getElementById(this.skuFieldId(index, "code"));
+        if (el instanceof HTMLInputElement) {
+          el.focus();
+          el.select();
+        }
+      } else {
+        await this.regenerateSkuCode(index);
+      }
     },
     async regenerateSkuCode(index: number): Promise<void> {
       this.clearFieldError(`skus.${index}.code`);

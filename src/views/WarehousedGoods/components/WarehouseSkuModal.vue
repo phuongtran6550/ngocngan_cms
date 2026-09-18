@@ -48,16 +48,38 @@
                 <div class="row g-3">
                   <!-- Mã SKU -->
                   <div class="col-12">
-                    <label class="form-label fs-9 fw-bold" for="sku-modal-code">
-                      Mã SKU <span class="text-danger">*</span>
-                    </label>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <label class="form-label fs-9 fw-bold mb-0" for="sku-modal-code">
+                        Mã SKU <span class="text-danger">*</span>
+                      </label>
+                      <span
+                        v-if="draft.codeMode === 'auto'"
+                        class="badge badge-phoenix badge-phoenix-info fs-10"
+                      >
+                        Tự động sinh mã
+                      </span>
+                      <span
+                        v-else
+                        class="badge badge-phoenix badge-phoenix-warning fs-10"
+                      >
+                        Tự nhập mã
+                      </span>
+                    </div>
                     <div class="input-group">
                       <input
                         id="sku-modal-code"
                         class="form-control font-monospace text-uppercase"
-                        :class="{ 'is-invalid': hasFieldError('code') }"
+                        :class="{
+                          'is-invalid': hasFieldError('code'),
+                          'bg-body-tertiary': draft.codeMode === 'auto',
+                        }"
                         :value="draft.code"
-                        placeholder="Tự tạo từ phân loại và quy cách"
+                        :readonly="draft.codeMode === 'auto'"
+                        :placeholder="
+                          draft.codeMode === 'auto'
+                            ? 'Tự tạo từ phân loại và quy cách'
+                            : 'Nhập mã SKU tùy chỉnh'
+                        "
                         maxlength="100"
                         required
                         :disabled="submitting"
@@ -69,15 +91,22 @@
                         type="button"
                         class="btn btn-phoenix-secondary"
                         :disabled="submitting"
-                        @click="regenerateCode"
+                        @click="toggleCodeMode"
                       >
-                        <AppIcon name="refresh-cw" class="me-1" />
-                        Tạo lại mã
+                        <AppIcon
+                          :name="draft.codeMode === 'auto' ? 'edit' : 'refresh'"
+                          class="me-1"
+                        />
+                        {{ draft.codeMode === "auto" ? "Tự nhập mã" : "Tạo tự động" }}
                       </button>
                     </div>
                     <FieldError id="sku-modal-code-err" :message="fieldError('code')" />
                     <small class="text-body-tertiary fs-10">
-                      Tự động ghép phân loại sản phẩm, trọng lượng và ni tay.
+                      {{
+                        draft.codeMode === "auto"
+                          ? "Tự động ghép phân loại sản phẩm, trọng lượng và ni tay."
+                          : "Mã SKU do bạn tự điều chỉnh, không bị tự động ghi đè khi đổi quy cách."
+                      }}
                     </small>
                   </div>
 
@@ -541,6 +570,21 @@ export default defineComponent({
     async handleCodeBlur(): Promise<void> {
       this.draft.code = normalizeSkuCode(this.draft.code);
       await this.checkSkuCodeAvailability();
+    },
+    async toggleCodeMode(): Promise<void> {
+      if (this.draft.codeMode === "auto") {
+        this.clearFieldError("code");
+        this.draft.codeMode = "manual";
+        this.draft.codeSource = "";
+        await this.$nextTick();
+        const el = document.getElementById("sku-modal-code");
+        if (el instanceof HTMLInputElement) {
+          el.focus();
+          el.select();
+        }
+      } else {
+        await this.regenerateCode();
+      }
     },
     async regenerateCode(): Promise<void> {
       this.clearFieldError("code");
