@@ -104,7 +104,7 @@
                   <!-- Trọng lượng -->
                   <div class="col-12 col-sm-6">
                     <label class="form-label fs-9 fw-bold" for="sku-modal-weight">
-                      Trọng lượng chỉ <span class="text-danger">*</span>
+                      Trọng lượng chỉ <span v-if="isWeighted" class="text-danger">*</span>
                     </label>
                     <div class="input-group">
                       <input
@@ -113,11 +113,11 @@
                         :class="{ 'is-invalid': hasFieldError('weight') }"
                         type="number"
                         inputmode="decimal"
-                        min="0.01"
+                        :min="isWeighted ? 0.01 : 0"
                         step="0.01"
                         :value="draft.weight || ''"
                         placeholder="0"
-                        required
+                        :required="isWeighted"
                         :disabled="submitting"
                         :aria-invalid="hasFieldError('weight') ? 'true' : undefined"
                         @input="updateWeight"
@@ -639,8 +639,12 @@ export default defineComponent({
         }
       }
 
-      if (!(Number(this.draft.weight) > 0)) {
-        this.fieldErrors.weight = "Trọng lượng chỉ phải lớn hơn 0";
+      if (this.isWeighted) {
+        if (!(Number(this.draft.weight) > 0)) {
+          this.fieldErrors.weight = "Trọng lượng chỉ phải lớn hơn 0";
+        }
+      } else if (Number(this.draft.weight) < 0) {
+        this.fieldErrors.weight = "Trọng lượng chỉ không được âm";
       }
 
       if (!Number.isInteger(this.draft.stock) || this.draft.stock < 0) {

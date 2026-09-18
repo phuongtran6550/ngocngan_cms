@@ -228,7 +228,7 @@
                         class="form-label"
                         :for="skuFieldId(index, 'weight')"
                       >
-                        Trọng lượng chỉ <span class="text-danger">*</span>
+                        Trọng lượng chỉ <span v-if="isWeighted" class="text-danger">*</span>
                       </label>
                       <div class="input-group">
                         <input
@@ -240,11 +240,11 @@
                           :name="`skus[${index}].weight`"
                           type="number"
                           inputmode="decimal"
-                          min="0.01"
+                          :min="isWeighted ? 0.01 : 0"
                           step="0.01"
                           :value="sku.weight || ''"
                           placeholder="0"
-                          required
+                          :required="isWeighted"
                           :disabled="submitting"
                           :aria-invalid="
                             hasFieldError(`skus.${index}.weight`)
@@ -1041,7 +1041,7 @@ export default defineComponent({
         (input.name || input.categoryId) &&
         (input.materialId ||
           /(?:^|[^A-Z0-9])(?:XV|XK)(?=[^A-Z0-9]|N\d+|$)/i.test(input.name)) &&
-        input.skus.some((sku) => sku.weight > 0),
+        (!this.isWeighted || input.skus.some((sku) => sku.weight > 0)),
       );
       return input.skus.flatMap((sku, index) => {
         const code = normalizeSkuCode(sku.code);
@@ -1049,7 +1049,8 @@ export default defineComponent({
         if (
           !code ||
           (Boolean(sku.id) && code === persistedCode) ||
-          (sku.codeMode === "auto" && (!autoReady || sku.weight <= 0))
+          (sku.codeMode === "auto" &&
+            (!autoReady || (this.isWeighted && sku.weight <= 0)))
         ) {
           return [];
         }
@@ -1333,10 +1334,18 @@ export default defineComponent({
           return null;
         }
         seenCodes.add(sku.code);
-        if (!(sku.weight > 0)) {
+        if (this.isWeighted) {
+          if (!(sku.weight > 0)) {
+            this.setLocalFieldError(
+              `skus.${index}.weight`,
+              `SKU ${index + 1}: Trọng lượng chỉ phải lớn hơn 0`,
+            );
+            return null;
+          }
+        } else if (sku.weight < 0) {
           this.setLocalFieldError(
             `skus.${index}.weight`,
-            `SKU ${index + 1}: Trọng lượng chỉ phải lớn hơn 0`,
+            `SKU ${index + 1}: Trọng lượng chỉ không được âm`,
           );
           return null;
         }
