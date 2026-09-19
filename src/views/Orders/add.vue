@@ -1,7 +1,7 @@
 <template>
   <section
     class="fast-checkout-page"
-    :class="{ 'has-sticky-action': !created && step !== 'photo' }"
+    :class="{ 'has-sticky-action': step !== 'photo' }"
   >
     <PageHeader
       title="Bán hàng nhanh"
@@ -19,7 +19,7 @@
 
     <div v-if="created" class="sale-success-panel" role="status">
       <div>
-        <span class="sale-success-panel__eyebrow">Đã ghi nhận bán hàng</span>
+        <span class="sale-success-panel__eyebrow">Đơn vừa lưu thành công</span>
         <h2>{{ created.orderCode }}</h2>
         <p class="mb-0">
           Tồn kho đã được trừ.
@@ -38,7 +38,7 @@
           >Xem đơn</RouterLink
         >
         <button type="button" class="btn btn-primary" @click="nextOrder">
-          Tạo đơn tiếp theo
+          Quét đơn tiếp theo
         </button>
       </div>
     </div>
@@ -55,11 +55,7 @@
       {{ error }}
     </div>
 
-    <div
-      v-if="!created"
-      class="checkout-stepper"
-      aria-label="Tiến trình tạo đơn hàng"
-    >
+    <div class="checkout-stepper" aria-label="Tiến trình tạo đơn hàng">
       <div
         v-for="item in checkoutSteps"
         :key="item.id"
@@ -76,7 +72,7 @@
       </div>
     </div>
 
-    <template v-if="!created && step === 'cart'">
+    <template v-if="step === 'cart'">
       <div class="checkout-command-card">
         <div>
           <span class="checkout-command-card__eyebrow"
@@ -108,14 +104,14 @@
     </template>
 
     <OrderPhotoCapture
-      v-if="!created && step === 'photo'"
+      v-if="step === 'photo'"
       :active="step === 'photo'"
       :disabled="submitting"
       @back="returnToCart"
       @captured="acceptPhoto"
     />
 
-    <div v-if="!created && step === 'customer'" class="checkout-customer-grid">
+    <div v-if="step === 'customer'" class="checkout-customer-grid">
       <section class="card customer-photo-card">
         <div class="card-body">
           <div
@@ -170,7 +166,7 @@
     </div>
 
     <div
-      v-if="!created && step !== 'photo'"
+      v-if="step !== 'photo'"
       class="checkout-sticky"
       :class="{ 'has-conflict': cart.hasStockConflict }"
     >
@@ -254,6 +250,8 @@ const step = ref<CheckoutStep>("cart");
 const scannerOpen = ref(false);
 const photo = ref<File | null>(null);
 const photoPreview = ref("");
+let preparedPhoto: Promise<{ image: File } | { error: unknown }> | null = null;
+let photoVersion = 0;
 const name = ref("");
 const phone = ref("");
 const error = ref("");
@@ -333,6 +331,7 @@ function showCartFeedback(message: string): void {
   feedbackOk.value = false;
 }
 function scannerFeedback(message: string, ok: boolean): void {
+  created.value = null;
   feedback.value = message;
   feedbackOk.value = ok;
   resetSubmitKey();
@@ -355,17 +354,32 @@ function revokePhotoPreview(): void {
 function clearPhoto(): void {
   revokePhotoPreview();
   photo.value = null;
+  preparedPhoto = null;
+  photoVersion += 1;
 }
 
 function setPhoto(file: File): void {
-  revokePhotoPreview();
+  clearPhoto();
+  const version = photoVersion;
   photo.value = file;
   photoPreview.value = URL.createObjectURL(file);
   resetSubmitKey();
+  progress.value = 0;
+  preparedPhoto = optimizeImage(
+    file,
+    (value) => {
+      if (version === photoVersion) progress.value = Math.round(value * 0.45);
+    },
+    ORDER_PHOTO_IMAGE_OPTIMIZATION,
+  ).then(
+    (image) => ({ image }),
+    (error: unknown) => ({ error }),
+  );
 }
 
 function lockCart(): void {
   if (!canLockCart.value) return;
+  created.value = null;
   scannerOpen.value = false;
   error.value = "";
   feedback.value = "";
@@ -381,6 +395,8 @@ function acceptPhoto(file: File, warning = ""): void {
 
 function retakePhoto(): void {
   if (submitting.value) return;
+  clearPhoto();
+  submitKey.value = "";
   error.value = "";
   feedback.value = "";
   step.value = "photo";
@@ -401,23 +417,23 @@ function returnToCart(): void {
 }
 
 async function checkout(): Promise<void> {
-  if (!canCheckout.value || !photo.value) return;
+  if (!canCheckout.value || !photo.value || !preparedPhoto) return;
+  const preparation = preparedPhoto;
   submitting.value = true;
-  progress.value = 0;
   error.value = "";
   feedback.value = "";
   if (!submitKey.value) submitKey.value = createOrderIdempotencyKey();
   try {
-    const optimized = await optimizeImage(
-      photo.value,
-      (value) => {
-        progress.value = Math.round(value * 0.45);
-      },
-      ORDER_PHOTO_IMAGE_OPTIMIZATION,
-    );
+    const result = await preparation;
+    if (preparation !== preparedPhoto) return;
+    if ("error" in result) {
+      error.value = `${apiError(result.error).message}. Vui lòng chụp hoặc chọn lại ảnh.`;
+      return;
+    }
+    progress.value = 45;
     const order = await orderService.checkout(
       {
-        image: optimized,
+        image: result.image,
         name: name.value,
         phone: phone.value,
         items: cart.lines.map((line) => ({
@@ -511,7 +527,7 @@ onMounted(() => {
   cart.initialize();
   void refreshCart();
 });
-onBeforeUnmount(() => revokePhotoPreview());
+onBeforeUnmount(() => clearPhoto());
 </script>
 
 <style scoped>
