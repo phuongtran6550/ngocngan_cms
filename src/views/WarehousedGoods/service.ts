@@ -138,4 +138,18 @@ export const warehouseService = {
   async remove(id: string): Promise<void> {
     await request.delete(`${warehouseEndpoint}/${id}`);
   },
+  async bulkDelete(
+    ids: string[],
+    signal?: AbortSignal,
+  ): Promise<{ deletedCount: number }> {
+    const { data } = await request.post<{
+      deletedCount: number;
+      message: string;
+    }>(
+      `${warehouseEndpoint}/bulk-delete`,
+      { ids },
+      { signal },
+    );
+    return { deletedCount: Number(data?.deletedCount) || 0 };
+  },
 };

@@ -39,6 +39,8 @@ export const useWarehouseStore = defineStore("warehouse", {
     error: "",
     message: "",
     deleteTarget: null as WarehouseItem | null,
+    selectedIds: [] as string[],
+    bulkDeleteSubmitting: false,
     listController: null as AbortController | null,
     optionsController: null as AbortController | null,
     listRequestId: 0,
@@ -138,6 +140,29 @@ export const useWarehouseStore = defineStore("warehouse", {
         await this.load(page);
       } catch (error) {
         this.error = apiError(error).message;
+      }
+    },
+    clearSelection(): void {
+      this.selectedIds = [];
+    },
+    async confirmBulkDelete(): Promise<void> {
+      if (!this.selectedIds.length) return;
+      this.bulkDeleteSubmitting = true;
+      this.error = "";
+      this.message = "";
+      try {
+        const result = await warehouseService.bulkDelete(this.selectedIds);
+        this.message = `Đã xóa thành công ${result.deletedCount} hàng nhập kho.`;
+        this.selectedIds = [];
+        const page =
+          this.items.length <= this.selectedIds.length && this.pagination.page > 1
+            ? this.pagination.page - 1
+            : this.pagination.page;
+        await this.load(page);
+      } catch (error) {
+        this.error = apiError(error).message;
+      } finally {
+        this.bulkDeleteSubmitting = false;
       }
     },
   },

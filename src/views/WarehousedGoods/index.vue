@@ -10,16 +10,31 @@
       :loading="store.loading"
       :error="store.error"
       :selected-columns="store.selectedColumns"
+      :selectable="canDelete"
+      :selected-keys="store.selectedIds"
       @refresh="refresh"
       @fields="updateFields"
       @sort="store.applySort"
       @view="openDetail"
       @edit="openEdit"
       @delete="requestDelete"
-      @page="store.load"
+      @page="onPageChange"
+      @select-row="onSelectRow"
+      @select-all="onSelectAll"
       @create="$router.push('/warehoused-goods/create')"
     >
       <template #header-actions>
+        <button
+          v-if="canDelete && store.selectedIds.length > 0"
+          type="button"
+          class="btn btn-sm btn-subtle-danger text-nowrap d-inline-flex align-items-center gap-1"
+          data-testid="bulk-delete-warehoused-goods-btn"
+          :disabled="store.bulkDeleteSubmitting"
+          @click="bulkDeleteOpen = true"
+        >
+          <AppIcon name="trash-2" />
+          <span>Xóa đã chọn ({{ store.selectedIds.length }})</span>
+        </button>
         <button
           type="button"
           class="btn btn-sm btn-phoenix-secondary text-nowrap"
@@ -39,6 +54,15 @@
       confirm-label="Xóa hàng nhập kho"
       @cancel="store.cancelDelete"
       @confirm="store.confirmDelete"
+    />
+
+    <ConfirmDialog
+      :open="bulkDeleteOpen"
+      title="Xóa hàng nhập kho hàng loạt"
+      :message="`Bạn có chắc muốn xóa ${store.selectedIds.length} hàng nhập kho đã chọn và toàn bộ SKU liên quan?`"
+      confirm-label="Xóa hàng loạt"
+      @cancel="bulkDeleteOpen = false"
+      @confirm="onConfirmBulkDelete"
     />
 
     <DrawerPanel
@@ -135,6 +159,7 @@ export default defineComponent({
   data() {
     return {
       showFilterDrawer: false,
+      bulkDeleteOpen: false,
     };
   },
   computed: {
@@ -146,6 +171,9 @@ export default defineComponent({
     },
     canCreate(): boolean {
       return this.auth.can(warehouseDefinition.permission.create);
+    },
+    canDelete(): boolean {
+      return this.auth.can(warehouseDefinition.permission.delete);
     },
     activeFilterCount(): number {
       return [
@@ -196,9 +224,11 @@ export default defineComponent({
   },
   methods: {
     search(): void {
+      this.store.clearSelection();
       void this.store.applySearch(this.store.query);
     },
     refresh(): void {
+      this.store.clearSelection();
       void Promise.all([this.store.load(), this.store.loadOptions()]);
     },
     updateFields(fields: string[]): void {
@@ -212,6 +242,34 @@ export default defineComponent({
     },
     requestDelete(row: ResourceRow): void {
       this.store.requestDelete(row as unknown as WarehouseItem);
+    },
+    onSelectRow(row: ResourceRow, selected: boolean): void {
+      const id = String(row.id);
+      if (selected) {
+        if (!this.store.selectedIds.includes(id)) {
+          this.store.selectedIds.push(id);
+        }
+      } else {
+        this.store.selectedIds = this.store.selectedIds.filter((item) => item !== id);
+      }
+    },
+    onSelectAll(selected: boolean): void {
+      const currentPageIds = this.rows.map((r) => String(r.id));
+      if (selected) {
+        const set = new Set([...this.store.selectedIds, ...currentPageIds]);
+        this.store.selectedIds = Array.from(set);
+      } else {
+        const removeSet = new Set(currentPageIds);
+        this.store.selectedIds = this.store.selectedIds.filter((id) => !removeSet.has(id));
+      }
+    },
+    onPageChange(page: number): void {
+      this.store.clearSelection();
+      void this.store.load(page);
+    },
+    async onConfirmBulkDelete(): Promise<void> {
+      await this.store.confirmBulkDelete();
+      this.bulkDeleteOpen = false;
     },
   },
 });
