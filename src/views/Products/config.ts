@@ -10,7 +10,7 @@ export const productDefinition: ResourceDefinition = {
     { text: "Sản phẩm" },
   ],
   endpoint: "/products",
-  permission: { view: PERMISSIONS.warehouseView },
+  permission: { view: PERMISSIONS.productsView },
   columns: [
     {
       key: "name",

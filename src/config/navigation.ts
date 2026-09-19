@@ -128,6 +128,7 @@ function runtimeEntry(item: AuthMenuItem, lineage: string): NavigationEntry | un
     key: runtimeKey(item, lineage),
     label: runtimeLabel(item),
     path,
+    permission: protectedRoutes.find((route) => route.path === path)?.meta.permission,
     icon: item.icon || "circle",
     children: children.length ? children : undefined,
   };

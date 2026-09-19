@@ -295,7 +295,6 @@ import type {
   ProductSkuHistoryItem,
   ProductSkuHistoryValue,
 } from "@/views/Products/types";
-import { silverPriceService } from "@/views/Settings/service";
 import { calculateWeightedPrice } from "@/views/WarehousedGoods/pricing";
 import { authenStore } from "@/stores/app-authen";
 import { PERMISSIONS } from "@/config/permissions";
@@ -471,9 +470,9 @@ async function loadCurrentSilverPrice(): Promise<void> {
   silverPriceError.value = false;
   silverPriceLoading.value = true;
   try {
-    const status = await silverPriceService.status(silverPriceController.signal);
+    const status = await productService.options(silverPriceController.signal);
     if (currentRequest !== silverPriceRequestId) return;
-    currentSilverPrice.value = status.silverPrice;
+    currentSilverPrice.value = status.silverPrice ?? null;
   } catch (loadError) {
     if (currentRequest !== silverPriceRequestId) return;
     const normalized = apiError(loadError);

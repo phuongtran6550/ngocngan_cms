@@ -75,6 +75,7 @@
             :display-name="displayName"
             :avatar="avatar"
             :navigation-entries="profileNavigation"
+            :profile-allowed="profileAllowed"
             @close="$emit('close-profile')"
             @change-password="$emit('change-password')"
             @logout="$emit('logout')"
@@ -112,6 +113,9 @@ export default defineComponent({
     return { searchQuery: "" };
   },
   computed: {
+    profileAllowed(): boolean {
+      return authenStore().can("profile.view");
+    },
     profileNavigation(): Array<NavigationEntry & { path: string }> {
       const auth = authenStore();
       return visibleNavigation(auth.permissions, auth.user?.role, auth.menu)

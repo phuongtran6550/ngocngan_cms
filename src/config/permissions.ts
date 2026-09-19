@@ -2,6 +2,9 @@ const SETTINGS_MANAGE_PERMISSION = "zalo.manage";
 
 export const PERMISSIONS = Object.freeze({
   dashboardView: "dashboard.view",
+  productsView: "products.view",
+  printDevicesView: "print-devices.view",
+  profileView: "profile.view",
   exportOrders: "export.orders",
   ordersView: "orders.view",
   ordersCreate: "orders.create",

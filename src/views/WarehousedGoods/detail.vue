@@ -237,19 +237,150 @@
           >
             <thead>
               <tr>
-                <th scope="col">SKU</th>
-                <th scope="col">Ni tay</th>
-                <th scope="col" class="sku-numeric">Trọng lượng</th>
-                <th v-if="isWeighted" scope="col" class="sku-numeric">
-                  Tiền công
+                <th scope="col" :aria-sort="skuAriaSort('code')">
+                  <button
+                    type="button"
+                    class="sku-th-btn"
+                    data-testid="sort-sku-code"
+                    title="Sắp xếp theo mã SKU"
+                    @click="toggleSkuSort('code')"
+                  >
+                    <span>SKU</span>
+                    <AppIcon
+                      :name="skuSortIcon('code')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'code' }"
+                    />
+                  </button>
                 </th>
-                <th v-if="isWeighted" scope="col" class="sku-numeric">
-                  Tiền xi
+                <th scope="col" :aria-sort="skuAriaSort('size')">
+                  <button
+                    type="button"
+                    class="sku-th-btn"
+                    data-testid="sort-sku-size"
+                    title="Sắp xếp theo ni tay"
+                    @click="toggleSkuSort('size')"
+                  >
+                    <span>Ni tay</span>
+                    <AppIcon
+                      :name="skuSortIcon('size')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'size' }"
+                    />
+                  </button>
                 </th>
-                <th v-else scope="col" class="sku-numeric">Giá nhập</th>
-                <th scope="col" class="sku-numeric">Giá bán</th>
-                <th scope="col" class="sku-numeric">Tồn kho</th>
-                <th scope="col" class="sku-numeric text-center">Số lần in</th>
+                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('weight')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-weight"
+                    title="Sắp xếp theo trọng lượng"
+                    @click="toggleSkuSort('weight')"
+                  >
+                    <span>Trọng lượng</span>
+                    <AppIcon
+                      :name="skuSortIcon('weight')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'weight' }"
+                    />
+                  </button>
+                </th>
+                <th v-if="isWeighted" scope="col" class="sku-numeric" :aria-sort="skuAriaSort('laborCost')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-laborCost"
+                    title="Sắp xếp theo tiền công"
+                    @click="toggleSkuSort('laborCost')"
+                  >
+                    <span>Tiền công</span>
+                    <AppIcon
+                      :name="skuSortIcon('laborCost')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'laborCost' }"
+                    />
+                  </button>
+                </th>
+                <th v-if="isWeighted" scope="col" class="sku-numeric" :aria-sort="skuAriaSort('platingCost')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-platingCost"
+                    title="Sắp xếp theo tiền xi"
+                    @click="toggleSkuSort('platingCost')"
+                  >
+                    <span>Tiền xi</span>
+                    <AppIcon
+                      :name="skuSortIcon('platingCost')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'platingCost' }"
+                    />
+                  </button>
+                </th>
+                <th v-else scope="col" class="sku-numeric" :aria-sort="skuAriaSort('importPrice')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-importPrice"
+                    title="Sắp xếp theo giá nhập"
+                    @click="toggleSkuSort('importPrice')"
+                  >
+                    <span>Giá nhập</span>
+                    <AppIcon
+                      :name="skuSortIcon('importPrice')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'importPrice' }"
+                    />
+                  </button>
+                </th>
+                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('price')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-price"
+                    title="Sắp xếp theo giá bán"
+                    @click="toggleSkuSort('price')"
+                  >
+                    <span>Giá bán</span>
+                    <AppIcon
+                      :name="skuSortIcon('price')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'price' }"
+                    />
+                  </button>
+                </th>
+                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('stock')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-stock"
+                    title="Sắp xếp theo tồn kho"
+                    @click="toggleSkuSort('stock')"
+                  >
+                    <span>Tồn kho</span>
+                    <AppIcon
+                      :name="skuSortIcon('stock')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'stock' }"
+                    />
+                  </button>
+                </th>
+                <th scope="col" class="sku-numeric text-center" :aria-sort="skuAriaSort('printCount')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-center"
+                    data-testid="sort-sku-printCount"
+                    title="Sắp xếp theo số lần in"
+                    @click="toggleSkuSort('printCount')"
+                  >
+                    <span>Số lần in</span>
+                    <AppIcon
+                      :name="skuSortIcon('printCount')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'printCount' }"
+                    />
+                  </button>
+                </th>
                 <th
                   scope="col"
                   class="sku-numeric position-relative"
@@ -378,6 +509,48 @@
         </div>
 
         <div class="mobile-sku-list gap-3">
+          <!-- Thanh sắp xếp nhanh trên mobile -->
+          <div
+            v-if="displaySkus.length > 1"
+            class="mobile-sku-sort-bar d-flex align-items-center justify-content-between gap-2 p-2 rounded bg-body-tertiary border border-translucent"
+          >
+            <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+              <label for="mobile-sku-sort-select" class="fs-10 fw-bold text-body-tertiary text-nowrap mb-0">
+                Sắp xếp:
+              </label>
+              <select
+                id="mobile-sku-sort-select"
+                v-model="skuSortKey"
+                class="form-select form-select-sm fs-10 py-1"
+                aria-label="Sắp xếp danh sách SKU"
+              >
+                <option value="">Mặc định (theo thứ tự)</option>
+                <option value="code">Mã SKU</option>
+                <option value="size">Ni tay</option>
+                <option value="weight">Trọng lượng</option>
+                <option v-if="isWeighted" value="laborCost">Tiền công</option>
+                <option v-if="isWeighted" value="platingCost">Tiền xi</option>
+                <option v-else value="importPrice">Giá nhập</option>
+                <option value="price">Giá bán</option>
+                <option value="stock">Tồn kho</option>
+                <option value="printCount">Số lần in</option>
+              </select>
+            </div>
+            <button
+              v-if="skuSortKey"
+              type="button"
+              class="btn btn-sm btn-phoenix-secondary px-2 py-1 fs-10 d-inline-flex align-items-center gap-1 flex-shrink-0"
+              :aria-label="skuSortDirection === 'asc' ? 'Đang xếp tăng dần, bấm để giảm dần' : 'Đang xếp giảm dần, bấm để tăng dần'"
+              @click="toggleSkuSortDirection"
+            >
+              <AppIcon
+                :name="skuSortDirection === 'asc' ? 'chevron-up' : 'chevron-down'"
+                class="fs-10"
+              />
+              <span>{{ skuSortDirection === "asc" ? "Tăng" : "Giảm" }}</span>
+            </button>
+          </div>
+
           <article
             v-for="(sku, index) in displaySkus"
             :key="`mobile-${sku.id || index}`"
@@ -676,6 +849,8 @@ export default defineComponent({
       printQuantity: "1",
       printQuantityError: "",
       printSubmissionError: "",
+      skuSortKey: "" as keyof WarehouseSku | "",
+      skuSortDirection: "asc" as "asc" | "desc",
     };
   },
   computed: {
@@ -704,7 +879,54 @@ export default defineComponent({
       return this.store.options.silverPrice;
     },
     displaySkus(): WarehouseSku[] {
-      return this.item?.skus || [];
+      const skus = [...(this.item?.skus || [])];
+      if (!this.skuSortKey) return skus;
+
+      const key = this.skuSortKey;
+      const isDesc = this.skuSortDirection === "desc";
+      const direction = isDesc ? -1 : 1;
+
+      return skus.sort((a, b) => {
+        const valA = a[key];
+        const valB = b[key];
+
+        // 1. Cột chuỗi ký tự: code, size
+        if (key === "code" || key === "size") {
+          const strA = String(valA ?? "").trim();
+          const strB = String(valB ?? "").trim();
+
+          if (!strA && !strB) return 0;
+          if (!strA) return 1;
+          if (!strB) return -1;
+
+          const cmp = strA.localeCompare(strB, "vi", {
+            numeric: true,
+            sensitivity: "base",
+          });
+          if (cmp !== 0) return direction * cmp;
+          return (a.code || "").localeCompare(b.code || "", "vi", { numeric: true });
+        }
+
+        // 2. Cột số: weight, laborCost, platingCost, importPrice, price, stock, printCount
+        if (valA == null && valB == null) return 0;
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+
+        const numA = Number(valA);
+        const numB = Number(valB);
+        const validA = Number.isFinite(numA);
+        const validB = Number.isFinite(numB);
+
+        if (!validA && !validB) return 0;
+        if (!validA) return 1;
+        if (!validB) return -1;
+
+        if (numA !== numB) {
+          return direction * (numA - numB);
+        }
+
+        return (a.code || "").localeCompare(b.code || "", "vi", { numeric: true });
+      });
     },
     existingSkuCodes(): string[] {
       return this.displaySkus.map((s) => s.code);
@@ -996,6 +1218,29 @@ export default defineComponent({
         this.deleteSkuSubmitting = false;
       }
     },
+    toggleSkuSort(key: keyof WarehouseSku): void {
+      if (this.skuSortKey === key) {
+        this.skuSortDirection = this.skuSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        this.skuSortKey = key;
+        this.skuSortDirection = "asc";
+      }
+    },
+    toggleSkuSortDirection(): void {
+      this.skuSortDirection = this.skuSortDirection === "asc" ? "desc" : "asc";
+    },
+    skuSortIcon(key: keyof WarehouseSku): string {
+      if (this.skuSortKey === key) {
+        return this.skuSortDirection === "asc" ? "chevron-up" : "chevron-down";
+      }
+      return "chevrons-up-down";
+    },
+    skuAriaSort(key: keyof WarehouseSku): "ascending" | "descending" | "none" {
+      if (this.skuSortKey === key) {
+        return this.skuSortDirection === "asc" ? "ascending" : "descending";
+      }
+      return "none";
+    },
   },
 });
 </script>
@@ -1201,6 +1446,66 @@ export default defineComponent({
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.sku-th-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease-in-out;
+}
+
+.sku-th-btn:hover {
+  color: var(--phoenix-primary);
+}
+
+.sku-th-btn:focus-visible {
+  outline: 2px solid var(--phoenix-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.sku-th-btn-end {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.sku-th-btn-center {
+  justify-content: center;
+  width: 100%;
+}
+
+.sku-sort-icon {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  opacity: 0.35;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.sku-th-btn:hover .sku-sort-icon {
+  opacity: 0.85;
+  color: var(--phoenix-primary);
+}
+
+.sku-sort-icon-active {
+  opacity: 1 !important;
+  color: var(--phoenix-primary) !important;
+}
+
+.mobile-sku-sort-bar {
+  margin-bottom: 0.25rem;
 }
 
 .sku-table td {

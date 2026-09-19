@@ -144,7 +144,7 @@ const clientRoutes: ClientRoute[] = [
     meta: {
       auth: true,
       title: "Sản phẩm",
-      permission: PERMISSIONS.warehouseView,
+      permission: PERMISSIONS.productsView,
       navigation: {
         group: "commerce",
         groupLabel: "Nghiệp vụ",
@@ -160,7 +160,7 @@ const clientRoutes: ClientRoute[] = [
     meta: {
       auth: true,
       title: "Chi tiết sản phẩm",
-      permission: PERMISSIONS.warehouseView,
+      permission: PERMISSIONS.productsView,
     },
     component: () => import("@/views/Products/detail.vue"),
   },
@@ -216,7 +216,7 @@ const clientRoutes: ClientRoute[] = [
     meta: {
       auth: true,
       title: "Ứng dụng in",
-      permission: PERMISSIONS.warehouseView,
+      permission: PERMISSIONS.printDevicesView,
       navigation: {
         group: "commerce",
         groupLabel: "Nghiệp vụ",
@@ -232,7 +232,7 @@ const clientRoutes: ClientRoute[] = [
     meta: {
       auth: true,
       title: "Hướng dẫn cài đặt máy in",
-      permission: PERMISSIONS.warehouseView,
+      permission: PERMISSIONS.printDevicesView,
     },
     component: () => import("@/views/PrintDevices/guide.vue"),
   },
@@ -291,13 +291,13 @@ const clientRoutes: ClientRoute[] = [
   {
     path: "/profile",
     name: "profile",
-    meta: { auth: true, title: "Hồ sơ cá nhân" },
+    meta: { auth: true, title: "Hồ sơ cá nhân", permission: PERMISSIONS.profileView },
     component: () => import("@/views/Account/Profile.vue"),
   },
   {
     path: "/profile/change-password",
     name: "change-password",
-    meta: { auth: true, title: "Đổi mật khẩu" },
+    meta: { auth: true, title: "Đổi mật khẩu", permission: PERMISSIONS.profileView },
     component: () => import("@/views/Account/ChangePassword.vue"),
   },
   {

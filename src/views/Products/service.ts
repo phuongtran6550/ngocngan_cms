@@ -258,6 +258,9 @@ export const productService = {
       { signal },
     );
     return {
+      silverPrice: typeof data?.silverPrice === "number" && Number.isFinite(data.silverPrice)
+        ? data.silverPrice
+        : null,
       categories: normalizedOptions(data?.categories, "category"),
       materials: normalizedOptions(data?.materials, "material"),
       patterns: normalizedOptions(data?.patterns, "pattern"),

@@ -439,3 +439,65 @@ test("failed login during hydration outage must not validate cached permissions"
   assert.equal(auth.token, "token-A");
   assert.equal(auth.isHydrated, false);
 });
+
+test("sales and cashier menus and direct routes match their allowed pages", async () => {
+  const realModules = new Map();
+  function realLoad(name) {
+    if (!name.startsWith("@/") || name === "@/stores/app-authen") return load(name);
+    if (realModules.has(name)) return realModules.get(name);
+    const file = `${root}${name.slice(2)}.ts`;
+    const source = ts.transpileModule(readFileSync(file, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    const module = { exports: {} };
+    vm.runInThisContext(`(function(require, module, exports) {${source}\n})`, { filename: file })(realLoad, module, module.exports);
+    realModules.set(name, module.exports);
+    return module.exports;
+  }
+  const routes = [...realLoad("@/router/client").default, ...realLoad("@/router/administrator").default];
+  const { visibleNavigation } = realLoad("@/config/navigation");
+  realLoad("@/router/index").createCmsRouter();
+  const sales = ["products.view", "orders.view", "orders.create", "orders.update"];
+  const cashier = [...sales, "warehouse.view", "source-goods.view", "categories.view", "materials.view"];
+  for (const [permissions, pages] of [
+    [sales, ["/orders", "/products"]],
+    [cashier, ["/orders", "/products", "/warehoused-goods", "/source-of-goods", "/categories", "/materials", "/patterns"]],
+  ]) {
+    const { auth } = setup({ id: "staff", role: "USER", permissions });
+    auth.isHydrated = true;
+    assert.deepEqual(visibleNavigation(permissions, "USER").map((entry) => entry.path).sort(), [...pages].sort());
+    assert.equal(visibleNavigation(permissions, "USER")[0]?.path, "/orders");
+    assert.equal(await routeGuard({
+      name: "login", path: "/login", fullPath: "/login",
+      matched: [], meta: { guestOnly: true },
+    }), "/orders");
+    for (const route of routes) {
+      const allowed = route.path === "/403" || pages.some((page) => route.path === page || route.path.startsWith(`${page}/`));
+      const permission = route.meta.permission;
+      const hasPermission = auth.can(permission);
+      assert.equal(await routeGuard({ ...route, fullPath: route.path, matched: [route] }), allowed && hasPermission ? true : "/orders", route.path);
+    }
+    // A stale server menu must not restore the revoked dashboard permission.
+    assert.deepEqual(visibleNavigation(permissions, "USER", [{ link: "dashboard" }, { link: "products" }]).map((entry) => entry.path), ["/products"]);
+  }
+  const { auth } = setup({ id: "admin", role: "ADMINISTRATOR", permissions: [] });
+  auth.isHydrated = true;
+  for (const route of routes) {
+    assert.equal(await routeGuard({ ...route, fullPath: route.path, matched: [route] }), true, route.path);
+  }
+});
+
+test("product options supply the detail price without requesting settings access", async () => {
+  const { productService } = load("@/views/Products/service");
+  const signal = new AbortController().signal;
+  for (const [value, expected] of [[125000, 125000], [0, 0], [null, null], [undefined, null], [Infinity, null]]) {
+    request.get = async (path, options) => {
+      assert.equal(path, "/warehoused-goods/options");
+      assert.equal(options.signal, signal);
+      return { data: { categories: [], materials: [], patterns: [], silverPrice: value } };
+    };
+    assert.deepEqual(await productService.options(signal), {
+      categories: [], materials: [], patterns: [], silverPrice: expected,
+    });
+  }
+});

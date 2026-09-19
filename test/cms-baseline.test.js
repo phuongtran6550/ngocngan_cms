@@ -46,6 +46,29 @@ function listResult(page) {
   return { items: [], page, limit: 20, total: 0, totalPages: 0 };
 }
 
+test("login without a return URL opens the first permitted menu", async () => {
+  const page = loadSfc("views/Account/login.vue", {
+    vue,
+    "@/config/brand": { brand: {} },
+    "@/config/navigation": {
+      visibleNavigation: () => [{ path: "/orders" }, { path: "/products" }],
+      internalRedirectTarget: () => undefined,
+    },
+    "@/request": { apiError: (error) => error },
+    "@/stores/app-authen": { authenStore: () => ({}) },
+  });
+  const events = [];
+  const instance = {
+    error: "", form: {},
+    auth: { permissions: ["orders.view", "products.view"], user: { role: "USER" }, login: async () => { events.push("login"); } },
+    $route: { query: {} },
+    $router: { replace: async (path) => { events.push(path); } },
+  };
+  await page.methods.submit.call(instance);
+  assert.deepEqual(events, ["login", "/orders"]);
+  assert.equal(instance.error, "");
+});
+
 test("store load defaults keep the current page while explicit page one wins", async () => {
   const specs = [
     {

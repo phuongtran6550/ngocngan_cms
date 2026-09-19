@@ -27,7 +27,7 @@
       </div>
       <div class="overflow-auto scrollbar" style="height: 10rem">
         <ul class="nav d-flex flex-column mb-2 pb-1">
-          <li class="nav-item">
+          <li v-if="profileAllowed" class="nav-item">
             <RouterLink
               class="nav-link px-3 d-block"
               data-testid="profile-link"
@@ -55,7 +55,7 @@
               <span>{{ entry.label }}</span>
             </RouterLink>
           </li>
-          <li class="nav-item">
+          <li v-if="profileAllowed" class="nav-item">
             <button
               type="button"
               class="nav-link btn btn-link px-3 d-block w-100 text-start"
@@ -70,7 +70,7 @@
         </ul>
       </div>
       <div class="card-footer p-0 border-top border-translucent">
-        <ul class="nav d-flex flex-column my-3">
+        <ul v-if="profileAllowed" class="nav d-flex flex-column my-3">
           <li class="nav-item">
             <RouterLink
               class="nav-link px-3 d-block"
@@ -124,6 +124,7 @@ export default defineComponent({
     open: { type: Boolean, required: true },
     displayName: { type: String, required: true },
     avatar: { type: String, default: "" },
+    profileAllowed: { type: Boolean, default: false },
     navigationEntries: {
       type: Array as PropType<ProfileNavigationEntry[]>,
       default: () => [],

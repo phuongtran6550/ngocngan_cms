@@ -67,6 +67,7 @@ export interface ProductListResponse {
 }
 
 export interface ProductOptionsResponse {
+  silverPrice?: number | null;
   categories: ProductOption[];
   materials: ProductOption[];
   patterns: ProductOption[];
