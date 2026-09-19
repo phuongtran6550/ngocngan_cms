@@ -203,6 +203,16 @@ const icons: Record<string, IconShape[]> = {
   close: [{ type: "path", value: "M18 6 6 18M6 6l12 12" }],
   collapse: [{ type: "path", value: "M11 17l-5-5 5-5M18 17l-5-5 5-5" }],
   expand: [{ type: "path", value: "M13 17l5-5-5-5M6 17l5-5-5-5" }],
+  check: [{ type: "polyline", value: "20 6 9 17 4 12" }],
+  "check-circle": [
+    { type: "path", value: "M22 11.08V12a10 10 0 1 1-5.93-9.14" },
+    { type: "polyline", value: "22 4 12 14.01 9 11.01" },
+  ],
+  "alert-circle": [
+    { type: "circle", cx: 12, cy: 12, r: 10 },
+    { type: "line", x1: 12, y1: 8, x2: 12, y2: 12 },
+    { type: "line", x1: 12, y1: 16, x2: 12.01, y2: 16 },
+  ],
 };
 
 export default defineComponent({

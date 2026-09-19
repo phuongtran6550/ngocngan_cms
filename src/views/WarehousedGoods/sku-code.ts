@@ -1,13 +1,16 @@
+import type { CategoryGroup } from "@/views/Categories/types";
 import type { WarehouseSkuFormModel } from "@/views/WarehousedGoods/types";
 
 export interface SkuCodeSource {
   pricingType?: string;
   name?: string;
   category?: string;
+  categoryGroups?: CategoryGroup[];
   material?: string;
   pattern?: string;
   weight: number;
   size: string;
+  price?: number;
 }
 
 export function ascii(value: unknown): string {
@@ -29,10 +32,10 @@ export function normalizeSkuCode(value: unknown): string {
 export function getMaterialPrefix(name?: string, material?: string): string {
   const normName = ascii(name);
 
-  if (/(?:^|[^A-Z0-9])XV(?=[^A-Z0-9]|N\d+|$)/.test(normName)) {
+  if (/(?:^|[^A-Z0-9])XV(?=[^A-Z0-9]|$)/.test(normName)) {
     return "V";
   }
-  if (/(?:^|[^A-Z0-9])XK(?=[^A-Z0-9]|N\d+|$)/.test(normName)) {
+  if (/(?:^|[^A-Z0-9])(?:XK|VK)(?=[^A-Z0-9]|$)/.test(normName)) {
     return "K";
   }
 
@@ -40,7 +43,7 @@ export function getMaterialPrefix(name?: string, material?: string): string {
   if (normMat.includes("XI VANG") || normMat.includes("VANG")) {
     return "V";
   }
-  if (normMat.includes("XI KIM") || normMat.includes("KIM")) {
+  if (normMat.includes("XI KIM") || normMat.includes("VANG KIM") || normMat.includes("KIM")) {
     return "K";
   }
   if (normMat.includes("BAC")) {
@@ -57,33 +60,51 @@ export function getMaterialPrefix(name?: string, material?: string): string {
 
 export function getNNumber(name?: string): string {
   const normName = ascii(name);
-  const match = normName.match(/(?:^|[^A-Z0-9]|XV|XK)N\s*(\d+)(?=[^A-Z0-9]|$)/);
+  const match = normName.match(/(?:^|[^A-Z0-9]|XV|XK|VK)N\s*(\d+)(?=[^A-Z0-9]|$)/);
   if (!match) return "";
   return `N${match[1]}`;
 }
 
 export function getAbbreviatedName(
   name?: string,
-  isPiece?: boolean,
+  _isPiece?: boolean,
   fallback?: string,
 ): string {
-  const normName = ascii(name);
-  if (normName.trim()) {
-    let text = normName.replace(
-      /(?:^|[^A-Z0-9])(?:XV|XK)(?=[^A-Z0-9]|N\d+|$)/g,
-      " ",
-    );
-    if (isPiece) {
-      text = text.replace(/(?:^|[^A-Z0-9])N\s*\d+(?=[^A-Z0-9]|$)/g, " ");
+  const normName = ascii(name).trim();
+  if (normName) {
+    // Trong tên chỉ loại bỏ: XV, VK, XK, N1, N2, N3, N4, N5, N6, N7, N8, N9
+    let text = normName;
+    for (let i = 0; i < 3; i++) {
+      text = text.replace(
+        /(?:^|[^A-Z0-9])(?:XV|VK|XK|N\s*[1-9]|N\s*\d+)(?=[^A-Z0-9]|XV|VK|XK|N\s*[1-9]|$)/gi,
+        " ",
+      );
     }
-    const tokens = text.match(/[A-Z0-9]+/g) || [];
-    const initials = tokens.map((t) => (/\d/.test(t) ? t : t[0])).join("");
-    if (initials) return initials;
+    text = text.trim();
+
+    // Còn lại giữ nguyên viết tắt, nếu là số thì viết toàn bộ số đó ra
+    const tokens = text.match(/[A-Z]+|\d+/g) || [];
+    if (tokens.length) {
+      return tokens
+        .map((token) => {
+          if (/^\d+$/.test(token)) {
+            return token;
+          }
+          return token[0];
+        })
+        .join("");
+    }
   }
 
-  const normFallback = ascii(fallback);
-  const fallbackTokens = normFallback.match(/[A-Z0-9]+/g) || [];
-  return fallbackTokens.map((t) => (/\d/.test(t) ? t : t[0])).join("");
+  const normFallback = ascii(fallback).trim();
+  if (normFallback) {
+    const fallbackTokens = normFallback.match(/[A-Z]+|\d+/g) || [];
+    return fallbackTokens
+      .map((token) => (/^\d+$/.test(token) ? token : token[0]))
+      .join("");
+  }
+
+  return "";
 }
 
 export function abbreviateSkuPart(value: unknown): string {
@@ -132,20 +153,37 @@ export function formatSkuSize(value: unknown): string {
   return clean.replace(/[^A-Z0-9]+/g, "");
 }
 
+export function matchCategoryGroup(
+  groups?: CategoryGroup[],
+  price?: number,
+): CategoryGroup | null {
+  if (!Array.isArray(groups) || !groups.length) return null;
+  const num = Number(price) || 0;
+  for (const group of groups) {
+    const from = Number(group.fromPrice) || 0;
+    const to = Number(group.toPrice) || 0;
+    if (to > 0) {
+      if (num >= from && num <= to) return group;
+    } else {
+      if (num >= from) return group;
+    }
+  }
+  return null;
+}
+
+export function formatGroupName(name?: string): string {
+  if (!name) return "";
+  const norm = ascii(name).trim();
+  return norm.replace(/^NHOM\s*/i, "N").replace(/[^A-Z0-9]/g, "");
+}
+
 export function buildSkuCode(source: SkuCodeSource): string {
   const isPiece =
     source.pricingType === "Đồ món" ||
     ascii(source.pricingType).includes("MON");
 
   const matPrefix = getMaterialPrefix(source.name, source.material);
-
-  let firstPart = matPrefix;
-  if (isPiece) {
-    const nPart = getNNumber(source.name);
-    if (nPart) {
-      firstPart = `${matPrefix}${nPart}`;
-    }
-  }
+  const firstPart = matPrefix;
 
   const nameAbbr = getAbbreviatedName(
     source.name,
@@ -154,7 +192,16 @@ export function buildSkuCode(source: SkuCodeSource): string {
   );
 
   const sizePart = formatSkuSize(source.size);
-  const weightPart = formatSkuWeight(source.weight);
+  // Công thức cũ giữ nguyên, riêng đồ món chỉ đổi phần trọng lượng sang tên nhóm theo danh mục
+  const weightPart = isPiece
+    ? (() => {
+        const matchedGroup = matchCategoryGroup(
+          source.categoryGroups,
+          source.price,
+        );
+        return matchedGroup ? formatGroupName(matchedGroup.name) : "";
+      })()
+    : formatSkuWeight(source.weight);
 
   const restPart = `${nameAbbr}${sizePart}${weightPart}`;
 
@@ -182,7 +229,7 @@ function availableCode(base: string, used: Set<string>): string {
 
 export function suggestSkuCodes(
   skus: WarehouseSkuFormModel[],
-  context: Omit<SkuCodeSource, "weight" | "size">,
+  context: Omit<SkuCodeSource, "weight" | "size" | "price">,
 ): WarehouseSkuFormModel[] {
   const used = new Set(
     skus
@@ -197,6 +244,7 @@ export function suggestSkuCodes(
       ...context,
       weight: sku.weight,
       size: sku.size,
+      price: sku.price,
     });
     if (!base) return { ...sku, code: "", codeSource: "" };
     const codeSource = availableCode(base, used);

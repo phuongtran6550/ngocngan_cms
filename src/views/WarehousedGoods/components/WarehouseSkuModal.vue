@@ -37,10 +37,19 @@
           <div class="modal-body p-4 p-lg-5">
             <div
               v-if="localError || error"
-              class="alert alert-subtle-danger mb-4"
+              class="alert alert-subtle-danger d-flex align-items-center justify-content-between mb-4 shadow-sm"
               role="alert"
             >
-              {{ localError || error }}
+              <div class="d-flex align-items-center gap-2">
+                <AppIcon name="alert-circle" class="flex-shrink-0 text-danger" />
+                <span>{{ localError || error }}</span>
+              </div>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Đóng"
+                @click="clearError"
+              />
             </div>
 
             <div class="row g-4">
@@ -350,28 +359,46 @@
             </div>
           </div>
 
-          <div class="modal-footer border-top border-translucent px-4 py-3">
-            <button
-              type="button"
-              class="btn btn-phoenix-secondary"
-              :disabled="submitting"
-              @click="$emit('cancel')"
+          <div class="modal-footer border-top border-translucent px-4 py-3 flex-column align-items-stretch">
+            <div
+              v-if="localError || error"
+              class="alert alert-subtle-danger d-flex align-items-center justify-content-between mb-2 py-2 px-3 fs-9 w-100 shadow-sm"
+              role="alert"
             >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary px-4"
-              :disabled="submitting"
-            >
-              <span
-                v-if="submitting"
-                class="spinner-border spinner-border-sm me-1"
-                aria-hidden="true"
+              <div class="d-flex align-items-center gap-2 min-w-0">
+                <AppIcon name="alert-circle" class="flex-shrink-0 text-danger" />
+                <span class="text-break">{{ localError || error }}</span>
+              </div>
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Đóng"
+                @click="clearError"
               />
-              <AppIcon v-else :name="isEdit ? 'check' : 'plus'" class="me-1" />
-              {{ isEdit ? "Lưu thay đổi" : "Thêm SKU" }}
-            </button>
+            </div>
+            <div class="d-flex justify-content-end gap-2 w-100">
+              <button
+                type="button"
+                class="btn btn-phoenix-secondary"
+                :disabled="submitting"
+                @click="$emit('cancel')"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary px-4"
+                :disabled="submitting"
+              >
+                <span
+                  v-if="submitting"
+                  class="spinner-border spinner-border-sm me-1"
+                  aria-hidden="true"
+                />
+                <AppIcon v-else :name="isEdit ? 'check' : 'plus'" class="me-1" />
+                {{ isEdit ? "Lưu thay đổi" : "Thêm SKU" }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -399,6 +426,8 @@ import {
   roundSellingPrice,
 } from "@/views/WarehousedGoods/pricing";
 import { warehouseService } from "@/views/WarehousedGoods/service";
+import { request } from "@/request";
+import type { CategoryGroup } from "@/views/Categories/types";
 import { normalizeSkuCode, suggestSkuCodes } from "@/views/WarehousedGoods/sku-code";
 import {
   emptyWarehouseSku,
@@ -450,6 +479,7 @@ export default defineComponent({
       draft: copySku(this.sku),
       localError: "",
       fieldErrors: {} as Record<string, string>,
+      categoryGroups: [] as CategoryGroup[],
       overlay: createOverlayBehavior(() => this.$emit("cancel")),
       skuCodeCheckController: null as AbortController | null,
     };
@@ -491,12 +521,13 @@ export default defineComponent({
   watch: {
     open: {
       immediate: true,
-      handler(isOpen: boolean) {
+      async handler(isOpen: boolean) {
         this.overlay.sync(isOpen);
         if (isOpen) {
           this.localError = "";
           this.fieldErrors = {};
           this.draft = copySku(this.sku);
+          await this.fetchCategoryGroups();
           if (!this.isEdit && this.draft.codeMode === "auto") {
             this.applySuggestedCode();
           }
@@ -510,12 +541,33 @@ export default defineComponent({
         this.recalculatePrice();
       }
     },
+    error(newVal: string) {
+      if (newVal) {
+        this.scrollToError();
+      }
+    },
   },
   beforeUnmount() {
     this.overlay.dispose();
     this.skuCodeCheckController?.abort();
   },
   methods: {
+    async fetchCategoryGroups(): Promise<void> {
+      if (!this.product?.categoryId) {
+        this.categoryGroups = [];
+        return;
+      }
+      try {
+        const { data } = await request.get<{
+          item?: { id: string; groups?: CategoryGroup[] };
+          groups?: CategoryGroup[];
+        }>(`/categories/${this.product.categoryId}`);
+        const item = data?.item || data;
+        this.categoryGroups = Array.isArray(item?.groups) ? item.groups : [];
+      } catch {
+        this.categoryGroups = [];
+      }
+    },
     formatMoney(val: number | null | undefined): string {
       return formatMoney(val ?? 0);
     },
@@ -538,6 +590,7 @@ export default defineComponent({
         pricingType: this.product.pricingType,
         name: this.product.name,
         category: this.product.category,
+        categoryGroups: this.categoryGroups,
         material: this.product.material,
         pattern: this.product.pattern,
       };
@@ -629,6 +682,9 @@ export default defineComponent({
       this.clearFieldError("price");
       this.draft.importPrice = val;
       this.draft.price = calculatePiecePrice(Number(val) || 0).price;
+      if (this.draft.codeMode === "auto") {
+        this.applySuggestedCode();
+      }
     },
     updatePiecePrice(val: number | null): void {
       this.clearFieldError("price");
@@ -638,6 +694,9 @@ export default defineComponent({
       if (price > 0) {
         const estimate = estimatePieceImportPrice(price, Number(this.draft.importPrice) || 0);
         this.draft.importPrice = estimate?.importPrice ?? null;
+      }
+      if (this.draft.codeMode === "auto") {
+        this.applySuggestedCode();
       }
     },
     async checkSkuCodeAvailability(): Promise<void> {
@@ -708,10 +767,32 @@ export default defineComponent({
         }
       }
 
-      return Object.keys(this.fieldErrors).length === 0 && !this.localError;
+      const hasFieldErrors = Object.keys(this.fieldErrors).length > 0;
+      if (hasFieldErrors && !this.localError) {
+        const firstKey = Object.keys(this.fieldErrors)[0];
+        this.localError = this.fieldErrors[firstKey] || "Thông tin SKU chưa hợp lệ. Vui lòng kiểm tra các trường bị lỗi.";
+      }
+
+      return !hasFieldErrors && !this.localError;
+    },
+    clearError(): void {
+      this.localError = "";
+    },
+    scrollToError(): void {
+      this.$nextTick(() => {
+        const modalBody = this.$el?.querySelector?.(".modal-body") as HTMLElement | null;
+        if (modalBody) {
+          modalBody.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        const firstInvalid = this.$el?.querySelector?.(".is-invalid, [aria-invalid='true']") as HTMLElement | null;
+        firstInvalid?.focus?.();
+      });
     },
     submit(): void {
-      if (!this.validate()) return;
+      if (!this.validate()) {
+        this.scrollToError();
+        return;
+      }
       this.draft.code = normalizeSkuCode(this.draft.code);
       this.$emit("submit", { ...this.draft });
     },

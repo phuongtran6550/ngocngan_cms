@@ -17,11 +17,21 @@ export interface CategoryCreator {
   username?: string;
 }
 
+export interface CategoryGroup {
+  id?: string;
+  _id?: string;
+  name: string;
+  fromPrice: number;
+  toPrice: number;
+}
+
 export interface Category {
   id: string;
   name: string;
   description: string;
   productCount: number;
+  groups?: CategoryGroup[];
+  groupSummary?: string;
   createdBy: CategoryCreator;
   createdAt?: string;
   updatedAt?: string;
@@ -30,6 +40,7 @@ export interface Category {
 export interface CategoryFormModel {
   name: string;
   description: string;
+  groups?: CategoryGroup[];
 }
 
 export interface CategoryListParams {

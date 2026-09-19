@@ -73,6 +73,7 @@ export const categoryDefinition: ResourceDefinition = {
   permission: categoryPermission,
   columns: [
     { key: "name", label: "Tên danh mục", type: "text", sortable: true },
+    { key: "groupSummary", label: "Nhóm giá (Đồ món)", type: "text" },
     { key: "productCount", label: "Số sản phẩm", type: "number" },
     {
       key: "createdBy",
@@ -198,13 +199,32 @@ const categoryTransport: ResourceTransport<
       params: categoryListParams(input),
       signal,
     });
-    return normalizeListResponse<Category>(result.response);
+    const normalized = normalizeListResponse<Category>(result.response);
+    return {
+      ...normalized,
+      items: normalized.items.map((item) => ({
+        ...item,
+        groupSummary:
+          Array.isArray(item.groups) && item.groups.length
+            ? item.groups
+                .map(
+                  (g) =>
+                    `${g.name} (${Number(g.fromPrice || 0).toLocaleString()} - ${Number(g.toPrice || 0).toLocaleString()}₫)`,
+                )
+                .join("; ")
+            : "Chưa cấu hình",
+      })),
+    };
   },
   async create(input: CategoryFormModel): Promise<Category> {
     const result = await resourceRequest<CategoryItemResponse>({
       method: "post",
       url: "/categories",
-      data: { name: input.name, description: input.description },
+      data: {
+        name: input.name,
+        description: input.description,
+        groups: input.groups,
+      },
     });
     return result.response.item;
   },
@@ -212,7 +232,11 @@ const categoryTransport: ResourceTransport<
     const result = await resourceRequest<CategoryItemResponse>({
       method: "patch",
       url: `/categories/${id}`,
-      data: { name: input.name, description: input.description },
+      data: {
+        name: input.name,
+        description: input.description,
+        groups: input.groups,
+      },
     });
     return result.response.item;
   },
@@ -229,12 +253,13 @@ export const categoryResource = defineResource<
   key: "categories",
   definition: categoryDefinition,
   initialFilters: {},
-  selectedColumns: ["name", "productCount", "createdBy"],
+  selectedColumns: ["name", "groupSummary", "productCount", "createdBy"],
   initialSort: { by: "name", direction: "asc" },
-  emptyForm: () => ({ name: "", description: "" }),
+  emptyForm: () => ({ name: "", description: "", groups: [] }),
   formFromRow: (row) => ({
     name: row.name,
     description: row.description || "",
+    groups: Array.isArray(row.groups) ? row.groups.map((g) => ({ ...g })) : [],
   }),
   labels: {
     singular: "danh mục",

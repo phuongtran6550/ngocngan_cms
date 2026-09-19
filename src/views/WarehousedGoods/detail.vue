@@ -194,6 +194,42 @@
           </div>
         </div>
 
+        <!-- Thông báo thao tác SKU trực tiếp trên bảng SKU -->
+        <div
+          v-if="skuActionSuccess"
+          class="alert alert-subtle-success d-flex align-items-center justify-content-between mb-3 shadow-sm"
+          role="status"
+          data-testid="sku-section-action-success"
+        >
+          <div class="d-flex align-items-center gap-2">
+            <AppIcon name="check-circle" class="flex-shrink-0 text-success" />
+            <span class="fw-semibold">{{ skuActionSuccess }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Đóng"
+            @click="skuActionSuccess = ''"
+          />
+        </div>
+        <div
+          v-if="skuActionError"
+          class="alert alert-subtle-danger d-flex align-items-center justify-content-between mb-3 shadow-sm"
+          role="alert"
+          data-testid="sku-section-action-error"
+        >
+          <div class="d-flex align-items-center gap-2">
+            <AppIcon name="alert-circle" class="flex-shrink-0 text-danger" />
+            <span class="fw-semibold">{{ skuActionError }}</span>
+          </div>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Đóng"
+            @click="skuActionError = ''"
+          />
+        </div>
+
         <div class="sku-table-wrap">
           <table
             class="sku-table"
@@ -482,6 +518,41 @@
       </div>
     </template>
 
+    <!-- Floating Toast thông báo kết quả SKU cố định góc trên màn hình -->
+    <Teleport to="body">
+      <Transition name="sku-toast-fade">
+        <div
+          v-if="skuToastMessage"
+          class="position-fixed top-0 end-0 p-3"
+          style="z-index: 100000;"
+          role="status"
+          aria-live="polite"
+        >
+          <div
+            class="toast show shadow-lg border-0"
+            :class="skuToastType === 'success' ? 'bg-success text-white' : 'bg-danger text-white'"
+            style="min-width: 320px; max-width: 480px;"
+          >
+            <div class="d-flex align-items-center justify-content-between p-3 gap-3">
+              <div class="d-flex align-items-center gap-2 min-w-0">
+                <AppIcon
+                  :name="skuToastType === 'success' ? 'check-circle' : 'alert-circle'"
+                  class="fs-7 flex-shrink-0"
+                />
+                <span class="fs-9 fw-medium text-break">{{ skuToastMessage }}</span>
+              </div>
+              <button
+                type="button"
+                class="btn-close btn-close-white flex-shrink-0"
+                aria-label="Đóng"
+                @click="skuToastMessage = ''"
+              />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <PrintLabelDialog
       :open="Boolean(printSku)"
       :sku-code="printSku?.code || ''"
@@ -585,6 +656,12 @@ export default defineComponent({
       error: "",
       preview: "",
       actionSuccess: "",
+      skuActionSuccess: "",
+      skuActionError: "",
+      skuToastMessage: "",
+      skuToastType: "success" as "success" | "danger",
+      skuToastTimeout: null as ReturnType<typeof setTimeout> | null,
+      skuActionTimeout: null as ReturnType<typeof setTimeout> | null,
       skuModalOpen: false,
       editingSku: null as WarehouseSku | null,
       skuModalSubmitting: false,
@@ -650,6 +727,10 @@ export default defineComponent({
   mounted() {
     void this.load();
     void this.store.loadOptions();
+  },
+  beforeUnmount() {
+    if (this.skuToastTimeout) clearTimeout(this.skuToastTimeout);
+    if (this.skuActionTimeout) clearTimeout(this.skuActionTimeout);
   },
   methods: {
     assetUrl,
@@ -802,6 +883,35 @@ export default defineComponent({
       this.editingSku = null;
       this.skuModalError = "";
     },
+    showSkuFeedback(message: string, type: "success" | "danger" = "success"): void {
+      this.skuToastMessage = message;
+      this.skuToastType = type;
+      if (type === "success") {
+        this.skuActionSuccess = message;
+        this.skuActionError = "";
+        this.actionSuccess = message;
+      } else {
+        this.skuActionError = message;
+        this.skuActionSuccess = "";
+      }
+
+      if (this.skuToastTimeout) {
+        clearTimeout(this.skuToastTimeout);
+      }
+      this.skuToastTimeout = setTimeout(() => {
+        this.skuToastMessage = "";
+        this.skuToastTimeout = null;
+      }, 4500);
+
+      if (this.skuActionTimeout) {
+        clearTimeout(this.skuActionTimeout);
+      }
+      this.skuActionTimeout = setTimeout(() => {
+        this.skuActionSuccess = "";
+        this.skuActionError = "";
+        this.skuActionTimeout = null;
+      }, 5000);
+    },
     async saveSku(skuForm: WarehouseSkuFormModel): Promise<void> {
       if (!this.item) return;
       this.skuModalSubmitting = true;
@@ -826,19 +936,24 @@ export default defineComponent({
           skus: updatedSkus,
         };
         this.item = await warehouseService.update(this.item.id, updatePayload);
-        this.actionSuccess = this.editingSku
-          ? `Đã cập nhật SKU ${skuForm.code} thành công.`
-          : `Đã thêm mới SKU ${skuForm.code} thành công.`;
+        const successMsg = this.editingSku
+          ? `Đã cập nhật SKU "${skuForm.code}" thành công.`
+          : `Đã thêm mới SKU "${skuForm.code}" thành công.`;
+        this.showSkuFeedback(successMsg, "success");
         this.closeSkuModal();
       } catch (error) {
-        this.skuModalError = apiError(error).message;
+        const errMsg = apiError(error).message;
+        this.skuModalError = errMsg;
+        this.showSkuFeedback(errMsg, "danger");
       } finally {
         this.skuModalSubmitting = false;
       }
     },
     requestDeleteSku(sku: WarehouseSku): void {
       if (this.displaySkus.length <= 1) {
-        this.error = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa SKU cuối cùng.";
+        const msg = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa SKU cuối cùng.";
+        this.error = msg;
+        this.showSkuFeedback(msg, "danger");
         return;
       }
       this.deletingSku = sku;
@@ -869,10 +984,13 @@ export default defineComponent({
           skus: updatedSkus,
         };
         this.item = await warehouseService.update(this.item.id, updatePayload);
-        this.actionSuccess = `Đã xóa SKU ${skuToDelete.code} thành công.`;
+        const successMsg = `Đã xóa SKU "${skuToDelete.code}" thành công.`;
+        this.showSkuFeedback(successMsg, "success");
         this.cancelDeleteSku();
       } catch (error) {
-        this.error = apiError(error).message;
+        const errMsg = apiError(error).message;
+        this.error = errMsg;
+        this.showSkuFeedback(errMsg, "danger");
         this.cancelDeleteSku();
       } finally {
         this.deleteSkuSubmitting = false;
@@ -1276,5 +1394,16 @@ export default defineComponent({
   .mobile-sku-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.sku-toast-fade-enter-active,
+.sku-toast-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sku-toast-fade-enter-from,
+.sku-toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-15px);
 }
 </style>

@@ -824,6 +824,8 @@ import {
   estimatePieceImportPrice,
   estimatePieceImportPrices,
 } from "@/views/WarehousedGoods/pricing";
+import { request } from "@/request";
+import type { CategoryGroup } from "@/views/Categories/types";
 import {
   normalizeSkuCode,
   suggestSkuCodes,
@@ -878,9 +880,15 @@ export default defineComponent({
       draft: copyForm(this.modelValue),
       localError: "",
       localFieldErrors: {} as Record<string, string>,
+      categoryGroupsMap: {} as Record<string, CategoryGroup[]>,
       skuCodeCheckController: null as AbortController | null,
       skuCodeCheckSequence: 0,
     };
+  },
+  mounted() {
+    if (this.draft.categoryId) {
+      void this.fetchCategoryGroups(this.draft.categoryId);
+    }
   },
   computed: {
     isWeighted(): boolean {
@@ -1011,6 +1019,25 @@ export default defineComponent({
     optionName(options: InventoryOption[], id: string): string {
       return options.find((option) => option.id === id)?.name || "";
     },
+    async fetchCategoryGroups(categoryId: string): Promise<void> {
+      if (!categoryId || this.categoryGroupsMap[categoryId]) return;
+      try {
+        const { data } = await request.get<{
+          item?: { id: string; groups?: CategoryGroup[] };
+          groups?: CategoryGroup[];
+        }>(`/categories/${categoryId}`);
+        const item = data?.item || data;
+        if (item) {
+          this.categoryGroupsMap = {
+            ...this.categoryGroupsMap,
+            [categoryId]: Array.isArray(item.groups) ? item.groups : [],
+          };
+          this.commit(this.withCalculatedPrices(copyForm(this.draft)));
+        }
+      } catch {
+        // ignore
+      }
+    },
     withSuggestedSkuCodes(input: WarehouseFormModel): WarehouseFormModel {
       return {
         ...input,
@@ -1018,6 +1045,7 @@ export default defineComponent({
           pricingType: input.pricingType,
           name: input.name,
           category: this.optionName(this.options.categories, input.categoryId),
+          categoryGroups: this.categoryGroupsMap[input.categoryId] || [],
           material: this.optionName(this.options.materials, input.materialId),
           pattern: this.optionName(this.options.patterns, input.patternId),
         }),
@@ -1163,10 +1191,14 @@ export default defineComponent({
     },
     updateText(key: ProductTextKey, event: Event): void {
       this.clearFieldError(key);
+      const val = this.eventValue(event);
+      if (key === "categoryId" && val) {
+        void this.fetchCategoryGroups(val);
+      }
       this.commit(
         this.withCalculatedPrices({
           ...copyForm(this.draft),
-          [key]: this.eventValue(event),
+          [key]: val,
         }),
       );
     },
