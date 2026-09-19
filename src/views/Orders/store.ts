@@ -49,7 +49,8 @@ export const useOrderStore = defineStore("orders", {
     missingRequestId: 0,
   }),
   actions: {
-    async load(page = this.pagination.page): Promise<void> {
+    async load(page?: number): Promise<void> {
+      page ??= this.pagination.page;
       this.listController?.abort();
       this.listController = new AbortController();
       const requestId = ++this.listRequestId;
@@ -96,7 +97,8 @@ export const useOrderStore = defineStore("orders", {
         this.optionsLoading = false;
       }
     },
-    async loadMissing(page = this.missingPagination.page, showLoading = true): Promise<void> {
+    async loadMissing(page?: number, showLoading = true): Promise<void> {
+      page ??= this.missingPagination.page;
       this.missingController?.abort();
       this.missingController = new AbortController();
       const requestId = ++this.missingRequestId;

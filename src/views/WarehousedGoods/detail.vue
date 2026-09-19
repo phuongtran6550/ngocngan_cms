@@ -641,9 +641,6 @@ export default defineComponent({
         .filter(Number.isFinite);
       return prices.length ? Math.min(...prices) : null;
     },
-    printReady(): boolean {
-      return printDevicePresentation(this.printPrinterStatus).ready;
-    },
     deleteSkuMessage(): string {
       if (!this.deletingSku) return "";
       const sizeText = this.deletingSku.size ? `Ni ${this.deletingSku.size}, ` : "";

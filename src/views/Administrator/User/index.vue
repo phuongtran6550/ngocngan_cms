@@ -31,6 +31,7 @@
 
     <template #drawer="drawer">
       <UserFormDrawer
+        v-if="isUserFormModel(drawer.form)"
         :open="drawer.open"
         :editing="drawer.editing"
         :model-value="drawer.form"
@@ -53,7 +54,27 @@ import UserFormDrawer from "@/views/Administrator/User/components/UserFormDrawer
 import { userResource } from "@/views/Administrator/User/config";
 import { roleService } from "@/views/Administrator/Roles/service";
 import { apiError } from "@/request";
-import type { UserRoleOption } from "@/views/Administrator/User/types";
+import type {
+  UserFormModel,
+  UserRoleOption,
+} from "@/views/Administrator/User/types";
+
+function isUserFormModel(
+  value: object,
+): value is UserFormModel {
+  return (
+    "name" in value &&
+    typeof value.name === "string" &&
+    "username" in value &&
+    typeof value.username === "string" &&
+    "password" in value &&
+    typeof value.password === "string" &&
+    "role" in value &&
+    (value.role === "ADMINISTRATOR" || value.role === "USER") &&
+    "roleId" in value &&
+    typeof value.roleId === "string"
+  );
+}
 
 export default defineComponent({
   name: "UserListPage",
@@ -76,6 +97,7 @@ export default defineComponent({
     this.roleRequestId += 1;
   },
   methods: {
+    isUserFormModel,
     async loadRoleOptions(): Promise<void> {
       if (this.roleOptions.length) return;
 

@@ -17,7 +17,8 @@ export const useSourceStore = defineStore("sources", {
     requestId: 0,
   }),
   actions: {
-    async load(page = this.pagination.page): Promise<void> {
+    async load(page?: number): Promise<void> {
+      page ??= this.pagination.page;
       this.controller?.abort(); this.controller = new AbortController();
       const requestId = ++this.requestId; this.loading = true; this.error = "";
       try {
@@ -38,4 +39,3 @@ export const useSourceStore = defineStore("sources", {
     },
   },
 });
-

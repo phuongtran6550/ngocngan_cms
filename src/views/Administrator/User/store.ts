@@ -41,7 +41,8 @@ export const useUserStore = defineStore("users", {
     roleRequestId: 0,
   }),
   actions: {
-    async load(page = this.pagination.page): Promise<void> {
+    async load(page?: number): Promise<void> {
+      page ??= this.pagination.page;
       this.listController?.abort();
       this.listController = new AbortController();
       const requestId = ++this.listRequestId;

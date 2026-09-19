@@ -21,14 +21,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, type PropType } from "vue";
 
 export default defineComponent({
   name: "MoneyInput",
   props: {
     id: { type: String, required: true },
     name: { type: String, required: true },
-    modelValue: { type: Number, default: null },
+    modelValue: { type: Number as PropType<number | null>, default: null },
     placeholder: { type: String, default: "0" },
     required: { type: Boolean, default: false },
     disabled: { type: Boolean, default: false },

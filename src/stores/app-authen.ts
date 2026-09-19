@@ -12,6 +12,7 @@ import {
   normalizePermissions,
   type PermissionRequirement,
 } from "@/config/permissions";
+import { useDashboardStore } from "@/views/Dashboard/store";
 
 const userKey = "ngocchau.cms2.user";
 
@@ -21,7 +22,9 @@ function nestedPayload(payload: AuthPayload): AuthPayload {
   return payload.detail || payload.data || payload;
 }
 
-function readMenu(...values: Array<AuthMenuItem[] | undefined>): AuthMenuItem[] | undefined {
+function readMenu(
+  ...values: Array<AuthMenuItem[] | undefined>
+): AuthMenuItem[] | undefined {
   for (const value of values) {
     if (Array.isArray(value)) return value;
   }
@@ -44,8 +47,15 @@ function normalizeUser(payload: AuthPayload): AuthUser {
 
 function accessToken(payload: LoginResponse): string {
   const source = nestedPayload(payload) as LoginResponse;
-  return source.token || source.access_token || source.authen?.access_token ||
-    payload.token || payload.access_token || payload.authen?.access_token || "";
+  return (
+    source.token ||
+    source.access_token ||
+    source.authen?.access_token ||
+    payload.token ||
+    payload.access_token ||
+    payload.authen?.access_token ||
+    ""
+  );
 }
 
 function readUser(): AuthUser | null {
@@ -68,6 +78,7 @@ export const authenStore = defineStore("authen", {
     user: readUser() as AuthUser | null,
     isLoading: false,
     isHydrated: false,
+    sessionId: 0,
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
@@ -82,6 +93,7 @@ export const authenStore = defineStore("authen", {
   },
   actions: {
     async login(credentials: LoginCredentials): Promise<AuthUser> {
+      const sessionId = ++this.sessionId;
       this.isLoading = true;
       try {
         const { data } = await request.post<LoginResponse>(
@@ -92,34 +104,44 @@ export const authenStore = defineStore("authen", {
         const token = accessToken(data);
         if (!token) throw new Error("Phản hồi đăng nhập không có access token");
 
+        if (sessionId !== this.sessionId) return user;
+        useDashboardStore().clear();
         this.token = token;
         this.user = user;
         setToken(token);
         persistUser(user);
+        this.isHydrated = true;
         return user;
       } catch (error) {
         throw apiError(error);
       } finally {
-        this.isLoading = false;
-        this.isHydrated = true;
+        if (sessionId === this.sessionId) this.isLoading = false;
       }
     },
     async fetchMe(): Promise<AuthUser> {
+      const sessionId = this.sessionId;
       const { data } = await request.get<AuthMeResponse>("/auth/me");
       const user = normalizeUser(data);
-      this.user = user;
-      persistUser(user);
+      if (sessionId === this.sessionId) {
+        this.user = user;
+        persistUser(user);
+      }
       return user;
     },
     async initialize(): Promise<void> {
       if (this.isHydrated) return;
-      this.isHydrated = true;
-      if (!this.token) return;
-      if (this.user) return;
+      if (!this.token) {
+        this.isHydrated = true;
+        return;
+      }
+      const sessionId = this.sessionId;
       try {
         await this.fetchMe();
-      } catch {
-        this.logout();
+        if (sessionId === this.sessionId) this.isHydrated = true;
+      } catch (error) {
+        if (sessionId !== this.sessionId) return;
+        if (apiError(error).status === 401) this.logout();
+        else throw error;
       }
     },
     async changePassword(password: string): Promise<void> {
@@ -135,8 +157,11 @@ export const authenStore = defineStore("authen", {
       persistUser(this.user);
     },
     logout(): void {
+      this.sessionId++;
+      useDashboardStore().clear();
       this.token = "";
       this.user = null;
+      this.isLoading = false;
       this.isHydrated = true;
       setToken("");
       persistUser(null);

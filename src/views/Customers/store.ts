@@ -29,7 +29,8 @@ export const useCustomerStore = defineStore("customers", {
       }
       await this.load(1);
     },
-    async load(page = this.pagination.page): Promise<void> {
+    async load(page?: number): Promise<void> {
+      page ??= this.pagination.page;
       this.controller?.abort();
       this.controller = new AbortController();
       const requestId = ++this.requestId;

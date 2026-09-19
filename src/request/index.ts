@@ -18,13 +18,17 @@ export interface RequestClientOptions {
   onUnauthorized?: () => void;
 }
 
-const defaultBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4100/api";
+const defaultBaseURL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4100/api";
 const tokenKey = "ngocchau.cms2.token";
 
 let unauthorizedHandler: (() => void) | undefined;
+let authGeneration = 0;
+const requestGenerations = new WeakMap<object, number>();
 
 export function unwrapApiPayload<T>(payload: T): T {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload))
+    return payload;
 
   const envelope = payload as Record<string, unknown>;
   if (envelope.status !== "success") return payload;
@@ -53,37 +57,52 @@ export function unwrapApiPayload<T>(payload: T): T {
     }
 
     const extra = Object.fromEntries(
-      Object.entries(envelope).filter(([key]) => !["status", "data"].includes(key)),
+      Object.entries(envelope).filter(
+        ([key]) => !["status", "data"].includes(key),
+      ),
     );
     return Object.keys(extra).length
       ? ({ data: envelope.data, ...extra } as T)
-      : envelope.data as T;
+      : (envelope.data as T);
   }
 
   const { status: _status, ...body } = envelope;
   return body as T;
 }
 
-export function normalizeApiError(error: AxiosError<{
-  message?: string;
-  code?: string;
-  errors?: Record<string, unknown> | Array<{ key?: string; msg?: unknown }> | string;
-  details?: Record<string, unknown>;
-}>): ApiErrorShape {
+export function normalizeApiError(
+  error: AxiosError<{
+    message?: string;
+    code?: string;
+    errors?:
+      Record<string, unknown> | Array<{ key?: string; msg?: unknown }> | string;
+    details?: Record<string, unknown>;
+  }>,
+): ApiErrorShape {
   const response = error.response;
   const data = response?.data;
   const errors = data?.errors;
   const normalizedErrors = Array.isArray(errors)
-    ? Object.fromEntries(errors.map((item, index) => [item.key || `field_${index}`, item.msg]))
-    : errors && typeof errors === "object" ? errors : undefined;
+    ? Object.fromEntries(
+        errors.map((item, index) => [item.key || `field_${index}`, item.msg]),
+      )
+    : errors && typeof errors === "object"
+      ? errors
+      : undefined;
   const ytplusMessage = Array.isArray(errors)
     ? String(errors[0]?.msg || "")
     : errors && typeof errors === "object" && "msg" in errors
       ? String(errors.msg || "")
-      : typeof errors === "string" ? errors : "";
+      : typeof errors === "string"
+        ? errors
+        : "";
 
   return {
-    message: data?.message || ytplusMessage || error.message || "Có lỗi xảy ra, vui lòng thử lại",
+    message:
+      data?.message ||
+      ytplusMessage ||
+      error.message ||
+      "Có lỗi xảy ra, vui lòng thử lại",
     code: data?.code || error.code,
     status: response?.status,
     errors: normalizedErrors,
@@ -103,6 +122,7 @@ export const request = axios.create({
 });
 
 request.interceptors.request.use((config) => {
+  requestGenerations.set(config, authGeneration);
   const accessToken = token();
   if (accessToken) {
     config.headers.set("Authorization", `Bearer ${accessToken}`);
@@ -116,18 +136,33 @@ request.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    const normalized = normalizeApiError(error as AxiosError<{
-      message?: string;
-      code?: string;
-      errors?: Record<string, unknown> | Array<{ key?: string; msg?: unknown }> | string;
-      details?: Record<string, unknown>;
-    }>);
-    if (normalized.status === 401) unauthorizedHandler?.();
+    const normalized = normalizeApiError(
+      error as AxiosError<{
+        message?: string;
+        code?: string;
+        errors?:
+          | Record<string, unknown>
+          | Array<{ key?: string; msg?: unknown }>
+          | string;
+        details?: Record<string, unknown>;
+      }>,
+    );
+    const currentToken = token();
+    const requestToken = error.config?.headers?.Authorization;
+    if (
+      normalized.status === 401 &&
+      Boolean(error.config) &&
+      requestGenerations.get(error.config as object) === authGeneration &&
+      requestToken === (currentToken ? `Bearer ${currentToken}` : undefined)
+    )
+      unauthorizedHandler?.();
     return Promise.reject(normalized);
   },
 );
 
-export function configureRequest(options: RequestClientOptions = {}): AxiosInstance {
+export function configureRequest(
+  options: RequestClientOptions = {},
+): AxiosInstance {
   if (options.baseURL) request.defaults.baseURL = options.baseURL;
   if (options.timeout) request.defaults.timeout = options.timeout;
   unauthorizedHandler = options.onUnauthorized;
@@ -135,6 +170,7 @@ export function configureRequest(options: RequestClientOptions = {}): AxiosInsta
 }
 
 export function setToken(value: string): void {
+  authGeneration++;
   if (value) window.localStorage.setItem(tokenKey, value);
   else window.localStorage.removeItem(tokenKey);
 }
@@ -153,7 +189,9 @@ export function apiError(error: unknown): ApiErrorShape {
 export function assetUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
-  const assetBase = import.meta.env.VITE_ASSET_BASE_URL || defaultBaseURL.replace(/\/api\/?$/, "");
+  const assetBase =
+    import.meta.env.VITE_ASSET_BASE_URL ||
+    defaultBaseURL.replace(/\/api\/?$/, "");
   return `${assetBase}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

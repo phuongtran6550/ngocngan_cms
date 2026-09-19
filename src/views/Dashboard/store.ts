@@ -18,11 +18,17 @@ export const useDashboardStore = defineStore("dashboard", {
     requestId: 0,
   }),
   actions: {
-    async load(query: DashboardQuery = this.query): Promise<void> {
+    clear(): void {
+      this.controller?.abort();
+      const requestId = this.requestId + 1;
+      this.$reset();
+      this.requestId = requestId;
+    },
+    async load(query?: DashboardQuery): Promise<void> {
       this.controller?.abort();
       this.controller = new AbortController();
       const requestId = ++this.requestId;
-      this.query = { ...query };
+      this.query = { ...(query ?? this.query) };
       this.loading = true;
       this.error = "";
       try {

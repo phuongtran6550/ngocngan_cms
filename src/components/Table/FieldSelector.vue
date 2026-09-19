@@ -29,7 +29,10 @@
 
 <script lang="ts">
 import { defineComponent, type PropType } from "vue";
-import { createDropdownBehavior } from "@/components/dropdown/behavior";
+import {
+  createDropdownBehavior,
+  type DropdownBehavior,
+} from "@/components/dropdown/behavior";
 import type { ColumnDefinition } from "@/config/resource";
 
 export default defineComponent({
@@ -42,19 +45,20 @@ export default defineComponent({
   data() {
     return {
       open: false,
-      dropdown: createDropdownBehavior(
-        () => this.$refs.menu as HTMLElement | undefined,
-        () => {
-          this.open = false;
-        },
-      ),
+      dropdown: null as DropdownBehavior | null,
     };
   },
   mounted() {
+    this.dropdown = createDropdownBehavior(
+      () => this.$refs.menu as HTMLElement | undefined,
+      () => {
+        this.open = false;
+      },
+    );
     this.dropdown.mount();
   },
   beforeUnmount() {
-    this.dropdown.dispose();
+    this.dropdown?.dispose();
   },
   methods: {
     toggle(key: string): void {

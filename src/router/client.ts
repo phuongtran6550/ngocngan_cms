@@ -23,14 +23,11 @@ export interface ClientRouteMeta {
   navigation?: ClientNavigationMeta;
 }
 
-export interface ClientRoute extends Omit<
-  RouteRecordRaw,
-  "meta" | "path" | "name"
-> {
+export type ClientRoute = RouteRecordRaw & {
   path: string;
   name: string;
   meta: ClientRouteMeta;
-}
+};
 
 const clientRoutes: ClientRoute[] = [
   {

@@ -15,7 +15,7 @@ import type {
 export const sourceDefinition: ResourceDefinition = {
   key: "source-of-goods",
   title: "Quản lý nguồn hàng",
-  description: "Tổng hợp trực tiếp từ giá nhập kho; số liệu tự thay đổi khi sản phẩm được cập nhật hoặc xóa.",
+  description: "Tổng giá nhập gồm số liệu lịch sử đã chuyển đổi và hàng nhập mới; số sản phẩm phản ánh hàng nhập kho hiện có.",
   breadcrumbs: [
     { text: "Trang chủ", link: "/" },
     { text: "Nguồn hàng" },
@@ -46,7 +46,7 @@ function sourceListParams(
   };
 }
 
-/** Source aggregates are derived from inventory, so this declaration is read-only. */
+/** Historical source totals and current inventory are exposed as a read-only report. */
 export const sourceResource: ReadonlyResourceDeclaration<
   SourceItem,
   SourceFilters

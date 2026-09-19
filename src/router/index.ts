@@ -30,7 +30,14 @@ export function createCmsRouter() {
 
   router.beforeEach(async (to) => {
     const auth = authenStore();
-    await auth.initialize();
+    try {
+      await auth.initialize();
+    } catch {
+      // Keep the token during outages, but do not route using cached permissions.
+      return to.name === "login"
+        ? true
+        : { name: "login", query: { redirect: to.fullPath } };
+    }
 
     const requiresAuth = to.matched.some((record) => record.meta.auth === true);
     if (requiresAuth && !auth.isAuthenticated) {

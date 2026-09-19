@@ -20,7 +20,8 @@ import { defineComponent, type PropType } from "vue";
 import DynamicField from "@/components/Form/DynamicField.vue";
 import type { FormDefinition } from "@/config/resource";
 
-type FormModel = Record<string, unknown>;
+type FormModel = object;
+type FormDraft = Record<string, unknown>;
 
 export default defineComponent({
   name: "FormLayout",
@@ -36,7 +37,7 @@ export default defineComponent({
   emits: ["update:modelValue", "submit", "cancel"],
   data() {
     return {
-      draft: { ...this.modelValue } as FormModel,
+      draft: { ...this.modelValue } as FormDraft,
       validationErrors: {} as Record<string, string>,
     };
   },

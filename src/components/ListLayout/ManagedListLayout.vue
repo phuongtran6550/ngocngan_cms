@@ -136,7 +136,6 @@ const emit = defineEmits<{
   view: [row: ResourceRow];
   cellAction: [payload: unknown];
 }>();
-
 const resource = props.resource as ManagedResource;
 const controller = useResourceController(resource);
 const auth = authenStore();

@@ -389,8 +389,8 @@
 <script lang="ts">
 import { defineComponent, type PropType } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
-import MoneyInput from "@/components/form/MoneyInput.vue";
-import FieldError from "@/components/form/FieldError.vue";
+import MoneyInput from "@/components/Form/MoneyInput.vue";
+import FieldError from "@/components/Form/FieldError.vue";
 import { createOverlayBehavior } from "@/components/overlay/behavior";
 import { formatMoney } from "@/utils/resource-display";
 import {

@@ -425,7 +425,7 @@ async function scanSelectedFile(event: Event): Promise<void> {
     await lookupBarcode(value);
     return;
   }
-  if (state.value !== "camera-error") {
+  if (state.value === "preparing") {
     state.value = "camera-error";
     message.value = "Không đọc được barcode rõ ràng từ ảnh đã chọn.";
     cameraHelp.value = "Chọn ảnh rõ hơn, tránh lóa và giữ trọn phần vạch barcode.";

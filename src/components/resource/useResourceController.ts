@@ -60,7 +60,7 @@ export function useResourceController<
 >(
   declaration: ResourceRuntimeDeclaration<Row, FormModel, Filters>,
 ): ResourceController<Row, FormModel, Filters> {
-  const items = ref<Row[]>([]);
+  const items = ref<Row[]>([]) as Ref<Row[]>;
   const pagination = ref<PaginationState>({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const query = ref("");
   const filters = ref({ ...declaration.initialFilters }) as Ref<Filters>;
@@ -73,9 +73,9 @@ export function useResourceController<
   const error = ref("");
   const message = ref("");
   const drawerOpen = ref(false);
-  const editing = ref<Row | null>(null);
+  const editing = ref<Row | null>(null) as Ref<Row | null>;
   const form = ref(mutableResource?.emptyForm() ?? null) as Ref<FormModel | null>;
-  const deleteTarget = ref<Row | null>(null);
+  const deleteTarget = ref<Row | null>(null) as Ref<Row | null>;
 
   let listController: AbortController | null = null;
   let listRequestId = 0;

@@ -831,7 +831,6 @@ import {
 import { warehouseService } from "@/views/WarehousedGoods/service";
 import {
   emptyWarehouseSku,
-  warehouseSkuStockTotal,
   type InventoryCreatePricingType,
   type InventoryOption,
   type WarehouseFormModel,
@@ -1061,18 +1060,9 @@ export default defineComponent({
         ...input,
         skus: pricedSkus,
       }).skus;
-      const primary = skus[0];
       return {
         ...input,
         skus,
-        code: primary.code,
-        size: primary.size,
-        weight: primary.weight,
-        price: primary.price,
-        laborCost: primary.laborCost,
-        platingCost: primary.platingCost,
-        importPrice: primary.importPrice,
-        stock: warehouseSkuStockTotal(skus),
       };
     },
     skuCodeCheckRows(input: WarehouseFormModel): SkuCodeCheckRow[] {
@@ -1434,7 +1424,6 @@ export default defineComponent({
           }
         }
       }
-      prepared.code = prepared.skus[0]?.code || "";
       return prepared;
     },
     async submit(): Promise<void> {

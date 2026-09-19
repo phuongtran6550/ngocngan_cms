@@ -6,7 +6,7 @@
       <img
         v-if="source"
         :src="source"
-        :alt="`Ảnh ${name || code || row.id}`"
+        :alt="`Ảnh ${name || row.code || row.id}`"
         width="53"
         height="53"
         class="object-fit-cover"

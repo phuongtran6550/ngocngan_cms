@@ -31,6 +31,7 @@
 
     <template #drawer="drawer">
       <RoleFormDrawer
+        v-if="isRoleFormModel(drawer.form)"
         :open="drawer.open"
         :editing="drawer.editing"
         :model-value="drawer.form"
@@ -53,10 +54,27 @@ import RoleFormDrawer from "@/views/Administrator/Roles/components/RoleFormDrawe
 import { roleResource } from "@/views/Administrator/Roles/config";
 import { roleService } from "@/views/Administrator/Roles/service";
 import { apiError } from "@/request";
-import type { PermissionCatalog } from "@/views/Administrator/Roles/types";
+import type {
+  PermissionCatalog,
+  RoleFormModel,
+} from "@/views/Administrator/Roles/types";
 
 function emptyCatalog(): PermissionCatalog {
   return { items: [], groups: [] };
+}
+
+function isRoleFormModel(
+  value: object,
+): value is RoleFormModel {
+  return (
+    "name" in value &&
+    typeof value.name === "string" &&
+    "description" in value &&
+    typeof value.description === "string" &&
+    "permissions" in value &&
+    Array.isArray(value.permissions) &&
+    value.permissions.every((permission) => typeof permission === "string")
+  );
 }
 
 export default defineComponent({
@@ -80,6 +98,7 @@ export default defineComponent({
     this.catalogRequestId += 1;
   },
   methods: {
+    isRoleFormModel,
     async loadPermissions(): Promise<void> {
       if (this.catalog.items.length) return;
 
