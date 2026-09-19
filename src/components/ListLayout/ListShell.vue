@@ -149,6 +149,8 @@
             :allow-view="Boolean(definition.actions.view)"
             :allow-update="Boolean(definition.actions.update)"
             :allow-delete="Boolean(definition.actions.delete)"
+            :selectable="selectable"
+            :selected-keys="selectedKeys"
             :can-update-row="canUpdateRow"
             :can-delete-row="canDeleteRow"
             @sort="$emit('sort', $event)"
@@ -156,6 +158,8 @@
             @edit="$emit('edit', $event)"
             @delete="$emit('delete', $event)"
             @cell-action="$emit('cell-action', $event)"
+            @select-row="(row: any, val: any) => $emit('select-row', row, val)"
+            @select-all="$emit('select-all', $event)"
           />
           <ResourceCardGrid
             v-else
@@ -166,12 +170,15 @@
             :allow-view="Boolean(definition.actions.view)"
             :allow-update="Boolean(definition.actions.update)"
             :allow-delete="Boolean(definition.actions.delete)"
+            :selectable="selectable"
+            :selected-keys="selectedKeys"
             :can-update-row="canUpdateRow"
             :can-delete-row="canDeleteRow"
             @view="$emit('view', $event)"
             @edit="$emit('edit', $event)"
             @delete="$emit('delete', $event)"
             @cell-action="$emit('cell-action', $event)"
+            @select-row="(row: any, val: any) => $emit('select-row', row, val)"
           />
         </div>
 
@@ -269,6 +276,11 @@ export default defineComponent({
       type: Function as PropType<(row: ResourceRow) => boolean>,
       default: () => true,
     },
+    selectable: { type: Boolean, default: false },
+    selectedKeys: {
+      type: Array as PropType<(string | number)[]>,
+      default: () => [],
+    },
   },
   emits: [
     "create",
@@ -281,6 +293,8 @@ export default defineComponent({
     "cell-action",
     "tab",
     "page",
+    "select-row",
+    "select-all",
   ],
   setup(props) {
     return {

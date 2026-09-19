@@ -182,6 +182,18 @@
           <div class="d-flex align-items-center gap-2">
             <span class="sku-count"> {{ summary.skuCount }} SKU </span>
             <button
+              v-if="auth.can(permissions.warehouseUpdate) && selectedSkuIds.length > 0"
+              type="button"
+              class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+              data-testid="bulk-delete-skus-btn"
+              :disabled="isBulkDeleteDisabled"
+              :title="isBulkDeleteDisabled ? 'Sản phẩm phải có ít nhất 1 SKU. Không thể xóa tất cả SKU.' : `Xóa ${selectedSkuIds.length} SKU đã chọn`"
+              @click="requestBulkDeleteSkus"
+            >
+              <AppIcon name="trash-2" class="fs-10" />
+              <span>Xóa đã chọn ({{ selectedSkuIds.length }})</span>
+            </button>
+            <button
               v-if="auth.can(permissions.warehouseUpdate)"
               type="button"
               class="btn btn-sm btn-primary"
@@ -237,6 +249,24 @@
           >
             <thead>
               <tr>
+                <th
+                  v-if="auth.can(permissions.warehouseUpdate)"
+                  scope="col"
+                  class="sku-select-column"
+                >
+                  <div class="form-check d-inline-flex m-0 align-items-center justify-content-center">
+                    <input
+                      ref="allSkusCheckbox"
+                      class="form-check-input cursor-pointer"
+                      type="checkbox"
+                      :checked="isAllSkusSelected"
+                      :disabled="displaySkus.length === 0"
+                      aria-label="Chọn tất cả SKU"
+                      data-testid="select-all-skus-checkbox"
+                      @change="toggleSelectAllSkus"
+                    />
+                  </div>
+                </th>
                 <th scope="col" :aria-sort="skuAriaSort('code')">
                   <button
                     type="button"
@@ -396,6 +426,21 @@
                 :key="sku.id || index"
                 data-testid="desktop-sku-row"
               >
+                <td
+                  v-if="auth.can(permissions.warehouseUpdate)"
+                  class="sku-select-column text-center align-middle"
+                >
+                  <div class="form-check d-inline-flex m-0 align-items-center justify-content-center">
+                    <input
+                      class="form-check-input cursor-pointer"
+                      type="checkbox"
+                      :checked="isSkuSelected(sku)"
+                      :aria-label="`Chọn SKU ${sku.code}`"
+                      :data-testid="`select-sku-${index}`"
+                      @change="toggleSelectSku(sku, $event)"
+                    />
+                  </div>
+                </td>
                 <td>
                   <code class="sku-code-cell">{{ sku.code || "—" }}</code>
                   <span class="sku-code-sub">
@@ -561,14 +606,29 @@
               <div
                 class="d-flex align-items-start justify-content-between gap-3 pb-3 border-bottom border-translucent"
               >
-                <div class="min-w-0">
-                  <code class="sku-code-cell text-break">
-                    {{ sku.code || "—" }}
-                  </code>
-                  <span class="sku-code-sub">
-                    SKU {{ String(index + 1).padStart(2, "0") }} ·
-                    {{ item.pricingType || "—" }}
-                  </span>
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                  <div
+                    v-if="auth.can(permissions.warehouseUpdate)"
+                    class="form-check m-0 d-flex align-items-center flex-shrink-0"
+                  >
+                    <input
+                      class="form-check-input cursor-pointer"
+                      type="checkbox"
+                      :checked="isSkuSelected(sku)"
+                      :aria-label="`Chọn SKU ${sku.code}`"
+                      :data-testid="`mobile-select-sku-${index}`"
+                      @change="toggleSelectSku(sku, $event)"
+                    />
+                  </div>
+                  <div class="min-w-0">
+                    <code class="sku-code-cell text-break">
+                      {{ sku.code || "—" }}
+                    </code>
+                    <span class="sku-code-sub">
+                      SKU {{ String(index + 1).padStart(2, "0") }} ·
+                      {{ item.pricingType || "—" }}
+                    </span>
+                  </div>
                 </div>
                 <div class="sku-row-actions flex-shrink-0">
                   <RouterLink
@@ -762,6 +822,15 @@
     />
 
     <ConfirmDialog
+      :open="bulkDeleteSkuOpen"
+      title="Xóa SKU đã chọn"
+      :message="bulkDeleteSkuMessage"
+      confirm-label="Xóa SKU"
+      @cancel="cancelBulkDeleteSkus"
+      @confirm="confirmBulkDeleteSkus"
+    />
+
+    <ConfirmDialog
       :open="deleteOpen"
       title="Xóa hàng nhập kho"
       message="Mặt hàng nhập kho và toàn bộ SKU liên quan sẽ bị xóa."
@@ -842,6 +911,9 @@ export default defineComponent({
       deleteSkuOpen: false,
       deletingSku: null as WarehouseSku | null,
       deleteSkuSubmitting: false,
+      selectedSkuIds: [] as string[],
+      bulkDeleteSkuOpen: false,
+      bulkDeleteSkuSubmitting: false,
       printingSkuId: "",
       printError: "",
       printSuccess: "",
@@ -944,6 +1016,45 @@ export default defineComponent({
       if (!this.deletingSku) return "";
       const sizeText = this.deletingSku.size ? `Ni ${this.deletingSku.size}, ` : "";
       return `Bạn có chắc chắn muốn xóa SKU "${this.deletingSku.code}" (${sizeText}${this.deletingSku.weight} chỉ)? Thao tác này sẽ cập nhật lại kho hàng.`;
+    },
+    isAllSkusSelected(): boolean {
+      return (
+        this.displaySkus.length > 0 &&
+        this.displaySkus.every((s) => this.selectedSkuIds.includes(s.id || s.code))
+      );
+    },
+    isSkuIndeterminate(): boolean {
+      return this.selectedSkuIds.length > 0 && !this.isAllSkusSelected;
+    },
+    isBulkDeleteDisabled(): boolean {
+      return (
+        this.selectedSkuIds.length === 0 ||
+        this.selectedSkuIds.length >= this.displaySkus.length
+      );
+    },
+    bulkDeleteSkuMessage(): string {
+      return `Bạn có chắc chắn muốn xóa ${this.selectedSkuIds.length} SKU đã chọn? Thao tác này sẽ cập nhật lại kho hàng.`;
+    },
+  },
+  watch: {
+    isSkuIndeterminate: {
+      immediate: true,
+      handler(val: boolean) {
+        this.$nextTick(() => {
+          const el = this.$refs.allSkusCheckbox as HTMLInputElement | undefined;
+          if (el) {
+            el.indeterminate = val;
+          }
+        });
+      },
+    },
+    isAllSkusSelected() {
+      this.$nextTick(() => {
+        const el = this.$refs.allSkusCheckbox as HTMLInputElement | undefined;
+        if (el) {
+          el.indeterminate = this.isSkuIndeterminate;
+        }
+      });
     },
   },
   mounted() {
@@ -1068,6 +1179,7 @@ export default defineComponent({
     async load(): Promise<void> {
       this.loading = true;
       this.error = "";
+      this.selectedSkuIds = [];
       try {
         this.item = await warehouseService.detail(
           String(this.$route.params.id),
@@ -1206,6 +1318,9 @@ export default defineComponent({
           skus: updatedSkus,
         };
         this.item = await warehouseService.update(this.item.id, updatePayload);
+        this.selectedSkuIds = this.selectedSkuIds.filter(
+          (id) => id !== (skuToDelete.id || skuToDelete.code),
+        );
         const successMsg = `Đã xóa SKU "${skuToDelete.code}" thành công.`;
         this.showSkuFeedback(successMsg, "success");
         this.cancelDeleteSku();
@@ -1216,6 +1331,82 @@ export default defineComponent({
         this.cancelDeleteSku();
       } finally {
         this.deleteSkuSubmitting = false;
+      }
+    },
+    isSkuSelected(sku: WarehouseSku): boolean {
+      const key = sku.id || sku.code;
+      return this.selectedSkuIds.includes(key);
+    },
+    toggleSelectSku(sku: WarehouseSku, event: Event): void {
+      const checked = (event.target as HTMLInputElement).checked;
+      const key = sku.id || sku.code;
+      if (checked) {
+        if (!this.selectedSkuIds.includes(key)) {
+          this.selectedSkuIds.push(key);
+        }
+      } else {
+        this.selectedSkuIds = this.selectedSkuIds.filter((id) => id !== key);
+      }
+    },
+    toggleSelectAllSkus(event: Event): void {
+      const checked = (event.target as HTMLInputElement).checked;
+      if (checked) {
+        this.selectedSkuIds = this.displaySkus.map((s) => s.id || s.code);
+      } else {
+        this.selectedSkuIds = [];
+      }
+    },
+    requestBulkDeleteSkus(): void {
+      if (this.selectedSkuIds.length === 0) return;
+      if (this.selectedSkuIds.length >= this.displaySkus.length) {
+        const msg = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa tất cả SKU.";
+        this.error = msg;
+        this.showSkuFeedback(msg, "danger");
+        return;
+      }
+      this.bulkDeleteSkuOpen = true;
+    },
+    cancelBulkDeleteSkus(): void {
+      if (this.bulkDeleteSkuSubmitting) return;
+      this.bulkDeleteSkuOpen = false;
+    },
+    async confirmBulkDeleteSkus(): Promise<void> {
+      if (!this.item || this.selectedSkuIds.length === 0) return;
+      if (this.selectedSkuIds.length >= this.displaySkus.length) {
+        const msg = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa tất cả SKU.";
+        this.error = msg;
+        this.showSkuFeedback(msg, "danger");
+        this.cancelBulkDeleteSkus();
+        return;
+      }
+      this.bulkDeleteSkuSubmitting = true;
+      const countToDelete = this.selectedSkuIds.length;
+      const selectedKeys = new Set(this.selectedSkuIds);
+      try {
+        const baseForm = warehouseFormFromItem(this.item);
+        const updatedSkus = baseForm.skus.filter((s) => {
+          const key = s.id || s.code;
+          return !selectedKeys.has(key);
+        });
+        if (updatedSkus.length === 0) {
+          throw new Error("Sản phẩm phải có ít nhất 1 SKU");
+        }
+        const updatePayload = {
+          ...baseForm,
+          skus: updatedSkus,
+        };
+        this.item = await warehouseService.update(this.item.id, updatePayload);
+        this.selectedSkuIds = [];
+        const successMsg = `Đã xóa thành công ${countToDelete} SKU đã chọn.`;
+        this.showSkuFeedback(successMsg, "success");
+        this.cancelBulkDeleteSkus();
+      } catch (error) {
+        const errMsg = apiError(error).message;
+        this.error = errMsg;
+        this.showSkuFeedback(errMsg, "danger");
+        this.cancelBulkDeleteSkus();
+      } finally {
+        this.bulkDeleteSkuSubmitting = false;
       }
     },
     toggleSkuSort(key: keyof WarehouseSku): void {
@@ -1434,6 +1625,13 @@ export default defineComponent({
 
 .sku-table-weighted {
   min-width: 62.5rem;
+}
+
+.sku-table .sku-select-column {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.6875rem 0.5rem;
+  text-align: center;
 }
 
 .sku-table th {

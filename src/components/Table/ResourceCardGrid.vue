@@ -15,6 +15,17 @@
       >
         <div class="card-body d-flex flex-column p-3 p-lg-4">
           <div class="d-flex align-items-start gap-3">
+            <div v-if="selectable" class="form-check mb-0 pt-1">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                :checked="isSelected(row)"
+                :aria-label="`Chọn bản ghi ${resourceLabel(row)}`"
+                :data-testid="`resource-card-select-${row.id}`"
+                @click.stop
+                @change="toggleSelectRow(row, $event)"
+              />
+            </div>
             <div class="min-w-0 flex-grow-1">
               <div
                 v-if="titleColumn"
@@ -112,6 +123,8 @@ const props = withDefaults(
     allowView?: boolean;
     allowUpdate?: boolean;
     allowDelete?: boolean;
+    selectable?: boolean;
+    selectedKeys?: (string | number)[];
     canUpdateRow?: (row: ResourceRow) => boolean;
     canDeleteRow?: (row: ResourceRow) => boolean;
   }>(),
@@ -122,6 +135,8 @@ const props = withDefaults(
     allowView: false,
     allowUpdate: false,
     allowDelete: false,
+    selectable: false,
+    selectedKeys: () => [],
     canUpdateRow: () => true,
     canDeleteRow: () => true,
   },
@@ -132,7 +147,12 @@ const emit = defineEmits<{
   edit: [row: ResourceRow];
   delete: [row: ResourceRow];
   "cell-action": [payload: unknown];
+  "select-row": [row: ResourceRow, selected: boolean];
 }>();
+
+const selectedKeySet = computed(
+  () => new Set((props.selectedKeys || []).map(String)),
+);
 
 const visibleColumns = computed(() =>
   props.columns.filter((column) => isColumnVisibleIn(column, "card")),
@@ -184,6 +204,15 @@ function canUpdate(row: ResourceRow): boolean {
 
 function canDelete(row: ResourceRow): boolean {
   return Boolean(props.allowDelete && props.canDeleteRow(row));
+}
+
+function isSelected(row: ResourceRow): boolean {
+  return selectedKeySet.value.has(String(row.id));
+}
+
+function toggleSelectRow(row: ResourceRow, event: Event): void {
+  const target = event.target as HTMLInputElement;
+  emit("select-row", row, target.checked);
 }
 
 function emitCellAction(

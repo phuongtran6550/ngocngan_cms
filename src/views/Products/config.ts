@@ -10,7 +10,10 @@ export const productDefinition: ResourceDefinition = {
     { text: "Sản phẩm" },
   ],
   endpoint: "/products",
-  permission: { view: PERMISSIONS.productsView },
+  permission: {
+    view: PERMISSIONS.productsView,
+    delete: PERMISSIONS.warehouseDelete,
+  },
   columns: [
     {
       key: "name",
@@ -48,7 +51,7 @@ export const productDefinition: ResourceDefinition = {
     view: true,
     create: false,
     update: false,
-    delete: false,
+    delete: true,
     refresh: true,
     fieldSelector: false,
   },

@@ -10,6 +10,24 @@
       <thead>
         <tr>
           <th
+            v-if="selectable"
+            class="align-middle ps-3 pe-0 text-center"
+            style="width: 2.5rem;"
+            scope="col"
+          >
+            <div class="form-check mb-0 d-flex align-items-center justify-content-center">
+              <input
+                ref="selectAllCheckbox"
+                type="checkbox"
+                class="form-check-input"
+                :checked="isAllSelected"
+                aria-label="Chọn tất cả bản ghi trên trang"
+                data-testid="data-table-select-all"
+                @change="toggleSelectAll"
+              />
+            </div>
+          </th>
+          <th
             v-for="(column, index) in visibleColumns"
             :key="column.key"
             :class="headerClass(column, index)"
@@ -41,6 +59,22 @@
           :key="row.id"
           class="position-static"
         >
+          <td
+            v-if="selectable"
+            class="align-middle ps-3 pe-0 text-center"
+          >
+            <div class="form-check mb-0 d-flex align-items-center justify-content-center">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                :checked="isSelected(row)"
+                :aria-label="`Chọn bản ghi ${resourceLabel(row)}`"
+                :data-testid="`data-table-select-row-${row.id}`"
+                @click.stop
+                @change="toggleSelectRow(row, $event)"
+              />
+            </div>
+          </td>
           <td
             v-for="(column, index) in visibleColumns"
             :key="column.key"
@@ -102,6 +136,11 @@ export default defineComponent({
     allowView: { type: Boolean, default: false },
     allowUpdate: { type: Boolean, default: false },
     allowDelete: { type: Boolean, default: false },
+    selectable: { type: Boolean, default: false },
+    selectedKeys: {
+      type: Array as PropType<(string | number)[]>,
+      default: () => [],
+    },
     canUpdateRow: {
       type: Function as PropType<(row: ResourceRow) => boolean>,
       default: () => true,
@@ -111,7 +150,7 @@ export default defineComponent({
       default: () => true,
     },
   },
-  emits: ["sort", "view", "edit", "delete", "cell-action"],
+  emits: ["sort", "view", "edit", "delete", "cell-action", "select-row", "select-all"],
   computed: {
     visibleColumns(): ColumnDefinition[] {
       return this.columns.filter((column) =>
@@ -121,13 +160,48 @@ export default defineComponent({
     hasActions(): boolean {
       return this.allowView || this.allowUpdate || this.allowDelete;
     },
+    selectedKeySet(): Set<string> {
+      return new Set(this.selectedKeys.map(String));
+    },
+    isAllSelected(): boolean {
+      return (
+        this.rows.length > 0 &&
+        this.rows.every((row) => this.selectedKeySet.has(String(row.id)))
+      );
+    },
+    isIndeterminate(): boolean {
+      return (
+        !this.isAllSelected &&
+        this.rows.some((row) => this.selectedKeySet.has(String(row.id)))
+      );
+    },
+  },
+  watch: {
+    isIndeterminate: {
+      immediate: true,
+      handler(val: boolean) {
+        this.$nextTick(() => {
+          const el = this.$refs.selectAllCheckbox as HTMLInputElement | undefined;
+          if (el) el.indeterminate = val;
+        });
+      },
+    },
+    isAllSelected: {
+      immediate: true,
+      handler() {
+        this.$nextTick(() => {
+          const el = this.$refs.selectAllCheckbox as HTMLInputElement | undefined;
+          if (el) el.indeterminate = this.isIndeterminate;
+        });
+      },
+    },
   },
   methods: {
     headerClass(column: ColumnDefinition, index: number): string[] {
       return [
         "sort",
         "align-middle",
-        index === 0 ? "ps-0" : "ps-4",
+        index === 0 ? (this.selectable ? "ps-3" : "ps-0") : "ps-4",
         this.isNumericColumn(column) ? "text-end" : "",
         this.isCompactColumn(column) ? "white-space-nowrap" : "",
       ].filter(Boolean);
@@ -135,7 +209,7 @@ export default defineComponent({
     cellClass(column: ColumnDefinition, index: number): string[] {
       return [
         "align-middle",
-        index === 0 ? "ps-0" : "ps-4",
+        index === 0 ? (this.selectable ? "ps-3" : "ps-0") : "ps-4",
         this.isCompactColumn(column) ? "white-space-nowrap" : "",
         this.isNumericColumn(column) ? "text-end" : "",
         column.type === "text" ? "fw-semibold" : "",
@@ -159,6 +233,17 @@ export default defineComponent({
     },
     valueFor(row: ResourceRow, column: ColumnDefinition): unknown {
       return cellValue(row, column);
+    },
+    isSelected(row: ResourceRow): boolean {
+      return this.selectedKeySet.has(String(row.id));
+    },
+    toggleSelectRow(row: ResourceRow, event: Event): void {
+      const target = event.target as HTMLInputElement;
+      this.$emit("select-row", row, target.checked);
+    },
+    toggleSelectAll(event: Event): void {
+      const target = event.target as HTMLInputElement;
+      this.$emit("select-all", target.checked);
     },
     emitCellAction(
       row: ResourceRow,

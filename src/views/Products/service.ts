@@ -266,4 +266,25 @@ export const productService = {
       patterns: normalizedOptions(data?.patterns, "pattern"),
     };
   },
+
+  async bulkDelete(
+    ids: string[],
+    signal?: AbortSignal,
+  ): Promise<{ deletedCount: number }> {
+    const { data } = await request.post<{
+      deletedCount: number;
+      message: string;
+    }>(
+      `${productEndpoint}/bulk-delete`,
+      { ids },
+      { signal },
+    );
+    return { deletedCount: Number(data?.deletedCount) || 0 };
+  },
+
+  async delete(skuId: string, signal?: AbortSignal): Promise<void> {
+    await request.delete(`${productEndpoint}/${encodeURIComponent(skuId)}`, {
+      signal,
+    });
+  },
 };
