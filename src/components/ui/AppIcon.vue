@@ -155,6 +155,10 @@ const icons: Record<string, IconShape[]> = {
     { type: "path", value: "M13 2 3 14h9l-1 8 10-12h-9z" },
   ],
   chevron: [{ type: "polyline", value: "9 18 15 12 9 6" }],
+  "chevron-left": [{ type: "polyline", value: "15 18 9 12 15 6" }],
+  "chevron-right": [{ type: "polyline", value: "9 18 15 12 9 6" }],
+  "chevrons-left": [{ type: "path", value: "M11 17l-5-5 5-5M18 17l-5-5 5-5" }],
+  "chevrons-right": [{ type: "path", value: "M6 17l5-5-5-5M13 17l5-5-5-5" }],
   "chevron-up": [{ type: "polyline", value: "18 15 12 9 6 15" }],
   "chevron-down": [{ type: "polyline", value: "6 9 12 15 18 9" }],
   "chevrons-up-down": [
