@@ -513,12 +513,18 @@ export default defineComponent({
         return this.silverValue + (Number(this.draft.laborCost) || 0) + (Number(this.draft.platingCost) || 0);
       }
       if (this.isPiece) {
-        return calculatePiecePrice(Number(this.draft.importPrice) || 0).rawPrice;
+        return calculatePiecePrice(
+          Number(this.draft.importPrice) || 0,
+          Number(this.draft.platingCost) || 0,
+        ).rawPrice;
       }
       return 0;
     },
     pieceDiscountLabel(): string {
-      const discount = calculatePiecePrice(Number(this.draft.importPrice) || 0).discountRate;
+      const discount = calculatePiecePrice(
+        Number(this.draft.importPrice) || 0,
+        Number(this.draft.platingCost) || 0,
+      ).discountRate;
       const percentage = Math.round(discount * 100);
       return percentage ? `giảm ${percentage}%` : "không giảm";
     },
@@ -613,7 +619,10 @@ export default defineComponent({
       } else if (this.isPiece) {
         this.draft.laborCost = 0;
         if (!this.draft.price && this.draft.importPrice) {
-          this.draft.price = calculatePiecePrice(Number(this.draft.importPrice) || 0).price;
+          this.draft.price = calculatePiecePrice(
+            Number(this.draft.importPrice) || 0,
+            Number(this.draft.platingCost) || 0,
+          ).price;
         }
       }
     },
@@ -679,13 +688,25 @@ export default defineComponent({
     updatePlatingCost(val: number | null): void {
       this.clearFieldError("platingCost");
       this.draft.platingCost = val ?? 0;
-      this.recalculatePrice();
+      if (this.isWeighted) {
+        this.recalculatePrice();
+      } else if (this.isPiece) {
+        if (this.draft.importPrice) {
+          this.draft.price = calculatePiecePrice(
+            Number(this.draft.importPrice) || 0,
+            Number(this.draft.platingCost) || 0,
+          ).price;
+        }
+      }
     },
     updatePieceImportPrice(val: number | null): void {
       this.clearFieldError("importPrice");
       this.clearFieldError("price");
       this.draft.importPrice = val;
-      this.draft.price = calculatePiecePrice(Number(val) || 0).price;
+      this.draft.price = calculatePiecePrice(
+        Number(val) || 0,
+        Number(this.draft.platingCost) || 0,
+      ).price;
       if (this.draft.codeMode === "auto") {
         this.applySuggestedCode();
       }
@@ -696,7 +717,11 @@ export default defineComponent({
       const price = val ?? 0;
       this.draft.price = price;
       if (price > 0) {
-        const estimate = estimatePieceImportPrice(price, Number(this.draft.importPrice) || 0);
+        const estimate = estimatePieceImportPrice(
+          price,
+          Number(this.draft.importPrice) || 0,
+          Number(this.draft.platingCost) || 0,
+        );
         this.draft.importPrice = estimate?.importPrice ?? null;
       }
       if (this.draft.codeMode === "auto") {

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <CheckoutRequests v-if="auth.can('orders.create')" :key="auth.user?.id" />
+    <CheckoutRequests v-if="auth.can('orders.create')" :key="auth.user?.id" @completed="refreshCompletedOrders" />
     <div v-if="store.message" class="alert alert-subtle-success" role="status">{{ store.message }}</div>
     <ListShell
       :definition="effectiveDefinition"
@@ -223,6 +223,9 @@ export default defineComponent({
     void Promise.all([this.store.load(1), this.store.loadCounts()]);
   },
   methods: {
+    async refreshCompletedOrders(): Promise<void> {
+      await Promise.all([this.store.load(), this.store.loadCounts()]);
+    },
     updateFields(fields: string[]): void { if (fields.length) this.store.selectedColumns = fields; },
     openDetail(row: ResourceRow): void { void this.$router.push(`/orders/${row.id}`); },
     canDeleteRow(row: ResourceRow): boolean { return ["draft", "completed"].includes(String(row.status)); },

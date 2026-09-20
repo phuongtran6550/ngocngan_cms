@@ -1,109 +1,94 @@
 <template>
-  <section class="card mb-3" aria-label="Đơn đã tiếp nhận">
-    <div class="card-body">
-      <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-        <h2 class="fs-8 mb-0">Đơn đã tiếp nhận của bạn</h2>
-        <button
-          class="btn btn-sm btn-link"
-          type="button"
-          :disabled="loading"
-          @click="refresh"
-        >
-          {{ loading ? "Đang cập nhật…" : "Cập nhật" }}
-        </button>
-      </div>
-      <p class="fs-10 text-body-tertiary mb-2">
-        Đơn đang xử lý chưa được tính vào doanh thu. Bạn có thể tiếp tục bán đơn
-        mới.
-      </p>
-      <div v-if="error" class="alert alert-subtle-warning py-2" role="alert">
-        {{ error }}
-      </div>
-      <p v-if="!items.length && !loading && !error" class="fs-9 mb-0">
-        Chưa có yêu cầu ghi nhận đơn.
-      </p>
-      <ul v-if="items.length" class="list-unstyled mb-0">
-        <li
-          v-for="item in items"
-          :key="item.requestId"
-          class="d-flex align-items-start gap-3 border-top py-3"
-        >
-          <img
-            :src="assetUrl(item.thumbnail)"
-            alt="Ảnh đơn đã tiếp nhận"
-            class="request-photo"
-          />
-          <div class="flex-grow-1">
-            <strong
-              :class="
-                item.status === 'failed'
-                  ? 'text-danger'
-                  : item.status === 'completed'
-                    ? 'text-success'
-                    : 'text-primary'
-              "
-            >
-              {{ labels[item.status] }}
-            </strong>
-            <p class="fs-9 mb-1">
-              {{ item.name || "Khách lẻ" }} · {{ quantity(item) }} món
-            </p>
-            <small class="text-body-tertiary">{{ time(item.createdAt) }}</small>
-            <p v-if="item.error" class="text-danger fs-9 mb-1">
-              {{ item.error.message }}
-            </p>
-            <p v-if="item.status === 'failed'" class="fs-10 mb-0">
-              Thử lại dùng đúng ảnh và sản phẩm đã gửi. Sửa giỏ hàng hiện tại
-              không thay đổi yêu cầu này.
-            </p>
-          </div>
-          <RouterLink
-            v-if="
-              item.status === 'completed' &&
-              item.orderId &&
-              auth.can('orders.view')
-            "
-            :to="`/orders/${item.orderId}`"
-            class="btn btn-sm btn-phoenix-secondary text-nowrap"
-            >Xem đơn</RouterLink
-          >
-          <button
-            v-else-if="item.status === 'failed'"
-            class="btn btn-sm btn-phoenix-warning text-nowrap"
-            type="button"
-            :disabled="retrying.includes(item.requestId)"
-            @click="retry(item)"
-          >
-            {{ retrying.includes(item.requestId) ? "Đang gửi…" : "Thử lại" }}
-          </button>
-        </li>
-      </ul>
+  <section
+    v-if="pendingCount || failedItems.length || error"
+    class="alert alert-subtle-warning mb-3 py-2"
+    aria-label="Trạng thái lưu đơn"
+    aria-live="polite"
+  >
+    <div class="d-flex align-items-center justify-content-between gap-2">
+      <span v-if="pendingCount"
+        >Đang lưu {{ pendingCount }} đơn · Bạn có thể tiếp tục bán.</span
+      >
+      <strong v-else-if="failedItems.length" class="text-danger"
+        >{{ failedItems.length }} đơn chưa lưu thành công</strong
+      >
+      <span v-else>Chưa kiểm tra được trạng thái lưu đơn</span>
+      <button
+        class="btn btn-sm btn-link"
+        type="button"
+        :disabled="loading"
+        @click="refresh"
+      >
+        {{ loading ? "Đang cập nhật…" : "Cập nhật" }}
+      </button>
     </div>
+    <p v-if="error" class="text-danger mb-0" role="alert">{{ error }}</p>
+    <ul v-if="failedItems.length" class="list-unstyled mb-0">
+      <li
+        v-for="item in failedItems"
+        :key="item.requestId"
+        class="d-flex align-items-start gap-2 border-top py-2"
+      >
+        <img
+          :src="assetUrl(item.thumbnail)"
+          alt="Ảnh đơn chưa lưu thành công"
+          class="request-photo"
+        />
+        <div class="flex-grow-1">
+          <strong
+            >{{ item.name || "Khách lẻ" }} · {{ quantity(item) }} món</strong
+          >
+          <small class="d-block text-body-tertiary">{{
+            time(item.createdAt)
+          }}</small>
+          <p class="text-danger mb-1">
+            {{ item.error?.message || "Chưa thể hoàn tất đơn." }}
+          </p>
+          <small
+            >Thử lại dùng đúng ảnh và sản phẩm đã gửi, không dùng giỏ hàng hiện
+            tại.</small
+          >
+        </div>
+        <button
+          class="btn btn-sm btn-phoenix-warning text-nowrap"
+          type="button"
+          :disabled="retrying.includes(item.requestId)"
+          @click="retry(item)"
+        >
+          {{ retrying.includes(item.requestId) ? "Đang gửi…" : "Thử lại" }}
+        </button>
+      </li>
+    </ul>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { apiError, assetUrl } from "@/request";
-import { authenStore } from "@/stores/app-authen";
 import { orderService } from "@/views/Orders/service";
 import type { CheckoutRequest } from "@/views/Orders/types";
 
 const props = defineProps<{ latest?: CheckoutRequest | null }>();
-const emit = defineEmits<{ updated: [value: CheckoutRequest] }>();
-const auth = authenStore();
+const emit = defineEmits<{
+  updated: [value: CheckoutRequest];
+  completed: [];
+}>();
 const items = ref<CheckoutRequest[]>([]);
 const loading = ref(false);
 const error = ref("");
 const retrying = ref<string[]>([]);
 const controller = new AbortController();
 let timer: ReturnType<typeof setTimeout> | undefined;
-const labels = {
-  pending: "Đã tiếp nhận",
-  processing: "Đang xử lý",
-  completed: "Đã hoàn tất",
-  failed: "Chưa thể hoàn tất",
-};
+let revision = 0;
+const pendingCount = computed(
+  () =>
+    items.value.filter(
+      (item) => item.status === "pending" || item.status === "processing",
+    ).length,
+);
+const failedItems = computed(() =>
+  items.value.filter((item) => item.status === "failed"),
+);
 
 function quantity(item: CheckoutRequest): number {
   return item.items.reduce((sum, line) => sum + line.quantity, 0);
@@ -112,6 +97,7 @@ function time(value: string): string {
   return new Date(value).toLocaleString("vi-VN");
 }
 function upsert(item: CheckoutRequest): void {
+  revision += 1;
   items.value = [
     item,
     ...items.value.filter((row) => row.requestId !== item.requestId),
@@ -121,6 +107,8 @@ async function refresh(): Promise<void> {
   if (loading.value || controller.signal.aborted || document.hidden) return;
   clearTimeout(timer);
   loading.value = true;
+  const startedRevision = revision;
+  const previous = items.value.filter((item) => item.status !== "completed");
   try {
     const active: CheckoutRequest[] = [];
     let cursor: string | undefined;
@@ -134,20 +122,17 @@ async function refresh(): Promise<void> {
       active.push(...page.items);
       cursor = page.nextCursor || undefined;
     } while (cursor);
-    const completed = await orderService.checkoutRequests(
-      "completed",
-      undefined,
-      controller.signal,
-    );
-    if (controller.signal.aborted) return;
-    items.value = [
-      ...new Map(
-        [...active, ...completed.items.slice(0, 5)].map((item) => [
-          item.requestId,
-          item,
-        ]),
-      ).values(),
-    ];
+    // Resolve only tracked requests that left the active list; the API has no batch detail endpoint.
+    const resolved: CheckoutRequest[] = [];
+    for (const item of previous) {
+      if (!active.some((row) => row.requestId === item.requestId))
+        resolved.push(
+          await orderService.checkoutRequest(item.requestId, controller.signal),
+        );
+    }
+    if (controller.signal.aborted || revision !== startedRevision) return;
+    items.value = [...active, ...resolved];
+    if (resolved.some((item) => item.status === "completed")) emit("completed");
     const latest = items.value.find(
       (item) => item.requestId === props.latest?.requestId,
     );
@@ -167,7 +152,14 @@ async function refresh(): Promise<void> {
       const processing = items.value.some(
         (item) => item.status === "pending" || item.status === "processing",
       );
-      timer = setTimeout(() => void refresh(), processing ? 3000 : 15000);
+      timer = setTimeout(
+        () => void refresh(),
+        processing || revision !== startedRevision
+          ? 3000
+          : error.value
+            ? 15000
+            : 60000,
+      );
     }
   }
 }
@@ -203,6 +195,7 @@ watch(
       }
     }
   },
+  { immediate: true },
 );
 function visibilityChanged(): void {
   clearTimeout(timer);

@@ -46,14 +46,19 @@ export function piecePriceMultiplier(importPrice: number): number {
   return 1.6;
 }
 
-export function calculatePiecePrice(importPrice: number): {
+export function calculatePiecePrice(
+  importPrice: number,
+  platingCost: number = 0,
+): {
   rawPrice: number;
   price: number;
   multiplier: number;
   discountRate: number;
 } {
   const multiplier = piecePriceMultiplier(importPrice);
-  const rawPrice = Math.round(numeric(importPrice) * multiplier);
+  const rawPrice =
+    Math.round(numeric(importPrice) * multiplier) +
+    Math.max(0, numeric(platingCost));
   return {
     rawPrice,
     price: roundSellingPrice(rawPrice),
@@ -64,12 +69,15 @@ export function calculatePiecePrice(importPrice: number): {
 
 export function estimatePieceImportPrices(
   sellingPrice: number,
+  platingCost: number = 0,
 ): PieceImportPriceCandidate[] {
   const price = numeric(sellingPrice);
-  if (price <= 0) return [];
+  const plating = Math.max(0, numeric(platingCost));
+  const basePrice = price - plating;
+  if (basePrice <= 0) return [];
 
   return PIECE_PRICE_MULTIPLIERS.map((multiplier) => ({
-    importPrice: Math.round(price / multiplier),
+    importPrice: Math.round(basePrice / multiplier),
     multiplier,
     discountRate: Number((1 - multiplier / 2).toFixed(2)),
   }))
@@ -89,8 +97,9 @@ export function estimatePieceImportPrices(
 export function estimatePieceImportPrice(
   sellingPrice: number,
   currentImportPrice = 0,
+  platingCost: number = 0,
 ): PieceImportPriceCandidate | null {
-  const candidates = estimatePieceImportPrices(sellingPrice);
+  const candidates = estimatePieceImportPrices(sellingPrice, platingCost);
   if (!candidates.length) return null;
 
   const currentMultiplier =

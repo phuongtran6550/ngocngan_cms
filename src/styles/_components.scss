@@ -40,9 +40,18 @@
   vertical-align: -0.125em;
 }
 
+.navbar-vertical .navbar-vertical-content .navbar-nav .nav-link,
+.navbar-vertical .navbar-vertical-content .navbar-nav .nav .nav-link {
+  min-height: 2.75rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
 .navbar-vertical .nav-link-icon > .cms-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .form-icon-container > .cms-icon.form-icon {

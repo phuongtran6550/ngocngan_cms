@@ -164,6 +164,10 @@ export const orderService = {
     });
     return data;
   },
+  async checkoutRequest(requestId: string, signal?: AbortSignal): Promise<CheckoutRequest> {
+    const { data } = await request.get<CheckoutRequest>(`/orders/checkout-requests/${requestId}`, { signal });
+    return data;
+  },
   async retryCheckout(requestId: string): Promise<CheckoutRequest> {
     const { data } = await request.post<CheckoutRequest>(`/orders/checkout-requests/${requestId}/retry`, {});
     return data;

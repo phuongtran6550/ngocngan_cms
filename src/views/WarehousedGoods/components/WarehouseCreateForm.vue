@@ -984,7 +984,10 @@ export default defineComponent({
     piecePreview(
       sku: WarehouseSkuFormModel,
     ): ReturnType<typeof calculatePiecePrice> {
-      return calculatePiecePrice(Number(sku.importPrice) || 0);
+      return calculatePiecePrice(
+        Number(sku.importPrice) || 0,
+        Number(sku.platingCost) || 0,
+      );
     },
     rawPrice(sku: WarehouseSkuFormModel): number {
       if (this.isWeighted) return this.weightedPreview(sku).rawPrice;
@@ -1051,14 +1054,18 @@ export default defineComponent({
       }
       if (pricingType === "Đồ món") {
         const enteredPrice = Number(sku.price) || 0;
-        const keepsEnteredPrice = estimatePieceImportPrices(enteredPrice).some(
+        const platingCost = Number(sku.platingCost) || 0;
+        const keepsEnteredPrice = estimatePieceImportPrices(
+          enteredPrice,
+          platingCost,
+        ).some(
           (candidate) =>
             candidate.importPrice === Number(sku.importPrice),
         );
         return {
           ...sku,
           laborCost: 0,
-          platingCost: sku.platingCost ?? 0,
+          platingCost,
           price: keepsEnteredPrice
             ? enteredPrice
             : this.piecePreview(sku).price,
@@ -1307,8 +1314,26 @@ export default defineComponent({
         next.skus[index] = {
           ...next.skus[index],
           importPrice,
-          price: calculatePiecePrice(Number(importPrice) || 0).price,
+          price: calculatePiecePrice(
+            Number(importPrice) || 0,
+            Number(next.skus[index].platingCost) || 0,
+          ).price,
         };
+        this.commit(this.withCalculatedPrices(next));
+        return;
+      }
+      if (this.isPiece && key === "platingCost") {
+        const platingCost = value ?? 0;
+        next.skus[index] = {
+          ...next.skus[index],
+          platingCost,
+        };
+        if (next.skus[index].importPrice) {
+          next.skus[index].price = calculatePiecePrice(
+            Number(next.skus[index].importPrice) || 0,
+            platingCost,
+          ).price;
+        }
         this.commit(this.withCalculatedPrices(next));
         return;
       }
@@ -1323,6 +1348,7 @@ export default defineComponent({
         const estimate = estimatePieceImportPrice(
           price,
           Number(next.skus[index].importPrice) || 0,
+          Number(next.skus[index].platingCost) || 0,
         );
         next.skus[index] = {
           ...next.skus[index],
