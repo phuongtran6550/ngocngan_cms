@@ -347,34 +347,6 @@
                     <div class="col-12 col-sm-6">
                       <label
                         class="form-label"
-                        :for="skuFieldId(index, 'platingCost')"
-                      >
-                        Tiền xi
-                      </label>
-                      <MoneyInput
-                        :id="skuFieldId(index, 'platingCost')"
-                        :name="`skus[${index}].platingCost`"
-                        :model-value="sku.platingCost"
-                        :disabled="submitting"
-                        :invalid="hasFieldError(`skus.${index}.platingCost`)"
-                        :described-by="
-                          hasFieldError(`skus.${index}.platingCost`)
-                            ? fieldErrorId(`skus.${index}.platingCost`)
-                            : ''
-                        "
-                        @update:model-value="
-                          updateSkuMoney(index, 'platingCost', $event)
-                        "
-                      />
-                      <FieldError
-                        :id="fieldErrorId(`skus.${index}.platingCost`)"
-                        :message="fieldError(`skus.${index}.platingCost`)"
-                      />
-                    </div>
-
-                    <div v-if="isWeighted" class="col-12">
-                      <label
-                        class="form-label"
                         :for="skuFieldId(index, 'laborCost')"
                       >
                         Tiền công
@@ -397,6 +369,34 @@
                       <FieldError
                         :id="fieldErrorId(`skus.${index}.laborCost`)"
                         :message="fieldError(`skus.${index}.laborCost`)"
+                      />
+                    </div>
+
+                    <div class="col-12 col-sm-6">
+                      <label
+                        class="form-label"
+                        :for="skuFieldId(index, 'platingCost')"
+                      >
+                        Tiền xi
+                      </label>
+                      <MoneyInput
+                        :id="skuFieldId(index, 'platingCost')"
+                        :name="`skus[${index}].platingCost`"
+                        :model-value="sku.platingCost"
+                        :disabled="submitting"
+                        :invalid="hasFieldError(`skus.${index}.platingCost`)"
+                        :described-by="
+                          hasFieldError(`skus.${index}.platingCost`)
+                            ? fieldErrorId(`skus.${index}.platingCost`)
+                            : ''
+                        "
+                        @update:model-value="
+                          updateSkuMoney(index, 'platingCost', $event)
+                        "
+                      />
+                      <FieldError
+                        :id="fieldErrorId(`skus.${index}.platingCost`)"
+                        :message="fieldError(`skus.${index}.platingCost`)"
                       />
                     </div>
 
@@ -586,6 +586,10 @@
                           <div>
                             <dt>Giá nhập</dt>
                             <dd>{{ money(sku.importPrice) }}</dd>
+                          </div>
+                          <div>
+                            <dt>Tiền công</dt>
+                            <dd>{{ money(sku.laborCost) }}</dd>
                           </div>
                           <div>
                             <dt>Tiền xi</dt>
@@ -987,6 +991,7 @@ export default defineComponent({
       return calculatePiecePrice(
         Number(sku.importPrice) || 0,
         Number(sku.platingCost) || 0,
+        Number(sku.laborCost) || 0,
       );
     },
     rawPrice(sku: WarehouseSkuFormModel): number {
@@ -1055,16 +1060,18 @@ export default defineComponent({
       if (pricingType === "Đồ món") {
         const enteredPrice = Number(sku.price) || 0;
         const platingCost = Number(sku.platingCost) || 0;
+        const laborCost = Number(sku.laborCost) || 0;
         const keepsEnteredPrice = estimatePieceImportPrices(
           enteredPrice,
           platingCost,
+          laborCost,
         ).some(
           (candidate) =>
             candidate.importPrice === Number(sku.importPrice),
         );
         return {
           ...sku,
-          laborCost: 0,
+          laborCost,
           platingCost,
           price: keepsEnteredPrice
             ? enteredPrice
@@ -1202,12 +1209,6 @@ export default defineComponent({
       next.pricingType = pricingType;
       next.skus = next.skus.map((sku) => {
         if (pricingType === "Đồ cân") return { ...sku, importPrice: null };
-        if (pricingType === "Đồ món") {
-          return {
-            ...sku,
-            laborCost: 0,
-          };
-        }
         return sku;
       });
       this.commit(this.withCalculatedPrices(next));
@@ -1317,8 +1318,25 @@ export default defineComponent({
           price: calculatePiecePrice(
             Number(importPrice) || 0,
             Number(next.skus[index].platingCost) || 0,
+            Number(next.skus[index].laborCost) || 0,
           ).price,
         };
+        this.commit(this.withCalculatedPrices(next));
+        return;
+      }
+      if (this.isPiece && key === "laborCost") {
+        const laborCost = value ?? 0;
+        next.skus[index] = {
+          ...next.skus[index],
+          laborCost,
+        };
+        if (next.skus[index].importPrice) {
+          next.skus[index].price = calculatePiecePrice(
+            Number(next.skus[index].importPrice) || 0,
+            Number(next.skus[index].platingCost) || 0,
+            laborCost,
+          ).price;
+        }
         this.commit(this.withCalculatedPrices(next));
         return;
       }
@@ -1332,6 +1350,7 @@ export default defineComponent({
           next.skus[index].price = calculatePiecePrice(
             Number(next.skus[index].importPrice) || 0,
             platingCost,
+            Number(next.skus[index].laborCost) || 0,
           ).price;
         }
         this.commit(this.withCalculatedPrices(next));
@@ -1349,6 +1368,7 @@ export default defineComponent({
           price,
           Number(next.skus[index].importPrice) || 0,
           Number(next.skus[index].platingCost) || 0,
+          Number(next.skus[index].laborCost) || 0,
         );
         next.skus[index] = {
           ...next.skus[index],
@@ -1372,12 +1392,6 @@ export default defineComponent({
       next.pricingType = pricingType;
       next.skus = next.skus.map((sku) => {
         if (pricingType === "Đồ cân") return { ...sku, importPrice: null };
-        if (pricingType === "Đồ món") {
-          return {
-            ...sku,
-            laborCost: 0,
-          };
-        }
         return sku;
       });
       this.commit(this.withCalculatedPrices(next));

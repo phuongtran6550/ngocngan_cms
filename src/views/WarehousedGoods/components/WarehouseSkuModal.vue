@@ -188,6 +188,22 @@
                     <FieldError id="sku-modal-stock-err" :message="fieldError('stock')" />
                   </div>
 
+                  <!-- Tiền công -->
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-labor-cost">
+                      Tiền công
+                    </label>
+                    <MoneyInput
+                      id="sku-modal-labor-cost"
+                      name="laborCost"
+                      :model-value="draft.laborCost"
+                      :disabled="submitting"
+                      :invalid="hasFieldError('laborCost')"
+                      @update:model-value="updateLaborCost"
+                    />
+                    <FieldError id="sku-modal-labor-cost-err" :message="fieldError('laborCost')" />
+                  </div>
+
                   <!-- Tiền xi -->
                   <div class="col-12 col-sm-6">
                     <label class="form-label fs-9 fw-bold" for="sku-modal-plating-cost">
@@ -206,20 +222,6 @@
 
                   <!-- Trường tính tiền cho Đồ cân -->
                   <template v-if="isWeighted">
-                    <div class="col-12">
-                      <label class="form-label fs-9 fw-bold" for="sku-modal-labor-cost">
-                        Tiền công
-                      </label>
-                      <MoneyInput
-                        id="sku-modal-labor-cost"
-                        name="laborCost"
-                        :model-value="draft.laborCost"
-                        :disabled="submitting"
-                        :invalid="hasFieldError('laborCost')"
-                        @update:model-value="updateLaborCost"
-                      />
-                      <FieldError id="sku-modal-labor-cost-err" :message="fieldError('laborCost')" />
-                    </div>
 
                     <div class="col-12">
                       <label class="form-label fs-9 fw-bold" for="sku-modal-selling-price">
@@ -335,6 +337,10 @@
                         <div>
                           <dt>Giá nhập</dt>
                           <dd>{{ formatMoney(draft.importPrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền công</dt>
+                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
                         </div>
                         <div>
                           <dt>Tiền xi</dt>
@@ -516,6 +522,7 @@ export default defineComponent({
         return calculatePiecePrice(
           Number(this.draft.importPrice) || 0,
           Number(this.draft.platingCost) || 0,
+          Number(this.draft.laborCost) || 0,
         ).rawPrice;
       }
       return 0;
@@ -524,6 +531,7 @@ export default defineComponent({
       const discount = calculatePiecePrice(
         Number(this.draft.importPrice) || 0,
         Number(this.draft.platingCost) || 0,
+        Number(this.draft.laborCost) || 0,
       ).discountRate;
       const percentage = Math.round(discount * 100);
       return percentage ? `giảm ${percentage}%` : "không giảm";
@@ -617,11 +625,11 @@ export default defineComponent({
         this.draft.price = calculated;
         this.draft.importPrice = null;
       } else if (this.isPiece) {
-        this.draft.laborCost = 0;
         if (!this.draft.price && this.draft.importPrice) {
           this.draft.price = calculatePiecePrice(
             Number(this.draft.importPrice) || 0,
             Number(this.draft.platingCost) || 0,
+            Number(this.draft.laborCost) || 0,
           ).price;
         }
       }
@@ -683,7 +691,17 @@ export default defineComponent({
     updateLaborCost(val: number | null): void {
       this.clearFieldError("laborCost");
       this.draft.laborCost = val ?? 0;
-      this.recalculatePrice();
+      if (this.isWeighted) {
+        this.recalculatePrice();
+      } else if (this.isPiece) {
+        if (this.draft.importPrice) {
+          this.draft.price = calculatePiecePrice(
+            Number(this.draft.importPrice) || 0,
+            Number(this.draft.platingCost) || 0,
+            Number(this.draft.laborCost) || 0,
+          ).price;
+        }
+      }
     },
     updatePlatingCost(val: number | null): void {
       this.clearFieldError("platingCost");
@@ -695,6 +713,7 @@ export default defineComponent({
           this.draft.price = calculatePiecePrice(
             Number(this.draft.importPrice) || 0,
             Number(this.draft.platingCost) || 0,
+            Number(this.draft.laborCost) || 0,
           ).price;
         }
       }
@@ -706,6 +725,7 @@ export default defineComponent({
       this.draft.price = calculatePiecePrice(
         Number(val) || 0,
         Number(this.draft.platingCost) || 0,
+        Number(this.draft.laborCost) || 0,
       ).price;
       if (this.draft.codeMode === "auto") {
         this.applySuggestedCode();
@@ -721,6 +741,7 @@ export default defineComponent({
           price,
           Number(this.draft.importPrice) || 0,
           Number(this.draft.platingCost) || 0,
+          Number(this.draft.laborCost) || 0,
         );
         this.draft.importPrice = estimate?.importPrice ?? null;
       }

@@ -315,23 +315,7 @@
                     />
                   </button>
                 </th>
-                <th v-if="isWeighted" scope="col" class="sku-numeric" :aria-sort="skuAriaSort('laborCost')">
-                  <button
-                    type="button"
-                    class="sku-th-btn sku-th-btn-end"
-                    data-testid="sort-sku-laborCost"
-                    title="Sắp xếp theo tiền công"
-                    @click="toggleSkuSort('laborCost')"
-                  >
-                    <span>Tiền công</span>
-                    <AppIcon
-                      :name="skuSortIcon('laborCost')"
-                      class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'laborCost' }"
-                    />
-                  </button>
-                </th>
-                <th v-else scope="col" class="sku-numeric" :aria-sort="skuAriaSort('importPrice')">
+                <th v-if="!isWeighted" scope="col" class="sku-numeric" :aria-sort="skuAriaSort('importPrice')">
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -344,6 +328,22 @@
                       :name="skuSortIcon('importPrice')"
                       class="sku-sort-icon"
                       :class="{ 'sku-sort-icon-active': skuSortKey === 'importPrice' }"
+                    />
+                  </button>
+                </th>
+                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('laborCost')">
+                  <button
+                    type="button"
+                    class="sku-th-btn sku-th-btn-end"
+                    data-testid="sort-sku-laborCost"
+                    title="Sắp xếp theo tiền công"
+                    @click="toggleSkuSort('laborCost')"
+                  >
+                    <span>Tiền công</span>
+                    <AppIcon
+                      :name="skuSortIcon('laborCost')"
+                      class="sku-sort-icon"
+                      :class="{ 'sku-sort-icon-active': skuSortKey === 'laborCost' }"
                     />
                   </button>
                 </th>
@@ -459,11 +459,11 @@
                 <td class="sku-numeric">
                   {{ weight(sku.weight) }}
                 </td>
-                <td v-if="isWeighted" class="sku-numeric">
-                  {{ money(sku.laborCost) }}
-                </td>
-                <td v-else class="sku-numeric">
+                <td v-if="!isWeighted" class="sku-numeric">
                   {{ money(sku.importPrice) }}
+                </td>
+                <td class="sku-numeric">
+                  {{ money(sku.laborCost) }}
                 </td>
                 <td class="sku-numeric">
                   {{ money(sku.platingCost) }}
@@ -580,8 +580,8 @@
                 <option value="code">Mã SKU</option>
                 <option value="size">Ni tay</option>
                 <option value="weight">Trọng lượng</option>
-                <option v-if="isWeighted" value="laborCost">Tiền công</option>
-                <option v-else value="importPrice">Giá nhập</option>
+                <option v-if="!isWeighted" value="importPrice">Giá nhập</option>
+                <option value="laborCost">Tiền công</option>
                 <option value="platingCost">Tiền xi</option>
                 <option value="price">Giá bán</option>
                 <option value="stock">Tồn kho</option>
@@ -714,13 +714,13 @@
                   <dt>Trọng lượng</dt>
                   <dd>{{ weight(sku.weight) }}</dd>
                 </div>
-                <div v-if="isWeighted">
-                  <dt>Tiền công</dt>
-                  <dd>{{ money(sku.laborCost) }}</dd>
-                </div>
-                <div v-else>
+                <div v-if="!isWeighted">
                   <dt>Giá nhập</dt>
                   <dd>{{ money(sku.importPrice) }}</dd>
+                </div>
+                <div>
+                  <dt>Tiền công</dt>
+                  <dd>{{ money(sku.laborCost) }}</dd>
                 </div>
                 <div>
                   <dt>Tiền xi</dt>
