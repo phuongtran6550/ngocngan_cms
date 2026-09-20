@@ -1,7 +1,7 @@
 <template>
   <section class="card sales-cart-card">
     <div
-      class="card-header bg-transparent d-flex align-items-center justify-content-between gap-3"
+      class="card-header bg-transparent d-flex flex-wrap align-items-center justify-content-between gap-3"
     >
       <div>
         <h2 class="fs-7 mb-1">Giỏ hàng</h2>
@@ -9,9 +9,12 @@
           Giá bán lấy trực tiếp từ kho và không thể chỉnh sửa.
         </p>
       </div>
-      <span class="badge badge-phoenix badge-phoenix-primary"
-        >{{ cart.itemQuantity }} món</span
-      >
+      <div class="d-flex align-items-center gap-3">
+        <span class="badge badge-phoenix badge-phoenix-primary"
+          >{{ cart.itemQuantity }} món</span
+        >
+        <slot name="actions" />
+      </div>
     </div>
     <div v-if="!cart.lines.length" class="card-body text-center py-6">
       <div class="sales-cart-empty-icon"><AppIcon name="scan-line" /></div>
@@ -154,6 +157,7 @@ function remove(skuId: string): void {
 
 <style scoped>
 .sales-cart-card {
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--phoenix-border-color-translucent);
 }

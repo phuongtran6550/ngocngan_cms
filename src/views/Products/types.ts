@@ -2,6 +2,9 @@ export type ProductStatus = "active" | "inactive";
 export interface BarcodeResolutionFeedback {
   ok: boolean;
   message: string;
+  quantity?: number;
+  total?: number;
+  itemQuantity?: number;
 }
 export type ProductSortField =
   | "name"

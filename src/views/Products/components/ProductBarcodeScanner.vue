@@ -9,7 +9,8 @@
       aria-modal="true"
       aria-labelledby="product-scanner-title"
       data-testid="product-barcode-scanner"
-      @keydown="trapFocus"
+      @pointerdown="enableSound"
+      @keydown="enableSound(); trapFocus($event)"
     >
       <div class="modal-dialog modal-dialog-centered product-scanner-dialog">
         <div class="modal-content overflow-hidden">
@@ -39,7 +40,6 @@
                 playsinline
                 aria-label="Hình ảnh trực tiếp từ camera sau"
               />
-              <div class="scanner-shade" aria-hidden="true" />
               <div class="scanner-guide" aria-hidden="true">
                 <span v-for="corner in 4" :key="corner" />
               </div>
@@ -54,17 +54,53 @@
                 />
                 <AppIcon v-else name="scan-line" />
               </div>
+
             </div>
 
             <div
               class="scanner-status mt-3"
-              :class="{ 'is-error': isErrorState }"
+              :class="{ 'is-error': !lastProduct && isErrorState, 'has-product': lastProduct }"
               aria-live="polite"
               aria-atomic="true"
             >
+              <template v-if="lastProduct">
+                <div class="scanner-product-heading">
+                  <div class="scanner-product-label">
+                    <AppIcon name="check-circle" aria-hidden="true" />
+                    {{ continuous ? "Sản phẩm vừa thêm" : "Sản phẩm vừa quét" }}
+                  </div>
+                  <strong class="scanner-product-name">{{ lastProduct.sku.name }}</strong>
+                </div>
+                <div class="scanner-product-metrics">
+                  <div class="scanner-product-metric">
+                    <span>Giá sản phẩm</span>
+                    <strong>{{ formatMoney(lastProduct.sku.price) }}</strong>
+                  </div>
+                  <div v-if="lastProduct.itemQuantity !== undefined" class="scanner-product-metric">
+                    <span>Tổng sản phẩm</span>
+                    <strong>{{ lastProduct.itemQuantity }}</strong>
+                  </div>
+                </div>
+                <div v-if="lastProduct.total !== undefined" class="scanner-product-total">
+                  <span>Tổng đơn hiện tại</span>
+                  <strong>{{ formatMoney(lastProduct.total) }}</strong>
+                </div>
+              </template>
+              <template v-else>
+                <strong>{{ statusTitle }}</strong>
+                <span>{{ statusMessage }}</span>
+                <code v-if="barcode" class="scanner-barcode">{{ barcode }}</code>
+              </template>
+            </div>
+
+            <div
+              v-if="lastProduct && (isErrorState || isBusy)"
+              class="alert mt-3 mb-0 fs-10"
+              :class="isErrorState ? 'alert-subtle-warning' : 'alert-subtle-info'"
+              role="status"
+            >
               <strong>{{ statusTitle }}</strong>
-              <span>{{ statusMessage }}</span>
-              <code v-if="barcode" class="scanner-barcode">{{ barcode }}</code>
+              <div>{{ statusMessage }}</div>
             </div>
 
             <div
@@ -75,6 +111,14 @@
             </div>
 
             <div class="scanner-actions mt-3">
+              <button
+                v-if="!soundReady"
+                type="button"
+                class="btn btn-sm btn-phoenix-secondary"
+                @click="enableSound"
+              >
+                Bật âm báo
+              </button>
               <button
                 v-if="camera.torchAvailable.value && state === 'scanning'"
                 type="button"
@@ -134,6 +178,12 @@
         </div>
       </div>
     </div>
+    <ToastRegion
+      v-if="open"
+      class="scanner-toast"
+      :toasts="scanToasts"
+      @dismiss="clearScanResult"
+    />
     <button
       v-if="open"
       type="button"
@@ -153,8 +203,10 @@ import {
   watch,
 } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
+import ToastRegion from "@/components/toast/index.vue";
 import { createOverlayBehavior } from "@/components/overlay/behavior";
 import { apiError } from "@/request";
+import { formatMoney } from "@/utils/resource-display";
 import { productService } from "@/views/Products/service";
 import type { BarcodeResolutionFeedback, ProductSku } from "@/views/Products/types";
 import {
@@ -200,6 +252,35 @@ const message = ref("");
 const cameraHelp = ref("");
 const lookupErrorCode = ref("");
 const resolutionError = ref(false);
+const lastProduct = ref<{ sku: ProductSku; total?: number; itemQuantity?: number } | null>(null);
+const scanResult = ref<{
+  ok: boolean;
+  sku?: ProductSku;
+  quantity?: number;
+  total?: number;
+  message: string;
+} | null>(null);
+let resultTimer: ReturnType<typeof setTimeout> | undefined;
+const scanToasts = computed(() => {
+  const result = scanResult.value;
+  if (!result) return [];
+  const text = result.ok && result.sku
+    ? `${props.continuous ? "Đã thêm" : "Đã tìm thấy"} ${result.sku.name}\nGiá: ${formatMoney(result.sku.price)}${result.total !== undefined ? `\nTổng đơn hiện tại: ${formatMoney(result.total)}` : ""}`
+    : result.message;
+  return [{ id: "scanner-result", message: text, variant: result.ok ? "success" as const : "danger" as const }];
+});
+function clearScanResult(): void {
+  clearTimeout(resultTimer);
+  resultTimer = undefined;
+  scanResult.value = null;
+}
+function showScanResult(result: NonNullable<typeof scanResult.value>): void {
+  clearScanResult();
+  scanResult.value = result;
+  resultTimer = setTimeout(clearScanResult, 2000);
+}
+const soundReady = ref(false);
+let audio: AudioContext | null = null;
 let previousFocus: HTMLElement | null = null;
 let lookupController: AbortController | null = null;
 let lookupRequestId = 0;
@@ -290,6 +371,12 @@ function cancelLookup(): void {
 }
 
 function closeSession(): void {
+  clearScanResult();
+  lastProduct.value = null;
+  const previousAudio = audio;
+  audio = null;
+  soundReady.value = false;
+  if (previousAudio) void previousAudio.close().catch(() => undefined);
   startRequestId += 1;
   fileRequestId += 1;
   cancelLookup();
@@ -311,6 +398,7 @@ function requestClose(): void {
 }
 
 async function startScan(): Promise<void> {
+  clearScanResult();
   const requestId = ++startRequestId;
   fileRequestId += 1;
   cancelLookup();
@@ -352,6 +440,7 @@ function lookupMessage(code?: string, fallback?: string): string {
 }
 
 async function lookupBarcode(value: string): Promise<void> {
+  clearScanResult();
   cancelLookup();
   const requestId = ++lookupRequestId;
   lookupController = new AbortController();
@@ -365,13 +454,16 @@ async function lookupBarcode(value: string): Promise<void> {
       lookupController.signal,
     );
     if (requestId !== lookupRequestId || !props.open) return;
-    feedback();
     const resolution = props.resolver?.(sku);
+    const ok = resolution?.ok !== false;
+    if (ok) lastProduct.value = { sku, total: resolution?.total, itemQuantity: resolution?.itemQuantity };
+    showScanResult({ ok, sku, quantity: resolution?.quantity, total: resolution?.total, message: resolution?.message || "" });
+    feedback(ok);
     emit("resolved", sku);
     if (props.continuous) {
       state.value = "scanning";
       resolutionError.value = resolution?.ok === false;
-      message.value = resolution?.message || `${sku.name} · ${sku.skuCode || sku.barcode} đã được nhận.`;
+      message.value = ok ? "" : resolution?.message || "Không thể thêm sản phẩm.";
       camera.resume();
     }
   } catch (error) {
@@ -380,6 +472,8 @@ async function lookupBarcode(value: string): Promise<void> {
     if (normalized.code === "ERR_CANCELED") return;
     lookupErrorCode.value = normalized.code || "";
     resolutionError.value = true;
+    showScanResult({ ok: false, message: normalized.code === "PRODUCT_BARCODE_NOT_FOUND" ? `Không tìm thấy SKU cho barcode ${value}.` : lookupMessage(normalized.code, normalized.message) });
+    feedback(false);
     if (normalized.code === "PRODUCT_BARCODE_NOT_FOUND") {
       message.value = `Không tìm thấy SKU cho barcode ${value}.`;
       if (props.continuous) {
@@ -412,6 +506,7 @@ async function scanSelectedFile(event: Event): Promise<void> {
   input.value = "";
   if (!file) return;
   const requestId = ++fileRequestId;
+  clearScanResult();
   cancelLookup();
   state.value = "preparing";
   barcode.value = "";
@@ -432,28 +527,50 @@ async function scanSelectedFile(event: Event): Promise<void> {
   }
 }
 
-function feedback(): void {
-  navigator.vibrate?.(40);
+function enableSound(): void {
   try {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
+    const AudioContextClass = window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
-    const audio = new AudioContextClass();
+    audio ??= new AudioContextClass();
+    const target = audio;
+    if (target.state === "running") {
+      soundReady.value = true;
+      return;
+    }
+    void target.resume().then(() => {
+      if (audio === target) soundReady.value = target.state === "running";
+    }).catch(() => {
+      if (audio === target) soundReady.value = false;
+    });
+  } catch {
+    soundReady.value = false;
+  }
+}
+
+function feedback(ok: boolean): void {
+  try {
+    navigator.vibrate?.(ok ? 40 : [70, 40, 70]);
+    if (!audio || audio.state !== "running") {
+      soundReady.value = false;
+      return;
+    }
     const oscillator = audio.createOscillator();
     const gain = audio.createGain();
-    gain.gain.value = 0.04;
-    oscillator.frequency.value = 880;
+    const end = audio.currentTime + (ok ? 0.12 : 0.24);
+    gain.gain.setValueAtTime(0.12, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, end);
+    oscillator.frequency.value = ok ? 1046 : 220;
     oscillator.connect(gain);
     gain.connect(audio.destination);
     oscillator.start();
-    oscillator.stop(audio.currentTime + 0.06);
-    oscillator.addEventListener("ended", () => void audio.close(), {
-      once: true,
-    });
+    oscillator.stop(end);
+    oscillator.addEventListener("ended", () => {
+      oscillator.disconnect();
+      gain.disconnect();
+    }, { once: true });
   } catch {
-    // Feedback is optional; scanning success must not depend on audio support.
+    // Visual confirmation and cart updates must work even when sound is unavailable.
   }
 }
 
@@ -484,6 +601,7 @@ watch(
       closeSession();
       return;
     }
+    enableSound();
     previousFocus = document.activeElement as HTMLElement | null;
     await nextTick();
     closeButton.value?.focus();
@@ -520,8 +638,7 @@ onBeforeUnmount(() => {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.scanner-video,
-.scanner-shade {
+.scanner-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -532,20 +649,14 @@ onBeforeUnmount(() => {
   object-fit: cover;
 }
 
-.scanner-shade {
-  background: radial-gradient(
-    ellipse 47% 25% at center,
-    transparent 0 96%,
-    rgba(3, 10, 16, 0.42) 100%
-  );
-  pointer-events: none;
-}
-
 .scanner-guide {
   position: relative;
   z-index: 2;
   width: 90%;
   height: 45%;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 0 999px rgba(3, 10, 16, 0.42);
+  pointer-events: none;
 }
 
 .scanner-guide span {
@@ -598,6 +709,14 @@ onBeforeUnmount(() => {
   height: 3rem;
 }
 
+.scanner-toast :deep(.toast) {
+  width: min(22rem, calc(100vw - 2rem));
+}
+.scanner-toast :deep(.toast-body > span) {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .scanner-status {
   display: grid;
   gap: 0.25rem;
@@ -622,6 +741,70 @@ onBeforeUnmount(() => {
   margin-top: 0.25rem;
   color: var(--phoenix-body-color);
   font-size: 0.9rem;
+}
+
+.scanner-status.has-product {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--phoenix-body-bg);
+}
+.scanner-product-heading {
+  display: grid;
+  gap: 0.625rem;
+  padding: 1rem 1rem 0;
+}
+.scanner-product-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--phoenix-success-text-emphasis);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.scanner-product-label :deep(.cms-icon) {
+  width: 1rem;
+  height: 1rem;
+}
+.scanner-product-name {
+  color: var(--phoenix-body-color);
+  font-size: 1.125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.scanner-product-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+}
+.scanner-product-metric {
+  display: grid;
+  flex: 1 1 8rem;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.scanner-product-metric strong {
+  color: var(--phoenix-body-color);
+  font-size: 1.125rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.scanner-product-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  padding: 0.875rem 1rem;
+  border-top: 1px solid rgba(var(--phoenix-success-rgb), 0.2);
+  background: rgba(var(--phoenix-success-rgb), 0.06);
+}
+.scanner-product-total strong {
+  color: var(--phoenix-success-text-emphasis);
+  font-size: 1.5rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .scanner-actions {

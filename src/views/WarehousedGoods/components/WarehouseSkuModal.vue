@@ -188,9 +188,25 @@
                     <FieldError id="sku-modal-stock-err" :message="fieldError('stock')" />
                   </div>
 
+                  <!-- Tiền xi -->
+                  <div class="col-12 col-sm-6">
+                    <label class="form-label fs-9 fw-bold" for="sku-modal-plating-cost">
+                      Tiền xi
+                    </label>
+                    <MoneyInput
+                      id="sku-modal-plating-cost"
+                      name="platingCost"
+                      :model-value="draft.platingCost"
+                      :disabled="submitting"
+                      :invalid="hasFieldError('platingCost')"
+                      @update:model-value="updatePlatingCost"
+                    />
+                    <FieldError id="sku-modal-plating-cost-err" :message="fieldError('platingCost')" />
+                  </div>
+
                   <!-- Trường tính tiền cho Đồ cân -->
                   <template v-if="isWeighted">
-                    <div class="col-12 col-sm-6">
+                    <div class="col-12">
                       <label class="form-label fs-9 fw-bold" for="sku-modal-labor-cost">
                         Tiền công
                       </label>
@@ -203,21 +219,6 @@
                         @update:model-value="updateLaborCost"
                       />
                       <FieldError id="sku-modal-labor-cost-err" :message="fieldError('laborCost')" />
-                    </div>
-
-                    <div class="col-12 col-sm-6">
-                      <label class="form-label fs-9 fw-bold" for="sku-modal-plating-cost">
-                        Tiền xi
-                      </label>
-                      <MoneyInput
-                        id="sku-modal-plating-cost"
-                        name="platingCost"
-                        :model-value="draft.platingCost"
-                        :disabled="submitting"
-                        :invalid="hasFieldError('platingCost')"
-                        @update:model-value="updatePlatingCost"
-                      />
-                      <FieldError id="sku-modal-plating-cost-err" :message="fieldError('platingCost')" />
                     </div>
 
                     <div class="col-12">
@@ -334,6 +335,10 @@
                         <div>
                           <dt>Giá nhập</dt>
                           <dd>{{ formatMoney(draft.importPrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền xi</dt>
+                          <dd>{{ formatMoney(draft.platingCost) }}</dd>
                         </div>
                         <div>
                           <dt>Giá nhân đôi</dt>
@@ -607,7 +612,6 @@ export default defineComponent({
         this.draft.importPrice = null;
       } else if (this.isPiece) {
         this.draft.laborCost = 0;
-        this.draft.platingCost = 0;
         if (!this.draft.price && this.draft.importPrice) {
           this.draft.price = calculatePiecePrice(Number(this.draft.importPrice) || 0).price;
         }
@@ -752,6 +756,10 @@ export default defineComponent({
 
       if (!Number.isInteger(this.draft.stock) || this.draft.stock < 0) {
         this.fieldErrors.stock = "Tồn kho phải là số nguyên không âm";
+      }
+
+      if (Number(this.draft.platingCost) < 0) {
+        this.fieldErrors.platingCost = "Tiền xi không được âm";
       }
 
       if (this.isWeighted) {

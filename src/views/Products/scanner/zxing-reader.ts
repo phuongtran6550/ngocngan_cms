@@ -18,7 +18,7 @@ let preloadPromise: Promise<unknown> | null = null;
 const fastOptions: ReaderOptions = {
   formats: ["Code128"],
   tryHarder: false,
-  tryRotate: false,
+  tryRotate: true,
   tryInvert: false,
   tryDownscale: true,
   minLineCount: 2,

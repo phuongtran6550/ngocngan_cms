@@ -130,7 +130,7 @@
     <ProductBarcodeScanner
       :open="scannerOpen"
       @close="scannerOpen = false"
-      @scanned="openScannedProduct"
+      @resolved="openScannedProduct"
     />
   </div>
 </template>

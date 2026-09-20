@@ -91,38 +91,47 @@
         </div>
         <div>
           <label class="form-label fw-bold mb-1" for="warehouse-category-filter">Danh mục</label>
-          <select id="warehouse-category-filter" v-model="store.categoryId" class="form-select" @change="store.applyFilters">
-            <option value="">Tất cả</option>
-            <option v-for="option in store.options.categories" :key="option.id" :value="option.id">
-              {{ option.name }}
-            </option>
-          </select>
+          <AutoCompleteSelect
+            id="warehouse-category-filter"
+            :model-value="store.categoryId"
+            :options="store.options.categories"
+            placeholder="Tất cả danh mục"
+            search-placeholder="Tìm danh mục..."
+            @update:model-value="store.categoryId = String($event); store.applyFilters()"
+          />
         </div>
         <div>
           <label class="form-label fw-bold mb-1" for="warehouse-material-filter">Chất liệu</label>
-          <select id="warehouse-material-filter" v-model="store.materialId" class="form-select" @change="store.applyFilters">
-            <option value="">Tất cả</option>
-            <option v-for="option in store.options.materials" :key="option.id" :value="option.id">
-              {{ option.name }}
-            </option>
-          </select>
+          <AutoCompleteSelect
+            id="warehouse-material-filter"
+            :model-value="store.materialId"
+            :options="store.options.materials"
+            placeholder="Tất cả chất liệu"
+            search-placeholder="Tìm chất liệu..."
+            @update:model-value="store.materialId = String($event); store.applyFilters()"
+          />
         </div>
         <div>
           <label class="form-label fw-bold mb-1" for="warehouse-pattern-filter">Mẫu</label>
-          <select id="warehouse-pattern-filter" v-model="store.patternId" class="form-select" @change="store.applyFilters">
-            <option value="">Tất cả</option>
-            <option v-for="option in store.options.patterns" :key="option.id" :value="option.id">
-              {{ option.name }}
-            </option>
-          </select>
+          <AutoCompleteSelect
+            id="warehouse-pattern-filter"
+            :model-value="store.patternId"
+            :options="store.options.patterns"
+            placeholder="Tất cả mẫu"
+            search-placeholder="Tìm mẫu..."
+            @update:model-value="store.patternId = String($event); store.applyFilters()"
+          />
         </div>
         <div>
           <label class="form-label fw-bold mb-1" for="warehouse-pricing-filter">Loại sản phẩm</label>
-          <select id="warehouse-pricing-filter" v-model="store.pricingType" class="form-select" @change="store.applyFilters">
-            <option value="">Tất cả</option>
-            <option value="Đồ cân">Đồ cân</option>
-            <option value="Đồ món">Đồ món</option>
-          </select>
+          <AutoCompleteSelect
+            id="warehouse-pricing-filter"
+            :model-value="store.pricingType"
+            :options="['Đồ cân', 'Đồ món']"
+            placeholder="Tất cả loại sản phẩm"
+            search-placeholder="Tìm loại sản phẩm..."
+            @update:model-value="store.pricingType = ($event as any) || ''; store.applyFilters()"
+          />
         </div>
         <div>
           <label class="form-label fw-bold mb-1" for="warehouse-stock-filter">Mức tồn kho</label>
@@ -140,6 +149,7 @@
 import { defineComponent } from "vue";
 import { searchQueryFromRoute } from "@/utils/global-search";
 import ListShell from "@/components/ListLayout/ListShell.vue";
+import AutoCompleteSelect from "@/components/Form/AutoCompleteSelect.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
@@ -155,7 +165,13 @@ const stockLevels: readonly Exclude<StockLevelFilter, "">[] = ["low"];
 
 export default defineComponent({
   name: "WarehouseListPage",
-  components: { ConfirmDialog, ListShell, DrawerPanel, AppIcon },
+  components: {
+    AutoCompleteSelect,
+    ConfirmDialog,
+    ListShell,
+    DrawerPanel,
+    AppIcon,
+  },
   data() {
     return {
       showFilterDrawer: false,

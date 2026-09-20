@@ -25,6 +25,6 @@ function add(sku: ProductSku): BarcodeResolutionFeedback {
   const result = cart.add(sku);
   const message = `${sku.name}: ${result.message}`;
   emit("feedback", message, result.ok);
-  return { ok: result.ok, message };
+  return { ok: result.ok, message, quantity: result.quantity, total: cart.total, itemQuantity: cart.itemQuantity };
 }
 </script>

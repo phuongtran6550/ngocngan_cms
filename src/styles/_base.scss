@@ -35,6 +35,23 @@ textarea {
   min-height: 100vh;
 }
 
+// Reset landing-page padding from Phoenix theme on <section> and .card
+section {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+@media (min-width: 992px) {
+  section {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+.card {
+  padding: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

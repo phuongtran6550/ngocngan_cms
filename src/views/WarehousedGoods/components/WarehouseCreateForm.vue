@@ -86,7 +86,7 @@
                 type="button"
                 class="btn btn-sm btn-primary"
                 data-testid="add-sku"
-                :disabled="submitting || draft.skus.length >= 100"
+                :disabled="submitting"
                 @click="addSku"
               >
                 <span class="fas fa-plus me-1" aria-hidden="true" />
@@ -344,64 +344,63 @@
                       />
                     </div>
 
-                    <template v-if="isWeighted">
-                      <div class="col-12 col-sm-6">
-                        <label
-                          class="form-label"
-                          :for="skuFieldId(index, 'laborCost')"
-                        >
-                          Tiền công
-                        </label>
-                        <MoneyInput
-                          :id="skuFieldId(index, 'laborCost')"
-                          :name="`skus[${index}].laborCost`"
-                          :model-value="sku.laborCost"
-                          :disabled="submitting"
-                          :invalid="hasFieldError(`skus.${index}.laborCost`)"
-                          :described-by="
-                            hasFieldError(`skus.${index}.laborCost`)
-                              ? fieldErrorId(`skus.${index}.laborCost`)
-                              : ''
-                          "
-                          @update:model-value="
-                            updateSkuMoney(index, 'laborCost', $event)
-                          "
-                        />
-                        <FieldError
-                          :id="fieldErrorId(`skus.${index}.laborCost`)"
-                          :message="fieldError(`skus.${index}.laborCost`)"
-                        />
-                      </div>
-                      <div class="col-12 col-sm-6">
-                        <label
-                          class="form-label"
-                          :for="skuFieldId(index, 'platingCost')"
-                        >
-                          Tiền xi
-                        </label>
-                        <MoneyInput
-                          :id="skuFieldId(index, 'platingCost')"
-                          :name="`skus[${index}].platingCost`"
-                          :model-value="sku.platingCost"
-                          :disabled="submitting"
-                          :invalid="hasFieldError(`skus.${index}.platingCost`)"
-                          :described-by="
-                            hasFieldError(`skus.${index}.platingCost`)
-                              ? fieldErrorId(`skus.${index}.platingCost`)
-                              : ''
-                          "
-                          @update:model-value="
-                            updateSkuMoney(index, 'platingCost', $event)
-                          "
-                        />
-                        <FieldError
-                          :id="fieldErrorId(`skus.${index}.platingCost`)"
-                          :message="fieldError(`skus.${index}.platingCost`)"
-                        />
-                      </div>
-                    </template>
+                    <div class="col-12 col-sm-6">
+                      <label
+                        class="form-label"
+                        :for="skuFieldId(index, 'platingCost')"
+                      >
+                        Tiền xi
+                      </label>
+                      <MoneyInput
+                        :id="skuFieldId(index, 'platingCost')"
+                        :name="`skus[${index}].platingCost`"
+                        :model-value="sku.platingCost"
+                        :disabled="submitting"
+                        :invalid="hasFieldError(`skus.${index}.platingCost`)"
+                        :described-by="
+                          hasFieldError(`skus.${index}.platingCost`)
+                            ? fieldErrorId(`skus.${index}.platingCost`)
+                            : ''
+                        "
+                        @update:model-value="
+                          updateSkuMoney(index, 'platingCost', $event)
+                        "
+                      />
+                      <FieldError
+                        :id="fieldErrorId(`skus.${index}.platingCost`)"
+                        :message="fieldError(`skus.${index}.platingCost`)"
+                      />
+                    </div>
 
-                    <div v-if="isPiece" class="col-12">
+                    <div v-if="isWeighted" class="col-12">
+                      <label
+                        class="form-label"
+                        :for="skuFieldId(index, 'laborCost')"
+                      >
+                        Tiền công
+                      </label>
+                      <MoneyInput
+                        :id="skuFieldId(index, 'laborCost')"
+                        :name="`skus[${index}].laborCost`"
+                        :model-value="sku.laborCost"
+                        :disabled="submitting"
+                        :invalid="hasFieldError(`skus.${index}.laborCost`)"
+                        :described-by="
+                          hasFieldError(`skus.${index}.laborCost`)
+                            ? fieldErrorId(`skus.${index}.laborCost`)
+                            : ''
+                        "
+                        @update:model-value="
+                          updateSkuMoney(index, 'laborCost', $event)
+                        "
+                      />
+                      <FieldError
+                        :id="fieldErrorId(`skus.${index}.laborCost`)"
+                        :message="fieldError(`skus.${index}.laborCost`)"
+                      />
+                    </div>
+
+                    <div v-if="isPiece" class="col-12 col-sm-6">
                       <label
                         class="form-label"
                         :for="skuFieldId(index, 'importPrice')"
@@ -436,7 +435,7 @@
                       </small>
                     </div>
 
-                    <div v-if="isPiece" class="col-12">
+                    <div v-if="isPiece" class="col-12 col-sm-6">
                       <label
                         class="form-label"
                         :for="skuFieldId(index, 'price')"
@@ -589,6 +588,10 @@
                             <dd>{{ money(sku.importPrice) }}</dd>
                           </div>
                           <div>
+                            <dt>Tiền xi</dt>
+                            <dd>{{ money(sku.platingCost) }}</dd>
+                          </div>
+                          <div>
                             <dt>Giá nhân đôi</dt>
                             <dd>{{ money(pieceDoublePrice(sku)) }}</dd>
                           </div>
@@ -616,7 +619,7 @@
           <button
             type="button"
             class="add-sku-footer"
-            :disabled="submitting || draft.skus.length >= 100"
+            :disabled="submitting"
             @click="addSku"
           >
             <span class="fas fa-plus-circle" aria-hidden="true" />
@@ -651,32 +654,24 @@
                   >Quản lý</RouterLink
                 >
               </div>
-              <select
+              <AutoCompleteSelect
                 id="warehouse-category"
-                class="form-select"
-                :class="{ 'is-invalid': hasFieldError('categoryId') }"
                 name="categoryId"
-                :value="draft.categoryId"
-                required
+                :model-value="draft.categoryId"
+                :options="options.categories"
+                placeholder="Chọn danh mục"
+                search-placeholder="Tìm danh mục..."
                 :disabled="submitting"
-                :aria-invalid="hasFieldError('categoryId') ? 'true' : undefined"
-                :aria-describedby="
+                :required="true"
+                :invalid="hasFieldError('categoryId')"
+                :described-by="
                   hasFieldError('categoryId')
                     ? fieldErrorId('categoryId')
                     : undefined
                 "
-                @change="updateText('categoryId', $event)"
+                @update:model-value="updateSelectValue('categoryId', String($event))"
                 @blur="checkSkuCodesOnBlur"
-              >
-                <option value="">Chọn danh mục</option>
-                <option
-                  v-for="option in options.categories"
-                  :key="option.id"
-                  :value="option.id"
-                >
-                  {{ option.name }}
-                </option>
-              </select>
+              />
               <FieldError
                 :id="fieldErrorId('categoryId')"
                 :message="fieldError('categoryId')"
@@ -694,32 +689,24 @@
                   >Quản lý</RouterLink
                 >
               </div>
-              <select
+              <AutoCompleteSelect
                 id="warehouse-material"
-                class="form-select"
-                :class="{ 'is-invalid': hasFieldError('materialId') }"
                 name="materialId"
-                :value="draft.materialId"
-                required
+                :model-value="draft.materialId"
+                :options="options.materials"
+                placeholder="Chọn chất liệu"
+                search-placeholder="Tìm chất liệu..."
                 :disabled="submitting"
-                :aria-invalid="hasFieldError('materialId') ? 'true' : undefined"
-                :aria-describedby="
+                :required="true"
+                :invalid="hasFieldError('materialId')"
+                :described-by="
                   hasFieldError('materialId')
                     ? fieldErrorId('materialId')
                     : undefined
                 "
-                @change="updateText('materialId', $event)"
+                @update:model-value="updateSelectValue('materialId', String($event))"
                 @blur="checkSkuCodesOnBlur"
-              >
-                <option value="">Chọn chất liệu</option>
-                <option
-                  v-for="option in options.materials"
-                  :key="option.id"
-                  :value="option.id"
-                >
-                  {{ option.name }}
-                </option>
-              </select>
+              />
               <FieldError
                 :id="fieldErrorId('materialId')"
                 :message="fieldError('materialId')"
@@ -737,32 +724,24 @@
                   >Quản lý</RouterLink
                 >
               </div>
-              <select
+              <AutoCompleteSelect
                 id="warehouse-pattern"
-                class="form-select"
-                :class="{ 'is-invalid': hasFieldError('patternId') }"
                 name="patternId"
-                :value="draft.patternId"
-                required
+                :model-value="draft.patternId"
+                :options="options.patterns"
+                placeholder="Chọn mẫu"
+                search-placeholder="Tìm mẫu..."
                 :disabled="submitting"
-                :aria-invalid="hasFieldError('patternId') ? 'true' : undefined"
-                :aria-describedby="
+                :required="true"
+                :invalid="hasFieldError('patternId')"
+                :described-by="
                   hasFieldError('patternId')
                     ? fieldErrorId('patternId')
                     : undefined
                 "
-                @change="updateText('patternId', $event)"
+                @update:model-value="updateSelectValue('patternId', String($event))"
                 @blur="checkSkuCodesOnBlur"
-              >
-                <option value="">Chọn mẫu</option>
-                <option
-                  v-for="option in options.patterns"
-                  :key="option.id"
-                  :value="option.id"
-                >
-                  {{ option.name }}
-                </option>
-              </select>
+              />
               <FieldError
                 :id="fieldErrorId('patternId')"
                 :message="fieldError('patternId')"
@@ -773,28 +752,23 @@
               <label class="form-label" for="warehouse-pricing-type">
                 Loại sản phẩm <span class="text-danger">*</span>
               </label>
-              <select
+              <AutoCompleteSelect
                 id="warehouse-pricing-type"
-                class="form-select"
-                :class="{ 'is-invalid': hasFieldError('pricingType') }"
                 name="pricingType"
-                :value="draft.pricingType"
-                required
+                :model-value="draft.pricingType"
+                :options="pricingTypeOptions"
+                placeholder="Chọn loại sản phẩm"
+                search-placeholder="Tìm loại sản phẩm..."
                 :disabled="submitting"
-                :aria-invalid="
-                  hasFieldError('pricingType') ? 'true' : undefined
-                "
-                :aria-describedby="
+                :required="true"
+                :invalid="hasFieldError('pricingType')"
+                :described-by="
                   hasFieldError('pricingType')
                     ? fieldErrorId('pricingType')
                     : undefined
                 "
-                @change="updatePricingType"
-              >
-                <option value="">Chọn loại sản phẩm</option>
-                <option value="Đồ cân">Đồ cân</option>
-                <option value="Đồ món">Đồ món</option>
-              </select>
+                @update:model-value="setPricingType(String($event))"
+              />
               <FieldError
                 :id="fieldErrorId('pricingType')"
                 :message="fieldError('pricingType')"
@@ -815,6 +789,7 @@
 import { defineComponent, type PropType } from "vue";
 import { RouterLink } from "vue-router";
 import FieldError from "@/components/Form/FieldError.vue";
+import AutoCompleteSelect from "@/components/Form/AutoCompleteSelect.vue";
 import MoneyInput from "@/components/Form/MoneyInput.vue";
 import ImageUploader from "@/components/media/ImageUploader.vue";
 import { formatMoney, formatNumberValue } from "@/utils/resource-display";
@@ -855,7 +830,13 @@ function copyForm(value: WarehouseFormModel): WarehouseFormModel {
 
 export default defineComponent({
   name: "WarehouseCreateForm",
-  components: { FieldError, ImageUploader, MoneyInput, RouterLink },
+  components: {
+    AutoCompleteSelect,
+    FieldError,
+    ImageUploader,
+    MoneyInput,
+    RouterLink,
+  },
   props: {
     modelValue: {
       type: Object as PropType<WarehouseFormModel>,
@@ -899,6 +880,12 @@ export default defineComponent({
     },
     hasSilverPrice(): boolean {
       return Number(this.options.silverPrice) > 0;
+    },
+    pricingTypeOptions(): Array<{ label: string; value: string }> {
+      return [
+        { label: "Đồ cân", value: "Đồ cân" },
+        { label: "Đồ món", value: "Đồ món" },
+      ];
     },
   },
   watch: {
@@ -1071,7 +1058,7 @@ export default defineComponent({
         return {
           ...sku,
           laborCost: 0,
-          platingCost: 0,
+          platingCost: sku.platingCost ?? 0,
           price: keepsEnteredPrice
             ? enteredPrice
             : this.piecePreview(sku).price,
@@ -1188,6 +1175,35 @@ export default defineComponent({
       if (!options.preserveSkuCodeCheck) this.invalidateSkuCodeCheck(input);
       this.draft = copyForm(input);
       this.$emit("update:modelValue", copyForm(input));
+    },
+    updateSelectValue(key: ProductTextKey, val: string): void {
+      this.clearFieldError(key);
+      if (key === "categoryId" && val) {
+        void this.fetchCategoryGroups(val);
+      }
+      this.commit(
+        this.withCalculatedPrices({
+          ...copyForm(this.draft),
+          [key]: val,
+        }),
+      );
+    },
+    setPricingType(val: string): void {
+      this.clearFieldError("pricingType");
+      const pricingType = val as InventoryCreatePricingType | "";
+      const next = copyForm(this.draft);
+      next.pricingType = pricingType;
+      next.skus = next.skus.map((sku) => {
+        if (pricingType === "Đồ cân") return { ...sku, importPrice: null };
+        if (pricingType === "Đồ món") {
+          return {
+            ...sku,
+            laborCost: 0,
+          };
+        }
+        return sku;
+      });
+      this.commit(this.withCalculatedPrices(next));
     },
     updateText(key: ProductTextKey, event: Event): void {
       this.clearFieldError(key);
@@ -1334,7 +1350,6 @@ export default defineComponent({
           return {
             ...sku,
             laborCost: 0,
-            platingCost: 0,
           };
         }
         return sku;
@@ -1342,7 +1357,6 @@ export default defineComponent({
       this.commit(this.withCalculatedPrices(next));
     },
     addSku(): void {
-      if (this.draft.skus.length >= 100) return;
       const next = copyForm(this.draft);
       next.skus.push(emptyWarehouseSku());
       this.commit(this.withCalculatedPrices(next));

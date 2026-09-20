@@ -73,34 +73,22 @@
     </div>
 
     <template v-if="step === 'cart'">
-      <div class="checkout-command-card">
-        <div>
-          <span class="checkout-command-card__eyebrow"
-            >Bước 1 · Thêm sản phẩm</span
-          >
-          <h2>Quét liên tục, không cần đóng camera</h2>
-          <p>
-            {{
-              cart.itemQuantity
-                ? `Đang có ${cart.itemQuantity} món trong giỏ.`
-                : "Camera sẽ chờ mã tiếp theo ngay sau khi thêm thành công."
-            }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="btn btn-primary btn-lg"
-          :disabled="submitting"
-          @click="scannerOpen = true"
-        >
-          <AppIcon name="scan-line" class="me-2" />Quét barcode
-        </button>
-      </div>
       <SalesCart
         :refreshing-sku-ids="refreshingSkuIds"
         @feedback="showCartFeedback"
         @retry="refreshSku"
-      />
+      >
+        <template #actions>
+          <button
+            type="button"
+            class="btn btn-primary text-nowrap"
+            :disabled="submitting"
+            @click="scannerOpen = true"
+          >
+            <AppIcon name="scan-line" class="me-2" />Quét barcode
+          </button>
+        </template>
+      </SalesCart>
     </template>
 
     <OrderPhotoCapture
@@ -201,13 +189,7 @@
           class="spinner-border spinner-border-sm me-2"
           aria-hidden="true"
         />
-        {{
-          submitting
-            ? progress >= 100
-              ? "Đang hoàn tất..."
-              : `Đang ghi nhận ${progress}%`
-            : "Ghi nhận đơn hàng"
-        }}
+        {{ submitting ? "Đang ghi nhận đơn…" : "Ghi nhận đơn hàng" }}
       </button>
     </div>
 
@@ -224,10 +206,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import PageHeader from "@/components/app/PageHeader.vue";
 import { apiError } from "@/request";
-import {
-  ORDER_PHOTO_IMAGE_OPTIMIZATION,
-  optimizeImage,
-} from "@/utils/image-optimizer";
 import { formatMoney } from "@/utils/resource-display";
 import { isMissingSkuError, useSalesCartStore } from "@/views/Orders/cart";
 import {
@@ -250,15 +228,12 @@ const step = ref<CheckoutStep>("cart");
 const scannerOpen = ref(false);
 const photo = ref<File | null>(null);
 const photoPreview = ref("");
-let preparedPhoto: Promise<{ image: File } | { error: unknown }> | null = null;
-let photoVersion = 0;
 const name = ref("");
 const phone = ref("");
 const error = ref("");
 const feedback = ref("");
 const feedbackOk = ref(true);
 const submitting = ref(false);
-const progress = ref(0);
 const created = ref<Order | null>(null);
 const submitKey = ref("");
 const refreshingSkuIds = ref<string[]>([]);
@@ -354,27 +329,13 @@ function revokePhotoPreview(): void {
 function clearPhoto(): void {
   revokePhotoPreview();
   photo.value = null;
-  preparedPhoto = null;
-  photoVersion += 1;
 }
 
 function setPhoto(file: File): void {
   clearPhoto();
-  const version = photoVersion;
   photo.value = file;
   photoPreview.value = URL.createObjectURL(file);
   resetSubmitKey();
-  progress.value = 0;
-  preparedPhoto = optimizeImage(
-    file,
-    (value) => {
-      if (version === photoVersion) progress.value = Math.round(value * 0.45);
-    },
-    ORDER_PHOTO_IMAGE_OPTIMIZATION,
-  ).then(
-    (image) => ({ image }),
-    (error: unknown) => ({ error }),
-  );
 }
 
 function lockCart(): void {
@@ -417,23 +378,15 @@ function returnToCart(): void {
 }
 
 async function checkout(): Promise<void> {
-  if (!canCheckout.value || !photo.value || !preparedPhoto) return;
-  const preparation = preparedPhoto;
+  if (!canCheckout.value || !photo.value) return;
   submitting.value = true;
   error.value = "";
   feedback.value = "";
   if (!submitKey.value) submitKey.value = createOrderIdempotencyKey();
   try {
-    const result = await preparation;
-    if (preparation !== preparedPhoto) return;
-    if ("error" in result) {
-      error.value = `${apiError(result.error).message}. Vui lòng chụp hoặc chọn lại ảnh.`;
-      return;
-    }
-    progress.value = 45;
     const order = await orderService.checkout(
       {
-        image: result.image,
+        image: photo.value,
         name: name.value,
         phone: phone.value,
         items: cart.lines.map((line) => ({
@@ -442,11 +395,7 @@ async function checkout(): Promise<void> {
         })),
       },
       submitKey.value,
-      (value) => {
-        progress.value = 45 + Math.round(value * 0.55);
-      },
     );
-    progress.value = 100;
     created.value = order;
     cart.clear();
     clearPhoto();
@@ -488,7 +437,6 @@ function nextOrder(): void {
   step.value = "cart";
   feedback.value = "";
   error.value = "";
-  progress.value = 0;
   scannerOpen.value = true;
 }
 
@@ -540,16 +488,6 @@ onBeforeUnmount(() => clearPhoto());
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
-}
-.checkout-stepper::before {
-  position: absolute;
-  z-index: 0;
-  top: 1.25rem;
-  right: 16.5%;
-  left: 16.5%;
-  height: 2px;
-  background: var(--phoenix-border-color-translucent);
-  content: "";
 }
 .checkout-stepper__item {
   position: relative;
@@ -605,20 +543,6 @@ onBeforeUnmount(() => clearPhoto());
   color: #fff;
   background: var(--phoenix-success);
 }
-.checkout-command-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-  padding: clamp(1.25rem, 3vw, 2rem);
-  overflow: hidden;
-  border-radius: 1rem;
-  color: #fff;
-  background: linear-gradient(120deg, #082f2a, #0f766e 58%, #d97706);
-  box-shadow: 0 0.8rem 2.5rem rgba(8, 47, 42, 0.2);
-}
-.checkout-command-card__eyebrow,
 .sale-success-panel__eyebrow {
   display: block;
   margin-bottom: 0.35rem;
@@ -627,15 +551,6 @@ onBeforeUnmount(() => clearPhoto());
   letter-spacing: 0.12em;
   text-transform: uppercase;
   opacity: 0.78;
-}
-.checkout-command-card h2 {
-  margin-bottom: 0.35rem;
-  color: #fff;
-  font-size: clamp(1.25rem, 3vw, 1.85rem);
-}
-.checkout-command-card p {
-  margin: 0;
-  opacity: 0.82;
 }
 .checkout-customer-grid {
   display: grid;
@@ -733,18 +648,12 @@ onBeforeUnmount(() => clearPhoto());
   .checkout-stepper__item > div {
     display: none;
   }
-  .checkout-stepper::before {
-    right: 16%;
-    left: 16%;
-  }
 }
 @media (max-width: 575.98px) {
-  .checkout-command-card,
   .sale-success-panel {
     align-items: stretch;
     flex-direction: column;
   }
-  .checkout-command-card .btn,
   .sale-success-panel .btn {
     width: 100%;
   }

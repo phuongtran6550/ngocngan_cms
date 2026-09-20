@@ -126,6 +126,7 @@
               </template>
               <template v-else-if="item.pricingType === 'Đồ món'">
                 <div><dt>Giá nhập</dt><dd>{{ formatMoney(item.importPrice) }}</dd></div>
+                <div v-if="item.platingCost > 0"><dt>Tiền xi</dt><dd>{{ formatMoney(item.platingCost) }}</dd></div>
               </template>
               <template v-else>
                 <div v-if="item.importPrice !== null">
