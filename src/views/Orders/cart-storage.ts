@@ -21,7 +21,6 @@ function validLine(value: unknown): value is OrderCartLine {
       && Number.isFinite(line.unitPrice)
       && line.unitPrice >= 0
       && Number.isInteger(line.stock)
-      && Number(line.stock) >= 0
       && Number.isInteger(line.quantity)
       && Number(line.quantity) >= 1
       && (line.status === "active" || line.status === "inactive")
@@ -32,10 +31,7 @@ export function readStoredCart(storage: Storage = window.localStorage): OrderCar
   try {
     const parsed = JSON.parse(storage.getItem(CART_STORAGE_KEY) || "null") as StoredCart | null;
     if (!parsed || parsed.version !== CART_VERSION || !Array.isArray(parsed.lines)) return [];
-    return parsed.lines.filter(validLine).map((line) => ({
-      ...line,
-      quantity: Math.min(line.quantity, Math.max(line.stock, 1)),
-    }));
+    return parsed.lines.filter(validLine);
   } catch {
     return [];
   }

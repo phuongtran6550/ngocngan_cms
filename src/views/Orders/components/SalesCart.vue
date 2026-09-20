@@ -68,12 +68,11 @@
             </template>
           </div>
           <div
-            v-else-if="line.status !== 'active' || line.stock < line.quantity"
-            class="alert alert-subtle-danger py-2 px-3 mb-2 fs-10"
-            role="alert"
+            v-else-if="line.stock < line.quantity"
+            class="alert alert-subtle-warning py-1 px-2 mb-2 fs-10"
+            role="status"
           >
-            SKU đã hết hàng hoặc chỉ còn {{ line.stock }}. Vui lòng giảm số
-            lượng; hệ thống không cho tồn kho âm.
+            Tồn kho: {{ line.stock }} (Đơn hàng sẽ ghi nhận xuất âm kho)
           </div>
           <div class="d-flex align-items-center justify-content-between gap-3">
             <div
@@ -94,11 +93,7 @@
               <button
                 type="button"
                 class="btn btn-phoenix-secondary"
-                :disabled="
-                  cart.isStockUnverified(line.skuId) ||
-                  line.status !== 'active' ||
-                  line.quantity >= line.stock
-                "
+                :disabled="cart.isStockUnverified(line.skuId)"
                 @click="increment(line.skuId)"
               >
                 +

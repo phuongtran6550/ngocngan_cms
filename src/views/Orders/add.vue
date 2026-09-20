@@ -421,9 +421,10 @@ async function checkout(): Promise<void> {
       submitKey.value = "";
       step.value = "cart";
       error.value =
-        normalized.code === "ORDER_STOCK_INSUFFICIENT"
+        normalized.message ||
+        (normalized.code === "ORDER_STOCK_INSUFFICIENT"
           ? "Tồn kho vừa thay đổi. Giỏ hàng được giữ nguyên; vui lòng kiểm tra SKU được cảnh báo rồi chụp lại đơn."
-          : "Một SKU không còn khả dụng. Giỏ hàng được giữ nguyên; vui lòng xóa sản phẩm được cảnh báo rồi chụp lại đơn.";
+          : "Một SKU không còn khả dụng trong cơ sở dữ liệu. Vui lòng kiểm tra sản phẩm rồi chụp lại đơn.");
     } else {
       error.value = normalized.message;
     }

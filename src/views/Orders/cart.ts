@@ -48,10 +48,7 @@ export const useSalesCartStore = defineStore("sales-cart", {
         (sum, line) => sum + line.unitPrice * line.quantity,
         0,
       ),
-    hasStockConflict: (state): boolean =>
-      state.lines.some(
-        (line) => line.status !== "active" || line.stock < line.quantity,
-      ),
+    hasStockConflict: (): boolean => false,
     hasUnverifiedStock: (state): boolean => state.unverifiedSkuIds.length > 0,
     isStockUnverified:
       (state) =>
@@ -73,35 +70,12 @@ export const useSalesCartStore = defineStore("sales-cart", {
       if (existing) {
         Object.assign(existing, lineFromSku(sku, existing.quantity));
         this.markVerified(sku.id);
-        if (sku.status !== "active" || sku.stock <= 0) {
-          this.persist();
-          return {
-            ok: false,
-            message: "Sản phẩm đã hết hàng hoặc ngừng bán",
-            quantity: existing.quantity,
-          };
-        }
-        if (existing.quantity >= sku.stock) {
-          this.persist();
-          return {
-            ok: false,
-            message: `SKU chỉ còn ${sku.stock} sản phẩm`,
-            quantity: existing.quantity,
-          };
-        }
         existing.quantity += 1;
         this.persist();
         return {
           ok: true,
           message: `Đã tăng lên ${existing.quantity}`,
           quantity: existing.quantity,
-        };
-      }
-      if (sku.status !== "active" || sku.stock <= 0) {
-        return {
-          ok: false,
-          message: "Sản phẩm đã hết hàng hoặc ngừng bán",
-          quantity: 0,
         };
       }
       this.lines.push(lineFromSku(sku));
@@ -144,13 +118,6 @@ export const useSalesCartStore = defineStore("sales-cart", {
           message: "Không tìm thấy SKU trong giỏ",
           quantity: 0,
         };
-      if (line.status !== "active" || line.quantity >= line.stock) {
-        return {
-          ok: false,
-          message: `SKU chỉ còn ${line.stock} sản phẩm`,
-          quantity: line.quantity,
-        };
-      }
       line.quantity += 1;
       this.persist();
       return { ok: true, message: "Đã tăng số lượng", quantity: line.quantity };

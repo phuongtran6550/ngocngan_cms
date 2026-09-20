@@ -1446,10 +1446,10 @@ export default defineComponent({
           );
           return null;
         }
-        if (!Number.isInteger(sku.stock) || sku.stock < 0) {
+        if (!Number.isInteger(sku.stock)) {
           this.setLocalFieldError(
             `skus.${index}.stock`,
-            `SKU ${index + 1}: Tồn kho phải là số nguyên không âm`,
+            `SKU ${index + 1}: Tồn kho phải là số nguyên`,
           );
           return null;
         }

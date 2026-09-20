@@ -754,8 +754,8 @@ export default defineComponent({
         this.fieldErrors.weight = "Trọng lượng chỉ không được âm";
       }
 
-      if (!Number.isInteger(this.draft.stock) || this.draft.stock < 0) {
-        this.fieldErrors.stock = "Tồn kho phải là số nguyên không âm";
+      if (!Number.isInteger(this.draft.stock)) {
+        this.fieldErrors.stock = "Tồn kho phải là số nguyên";
       }
 
       if (Number(this.draft.platingCost) < 0) {
