@@ -179,8 +179,21 @@
               Mỗi dòng đủ khoảng thở; trên mobile tự chuyển thành thẻ hai cột.
             </p>
           </div>
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex flex-wrap align-items-center gap-2">
             <span class="sku-count"> {{ summary.skuCount }} SKU </span>
+            <button
+              v-if="auth.can(permissions.warehouseView)"
+              type="button"
+              class="btn btn-sm btn-phoenix-primary"
+              data-testid="print-all-stock-labels"
+              :disabled="printingAll || Boolean(printingSkuId) || Boolean(printSku) || !displaySkus.some(sku => sku.stock > 0)"
+              :aria-busy="printingAll"
+              @click="printAllStockLabels"
+            >
+              <span v-if="printingAll" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
+              <AppIcon v-else name="tag" class="me-1" />
+              {{ printingAll ? "Đang gửi tem…" : "In tất cả theo tồn kho" }}
+            </button>
             <button
               v-if="auth.can(permissions.warehouseUpdate) && selectedSkuIds.length > 0"
               type="button"
@@ -517,7 +530,7 @@
                           : `In tem ${sku.code}`
                       "
                       :aria-busy="printingSkuId === sku.id"
-                      :disabled="Boolean(printingSkuId)"
+                      :disabled="Boolean(printingSkuId) || printingAll"
                       @click="openPrintDialog(sku)"
                     >
                       <span
@@ -666,7 +679,7 @@
                         : `In tem ${sku.code}`
                     "
                     :aria-busy="printingSkuId === sku.id"
-                    :disabled="Boolean(printingSkuId)"
+                    :disabled="Boolean(printingSkuId) || printingAll"
                     @click="openPrintDialog(sku)"
                   >
                     <span
@@ -929,6 +942,8 @@ export default defineComponent({
       bulkDeleteSkuOpen: false,
       bulkDeleteSkuSubmitting: false,
       printingSkuId: "",
+      printingAll: false,
+      printAllStopped: false,
       printError: "",
       printSuccess: "",
       printSku: null as WarehouseSku | null,
@@ -1076,6 +1091,7 @@ export default defineComponent({
     void this.store.loadOptions();
   },
   beforeUnmount() {
+    this.printAllStopped = true;
     if (this.skuToastTimeout) clearTimeout(this.skuToastTimeout);
     if (this.skuActionTimeout) clearTimeout(this.skuActionTimeout);
   },
@@ -1106,7 +1122,7 @@ export default defineComponent({
       alert?.focus();
     },
     async openPrintDialog(sku: WarehouseSku): Promise<void> {
-      if (!this.item || this.printingSkuId) return;
+      if (!this.item || this.printingSkuId || this.printingAll) return;
       if (!isInventoryBarcode(sku.barcode)) {
         this.printError = `SKU ${sku.code || "không xác định"} chưa có barcode hợp lệ.`;
         this.printSuccess = "";
@@ -1188,6 +1204,59 @@ export default defineComponent({
         );
       } finally {
         this.printingSkuId = "";
+      }
+    },
+    async printAllStockLabels(): Promise<void> {
+      if (!this.item || this.printingAll || this.printingSkuId || this.printSku) return;
+      this.printingAll = true;
+      this.printAllStopped = false;
+      this.printError = "";
+      this.printSuccess = "";
+      let accepted = 0;
+      let currentCode = "";
+      let remaining = 0;
+      try {
+        const product = await warehouseService.detail(this.item.id);
+        if (this.printAllStopped) return;
+        const skus = product.skus.filter(sku => sku.stock > 0);
+        const invalid = skus.find(sku => !Number.isSafeInteger(sku.stock) || !sku.id || !isInventoryBarcode(sku.barcode));
+        if (invalid) {
+          this.printError = `SKU ${invalid.code} có tồn kho hoặc barcode không hợp lệ. Chưa gửi lệnh in.`;
+          await this.focusPrintError();
+          return;
+        }
+        this.item = product;
+        if (!skus.length) {
+          this.printSuccess = "Không có SKU còn tồn kho để in tem.";
+          return;
+        }
+        // The existing endpoint accepts one SKU and at most 100 labels per request.
+        for (const sku of skus) {
+          currentCode = sku.code;
+          remaining = sku.stock;
+          while (remaining > 0) {
+            // Space submissions below the API limit of 30 print requests per minute.
+            if (accepted) await new Promise(resolve => setTimeout(resolve, 2100));
+            if (this.printAllStopped) return;
+            const quantity = Math.min(100, remaining);
+            const result = await warehouseService.printLabel(product.id, sku.id, quantity);
+            if (!result.queued || result.quantity !== quantity) throw new Error("Máy chủ chưa xác nhận đủ số tem");
+            accepted += quantity;
+            remaining -= quantity;
+            sku.printCount = (sku.printCount || 0) + 1;
+            this.printSuccess = `Đã gửi ${accepted} tem vào hàng đợi in.`;
+          }
+        }
+        this.printSuccess = `Đã gửi ${accepted} tem của ${skus.length} SKU theo tồn kho vào hàng đợi in.`;
+      } catch (error) {
+        if (this.printAllStopped) return;
+        const message = labelPrintFailureMessage(apiError(error).code, currentCode);
+        this.printError = currentCode
+          ? `${message} Đã xác nhận ${accepted} tem trước đó. Dừng tại SKU ${currentCode}, còn ${remaining} tem chưa xác nhận. Kiểm tra hàng đợi trước khi in lại để tránh trùng tem.`
+          : "Chưa tải được tồn kho mới nhất. Chưa gửi lệnh in, vui lòng thử lại.";
+        await this.focusPrintError();
+      } finally {
+        this.printingAll = false;
       }
     },
     async load(): Promise<void> {
