@@ -50,6 +50,25 @@
     >
       <form class="d-flex flex-column gap-3" @submit.prevent="applyFilters">
         <div>
+          <label class="form-label fw-bold mb-1" for="product-sku-search">
+            Tìm kiếm
+          </label>
+          <div class="d-flex gap-2 align-items-center">
+            <SearchSuggestBox
+              id="product-sku-search"
+              v-model="draftQuery"
+              mode="products"
+              placeholder="Nhập tên, mã SKU, barcode..."
+              input-class="ps-4"
+              @search="onSuggestSearch"
+            />
+            <button type="submit" class="btn btn-primary flex-shrink-0">
+              Tìm
+            </button>
+          </div>
+        </div>
+
+        <div>
           <label class="form-label fw-bold mb-1" for="product-category-filter">
             Danh mục
           </label>
@@ -147,6 +166,7 @@ import {
 import { useRoute, useRouter } from "vue-router";
 import ListShell from "@/components/ListLayout/ListShell.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
+import SearchSuggestBox from "@/components/Form/SearchSuggestBox.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import type { ResourceRow } from "@/config/resource";
 import { searchQueryFromRoute } from "@/utils/global-search";
@@ -163,19 +183,29 @@ const router = useRouter();
 
 const filterOpen = ref(false);
 const scannerOpen = ref(false);
+const draftQuery = ref("");
 const draftCategoryId = ref("");
 const draftMaterialId = ref("");
 const draftPatternId = ref("");
 let idleTimer: ReturnType<typeof setTimeout> | number | null = null;
 
 const activeFilterCount = computed(
-  () => [store.categoryId, store.materialId, store.patternId].filter(Boolean).length,
+  () =>
+    [
+      store.query,
+      store.categoryId,
+      store.materialId,
+      store.patternId,
+    ].filter(Boolean).length,
 );
 const draftFilterCount = computed(
   () =>
-    [draftCategoryId.value, draftMaterialId.value, draftPatternId.value].filter(
-      Boolean,
-    ).length,
+    [
+      draftQuery.value,
+      draftCategoryId.value,
+      draftMaterialId.value,
+      draftPatternId.value,
+    ].filter(Boolean).length,
 );
 const rows = computed<ResourceRow[]>(() =>
   store.items.map((item) => {
@@ -213,13 +243,20 @@ async function openScannedProduct(sku: ProductSku): Promise<void> {
 }
 
 function openFilters(): void {
+  draftQuery.value = store.query;
   draftCategoryId.value = store.categoryId;
   draftMaterialId.value = store.materialId;
   draftPatternId.value = store.patternId;
   filterOpen.value = true;
 }
 
+function onSuggestSearch(val?: string): void {
+  if (typeof val === "string") draftQuery.value = val;
+  void applyFilters();
+}
+
 async function applyFilters(): Promise<void> {
+  store.query = draftQuery.value;
   store.categoryId = draftCategoryId.value;
   store.materialId = draftMaterialId.value;
   store.patternId = draftPatternId.value;
@@ -228,6 +265,7 @@ async function applyFilters(): Promise<void> {
 }
 
 async function clearFilters(): Promise<void> {
+  draftQuery.value = "";
   draftCategoryId.value = "";
   draftMaterialId.value = "";
   draftPatternId.value = "";

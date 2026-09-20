@@ -9,7 +9,7 @@
     </div>
 
     <div class="warehouse-create-layout">
-      <div class="warehouse-name-field">
+      <div ref="nameFieldRef" class="warehouse-name-field position-relative">
         <label
           class="form-label fs-8 fw-bold text-body-highlight"
           for="warehouse-name"
@@ -30,9 +30,49 @@
           :aria-describedby="
             hasFieldError('name') ? fieldErrorId('name') : undefined
           "
-          @input="updateText('name', $event)"
+          autocomplete="off"
+          @input="onNameInput"
+          @focus="onNameFocus"
+          @keydown.esc="nameSuggestionsOpen = false"
         />
         <FieldError :id="fieldErrorId('name')" :message="fieldError('name')" />
+
+        <!-- Gợi ý tên sản phẩm từ database -->
+        <div
+          v-if="nameSuggestionsOpen && (nameSuggestionsLoading || nameSuggestions.length > 0)"
+          class="dropdown-menu show w-100 shadow-sm border border-translucent mt-1 p-1"
+          style="max-height: 240px; overflow-y: auto; z-index: 1050;"
+        >
+          <div v-if="nameSuggestionsLoading && !nameSuggestions.length" class="px-3 py-2 text-center text-body-tertiary fs-9">
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+            Đang tìm gợi ý tên...
+          </div>
+          <div v-else>
+            <div class="dropdown-header text-uppercase fs-10 fw-bold px-2 py-1 text-body-secondary">
+              Gợi ý từ database (nhấp để chọn)
+            </div>
+            <button
+              v-for="item in nameSuggestions"
+              :key="item.id"
+              type="button"
+              class="dropdown-item d-flex align-items-center justify-content-between rounded-1 px-2 py-2 fs-9 mb-1"
+              @click="selectNameSuggestion(item)"
+            >
+              <div class="d-flex align-items-center gap-2 min-w-0">
+                <img
+                  v-if="item.thumbnail"
+                  :src="item.thumbnail"
+                  :alt="item.title"
+                  class="rounded-1 object-fit-cover flex-shrink-0"
+                  width="24"
+                  height="24"
+                />
+                <span class="text-truncate fw-semibold">{{ item.title }}</span>
+              </div>
+              <span v-if="item.subtitle" class="text-body-tertiary fs-10 ms-2 text-truncate">{{ item.subtitle }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="warehouse-image-section">
@@ -839,6 +879,10 @@ import {
 } from "@/views/WarehousedGoods/sku-code";
 import { warehouseService } from "@/views/WarehousedGoods/service";
 import {
+  fetchWarehouseSuggestions,
+  type SearchSuggestionItem,
+} from "@/components/Form/search-suggestion";
+import {
   emptyWarehouseSku,
   type InventoryCreatePricingType,
   type InventoryOption,
@@ -899,9 +943,15 @@ export default defineComponent({
       skuCodeCheckSequence: 0,
       skuSortOption: "",
       initialSkuOrder: draft.skus.map((sku) => sku.clientId),
+      nameSuggestions: [] as SearchSuggestionItem[],
+      nameSuggestionsOpen: false,
+      nameSuggestionsLoading: false,
+      nameDebounceTimer: null as ReturnType<typeof setTimeout> | null,
+      nameAbortController: null as AbortController | null,
     };
   },
   mounted() {
+    document.addEventListener("click", this.handleNameClickOutside, true);
     if (this.draft.categoryId) {
       void this.fetchCategoryGroups(this.draft.categoryId);
     }
@@ -950,6 +1000,9 @@ export default defineComponent({
     },
   },
   beforeUnmount() {
+    document.removeEventListener("click", this.handleNameClickOutside, true);
+    if (this.nameDebounceTimer) clearTimeout(this.nameDebounceTimer);
+    this.nameAbortController?.abort();
     this.skuCodeCheckController?.abort();
   },
   methods: {
@@ -1244,6 +1297,76 @@ export default defineComponent({
         return sku;
       });
       this.commit(this.withCalculatedPrices(next));
+    },
+    handleNameClickOutside(event: MouseEvent): void {
+      const target = event.target as Node;
+      const refEl = this.$refs.nameFieldRef as HTMLElement | undefined;
+      if (refEl && !refEl.contains(target)) {
+        this.nameSuggestionsOpen = false;
+      }
+    },
+    onNameInput(event: Event): void {
+      this.updateText("name", event);
+      const val = this.eventValue(event).trim();
+      if (!val) {
+        this.nameSuggestionsOpen = false;
+        this.nameSuggestions = [];
+        return;
+      }
+      if (this.nameDebounceTimer) clearTimeout(this.nameDebounceTimer);
+      this.nameDebounceTimer = setTimeout(() => {
+        void this.fetchNameSuggestions(val);
+      }, 250);
+    },
+    onNameFocus(): void {
+      if (this.draft.name.trim() && this.nameSuggestions.length > 0) {
+        this.nameSuggestionsOpen = true;
+      }
+    },
+    async fetchNameSuggestions(query: string): Promise<void> {
+      this.nameAbortController?.abort();
+      this.nameAbortController = new AbortController();
+      this.nameSuggestionsLoading = true;
+      this.nameSuggestionsOpen = true;
+      try {
+        const results = await fetchWarehouseSuggestions(
+          query,
+          this.nameAbortController.signal,
+          5,
+        );
+        this.nameSuggestions = results;
+      } catch {
+        this.nameSuggestions = [];
+      } finally {
+        this.nameSuggestionsLoading = false;
+      }
+    },
+    selectNameSuggestion(item: SearchSuggestionItem): void {
+      this.nameSuggestionsOpen = false;
+      const next = copyForm(this.draft);
+      next.name = item.title;
+      if (item.category && !next.categoryId) {
+        const cat = this.options.categories.find((c) => c.name === item.category);
+        if (cat) next.categoryId = cat.id;
+      }
+      if (item.material && !next.materialId) {
+        const mat = this.options.materials.find((m) => m.name === item.material);
+        if (mat) next.materialId = mat.id;
+      }
+      if (item.pattern && !next.patternId) {
+        const pat = this.options.patterns.find((p) => p.name === item.pattern);
+        if (pat) next.patternId = pat.id;
+      }
+      if (
+        (item.pricingType === "Đồ cân" || item.pricingType === "Đồ món") &&
+        !next.pricingType
+      ) {
+        next.pricingType = item.pricingType;
+      }
+      this.commit(this.withCalculatedPrices(next));
+      if (next.categoryId) {
+        void this.fetchCategoryGroups(next.categoryId);
+      }
     },
     updateText(key: ProductTextKey, event: Event): void {
       this.clearFieldError(key);

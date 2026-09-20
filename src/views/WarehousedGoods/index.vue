@@ -75,16 +75,16 @@
           <label class="form-label fw-bold mb-1" for="product-list-search">
             Tìm kiếm
           </label>
-          <div class="input-group">
-            <input
+          <div class="d-flex gap-2 align-items-center">
+            <SearchSuggestBox
               id="product-list-search"
               v-model="store.query"
-              type="search"
-              class="form-control"
+              mode="warehoused-goods"
               placeholder="Nhập tên, mã sản phẩm..."
-              autocomplete="off"
+              input-class="ps-4"
+              @search="search"
             />
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary flex-shrink-0">
               Tìm
             </button>
           </div>
@@ -150,6 +150,7 @@ import { defineComponent } from "vue";
 import { searchQueryFromRoute } from "@/utils/global-search";
 import ListShell from "@/components/ListLayout/ListShell.vue";
 import AutoCompleteSelect from "@/components/Form/AutoCompleteSelect.vue";
+import SearchSuggestBox from "@/components/Form/SearchSuggestBox.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
@@ -171,6 +172,7 @@ export default defineComponent({
     ListShell,
     DrawerPanel,
     AppIcon,
+    SearchSuggestBox,
   },
   data() {
     return {

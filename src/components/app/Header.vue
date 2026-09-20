@@ -21,16 +21,17 @@
         v-if="searchable"
         class="search-box navbar-top-search-box app-current-page-search"
       >
-        <form class="position-relative" role="search" @submit.prevent="submitSearch">
-          <input
-            v-model="searchQuery"
-            class="form-control search-input rounded-pill form-control-sm"
-            type="search"
-            placeholder="Tìm nhanh trong trang hiện tại..."
-            aria-label="Tìm kiếm nhanh"
-          />
-          <AppIcon class="search-box-icon" name="search" />
-        </form>
+        <SearchSuggestBox
+          id="header-quick-search"
+          v-model="searchQuery"
+          :mode="currentSearchMode"
+          size="sm"
+          rounded
+          input-class="search-input ps-4"
+          placeholder="Tìm nhanh trong trang hiện tại..."
+          search-icon-position="left"
+          @search="submitSearch"
+        />
       </div>
 
       <ul class="navbar-nav navbar-nav-icons flex-row align-items-center">
@@ -92,12 +93,14 @@ import BrandLogo from "@/components/app/BrandLogo.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import AppAvatar from "@/components/ui/AppAvatar.vue";
 import ProfileMenu from "@/views/Account/components/ProfileMenu.vue";
+import SearchSuggestBox from "@/components/Form/SearchSuggestBox.vue";
+import type { SearchSuggestMode } from "@/components/Form/search-suggestion";
 import { visibleNavigation, type NavigationEntry } from "@/config/navigation";
 import { authenStore } from "@/stores/app-authen";
 
 export default defineComponent({
   name: "AppTopbar",
-  components: { AppAvatar, AppIcon, BrandLogo, ProfileMenu },
+  components: { AppAvatar, AppIcon, BrandLogo, ProfileMenu, SearchSuggestBox },
   props: {
     displayName: { type: String, required: true },
     avatar: { type: String, default: "" },
@@ -116,6 +119,11 @@ export default defineComponent({
     profileAllowed(): boolean {
       return authenStore().can("profile.view");
     },
+    currentSearchMode(): SearchSuggestMode {
+      return this.$route.path.startsWith("/warehoused-goods")
+        ? "warehoused-goods"
+        : "products";
+    },
     profileNavigation(): Array<NavigationEntry & { path: string }> {
       const auth = authenStore();
       return visibleNavigation(auth.permissions, auth.user?.role, auth.menu)
@@ -132,8 +140,8 @@ export default defineComponent({
     },
   },
   methods: {
-    submitSearch(): void {
-      const query = this.searchQuery.trim();
+    submitSearch(value?: string): void {
+      const query = (typeof value === "string" ? value : this.searchQuery).trim();
       this.searchQuery = query;
       this.$emit("search", query);
     },
