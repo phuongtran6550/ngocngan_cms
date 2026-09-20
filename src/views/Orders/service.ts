@@ -186,4 +186,7 @@ export const orderService = {
   async remove(id: string): Promise<void> {
     await request.delete(`/orders/${id}`, { headers: writeHeaders() });
   },
+  async permanentDelete(id: string): Promise<void> {
+    await request.delete(`/orders/${id}/permanent`, { headers: writeHeaders() });
+  },
 };

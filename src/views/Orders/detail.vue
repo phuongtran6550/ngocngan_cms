@@ -9,8 +9,9 @@
           <OrderStatusBadge :status="order.status" />
           <RouterLink class="btn btn-phoenix-secondary" to="/orders">Danh sách</RouterLink>
           <button v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'" type="button" class="btn btn-primary" @click="reviewOpen = true">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt' : 'Bổ sung khách hàng' }}</button>
-          <button v-if="auth.can('orders.update') && order.status === 'completed'" type="button" class="btn btn-phoenix-warning" @click="confirmAction = 'return'">Đổi trả</button>
-          <button v-if="auth.can('orders.delete') && order.status === 'completed'" type="button" class="btn btn-phoenix-danger" @click="confirmAction = 'cancel'">Hủy đơn</button>
+          <button v-if="auth.can('orders.update') && order.status === 'completed'" type="button" class="btn btn-phoenix-warning" :disabled="saving" @click="confirmAction = 'return'">Đổi trả</button>
+          <button v-if="auth.can('orders.delete') && order.status === 'completed'" type="button" class="btn btn-phoenix-danger" :disabled="saving" @click="confirmAction = 'cancel'">Hủy đơn</button>
+          <button v-if="auth.isAdmin" type="button" class="btn btn-danger" :disabled="saving" @click="confirmAction = 'delete'">Xóa vĩnh viễn</button>
         </template>
       </PageHeader>
 
@@ -80,7 +81,7 @@
     <DrawerPanel :open="reviewOpen" title="Đối chiếu thông tin khách hàng" wide @close="reviewOpen = false">
       <OrderCustomerReview v-if="order" :order="order" :submitting="saving" :error="error" @submit="saveCustomer" />
     </DrawerPanel>
-    <ConfirmDialog :open="Boolean(confirmAction)" :title="confirmAction === 'return' ? 'Xác nhận đổi trả' : 'Hủy đơn hàng'" :message="confirmAction === 'return' ? 'Đơn chuyển sang đổi trả và toàn bộ SKU được hoàn lại tồn kho.' : 'Đơn chuyển sang đã hủy và toàn bộ SKU được hoàn lại tồn kho.'" :confirm-label="confirmAction === 'return' ? 'Đổi trả và hoàn tồn' : 'Hủy và hoàn tồn'" @cancel="confirmAction = ''" @confirm="runAction" />
+    <ConfirmDialog :open="Boolean(confirmAction)" :title="actionConfirmation.title" :message="actionConfirmation.message" :confirm-label="actionConfirmation.label" @cancel="confirmAction = ''" @confirm="runAction" />
     <ImagePreview :src="preview" :alt="order?.orderCode || 'Ảnh đơn hàng'" @close="preview = ''" />
   </section>
 </template>
@@ -98,6 +99,7 @@ import CustomerInfoStatusBadge from "@/views/Orders/components/CustomerInfoStatu
 import OrderCustomerReview from "@/views/Orders/components/OrderCustomerReview.vue";
 import OrderStatusBadge from "@/views/Orders/components/OrderStatusBadge.vue";
 import { orderService } from "@/views/Orders/service";
+import { useOrderStore } from "@/views/Orders/store";
 import type { OcrReviewOutcome, Order } from "@/views/Orders/types";
 import { apiError, assetUrl } from "@/request";
 import { authenStore } from "@/stores/app-authen";
@@ -106,9 +108,19 @@ import { formatDateTime, formatMoney } from "@/utils/resource-display";
 export default defineComponent({
   name: "OrderDetailPage",
   components: { ConfirmDialog, CustomerInfoStatusBadge, DetailDefinitionList, DrawerPanel, ImagePreview, LoadingSkeleton, OrderCustomerReview, OrderStatusBadge, PageHeader, ResourceImageCard },
-  data() { return { order: null as Order | null, loading: true, saving: false, reviewOpen: false, error: "", message: "", preview: "", confirmAction: "" as "" | "return" | "cancel" }; },
+  data() { return { order: null as Order | null, loading: true, saving: false, reviewOpen: false, error: "", message: "", preview: "", confirmAction: "" as "" | "return" | "cancel" | "delete" }; },
   computed: {
     auth() { return authenStore(); },
+    actionConfirmation(): { title: string; message: string; label: string } {
+      if (this.confirmAction === "delete") return {
+        title: "Xóa vĩnh viễn đơn hàng",
+        message: `Đơn ${this.order?.orderCode || ""} và chi tiết sản phẩm sẽ bị xóa, không thể khôi phục. ${this.order?.status === "completed" ? "Các món đã bán sẽ được hoàn lại tồn kho." : "Đơn đã hủy hoặc đổi trả sẽ không được hoàn tồn thêm lần nữa."}`,
+        label: "Xóa vĩnh viễn",
+      };
+      return this.confirmAction === "return"
+        ? { title: "Xác nhận đổi trả", message: "Đơn chuyển sang đổi trả và toàn bộ SKU được hoàn lại tồn kho.", label: "Đổi trả và hoàn tồn" }
+        : { title: "Hủy đơn hàng", message: "Đơn chuyển sang đã hủy và toàn bộ SKU được hoàn lại tồn kho.", label: "Hủy và hoàn tồn" };
+    },
     pageError(): string { return this.error; },
     itemQuantity(): number { return this.order?.items.reduce((sum, item) => sum + item.quantity, 0) || 0; },
     customerStatusDescription(): string {
@@ -149,9 +161,23 @@ export default defineComponent({
       finally { this.saving = false; }
     },
     async runAction(): Promise<void> {
-      if (!this.order || !this.confirmAction) return; const action = this.confirmAction; this.confirmAction = ""; this.error = "";
-      try { if (action === "return") { this.order = await orderService.markReturned(this.order.id); this.message = "Đã đổi trả và hoàn tồn kho"; } else { await orderService.remove(this.order.id); await this.load(); this.message = "Đã hủy đơn và hoàn tồn kho"; } }
+      if (!this.order || !this.confirmAction || this.saving) return;
+      const action = this.confirmAction;
+      if (action === "delete" && !this.auth.isAdmin) return;
+      this.confirmAction = ""; this.error = ""; this.message = ""; this.saving = true;
+      try {
+        if (action === "delete") {
+          await orderService.permanentDelete(this.order.id);
+          useOrderStore().message = "Đã xóa vĩnh viễn đơn hàng";
+          await this.$router.push("/orders");
+        } else if (action === "return") {
+          this.order = await orderService.markReturned(this.order.id); this.message = "Đã đổi trả và hoàn tồn kho";
+        } else {
+          await orderService.remove(this.order.id); await this.load(); this.message = "Đã hủy đơn và hoàn tồn kho";
+        }
+      }
       catch (error) { this.error = apiError(error).message; }
+      finally { this.saving = false; }
     },
   },
 });
