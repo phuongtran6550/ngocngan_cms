@@ -23,7 +23,12 @@
           <ResourceImageCard :src="assetUrl(order.thumbnail)" :alt="order.orderCode" @preview="preview = assetUrl(order.thumbnail)" />
           <div class="card-body d-flex flex-column">
             <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
-              <div><code>{{ order.orderCode }}</code><h2 class="fs-8 mt-1 mb-0">{{ money(order.price) }}</h2></div>
+              <div>
+                <RouterLink :to="`/orders/${order.id}`" class="text-decoration-none">
+                  <code class="order-code-link">{{ order.orderCode }}</code>
+                </RouterLink>
+                <h2 class="fs-8 mt-1 mb-0">{{ money(order.price) }}</h2>
+              </div>
               <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
             </div>
             <dl class="queue-facts">
@@ -165,4 +170,6 @@ export default defineComponent({
 .queue-facts div { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: .55rem; border-bottom: 1px dashed var(--phoenix-border-color-translucent); }
 .queue-facts dt { color: var(--phoenix-secondary-color); font-size: .75rem; font-weight: 500; }
 .queue-facts dd { margin: 0; font-size: .8rem; font-weight: 700; text-align: right; }
+.order-code-link { transition: color 150ms ease; }
+.order-code-link:hover { color: var(--phoenix-primary) !important; text-decoration: underline; }
 </style>

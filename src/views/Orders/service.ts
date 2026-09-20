@@ -4,6 +4,9 @@ import {
   OCR_REASON_CODES,
 } from "@/views/Orders/types";
 import type {
+  CheckoutRequest,
+  CheckoutRequestInput,
+  CheckoutRequestList,
   Order,
   OrderCheckoutInput,
   OrderFormModel,
@@ -137,6 +140,33 @@ export const orderService = {
       onUploadProgress: uploadProgress(onProgress),
     });
     return orderFromResponse(data);
+  },
+  async uploadCheckoutImage(file: File, signal?: AbortSignal): Promise<{ imageId: string }> {
+    const { data } = await request.post<{ imageId: string }>(
+      "/orders/checkout-images", thumbnailBody(file),
+      { headers: writeHeaders("multipart/form-data"), signal },
+    );
+    return data;
+  },
+  async acceptCheckout(input: CheckoutRequestInput, key: string): Promise<CheckoutRequest> {
+    const { data, status } = await request.post<CheckoutRequest>("/orders/checkout", input, {
+      headers: writeHeaders(undefined, key),
+    });
+    if (status !== 202 || !data?.requestId || data.imageId !== input.imageId
+      || !["pending", "processing", "completed", "failed"].includes(data.status)) {
+      throw new Error("Chưa nhận được xác nhận hợp lệ. Vui lòng kiểm tra lại yêu cầu.");
+    }
+    return data;
+  },
+  async checkoutRequests(status: "active" | "completed", cursor?: string, signal?: AbortSignal): Promise<CheckoutRequestList> {
+    const { data } = await request.get<CheckoutRequestList>("/orders/checkout-requests", {
+      params: { status, cursor }, signal,
+    });
+    return data;
+  },
+  async retryCheckout(requestId: string): Promise<CheckoutRequest> {
+    const { data } = await request.post<CheckoutRequest>(`/orders/checkout-requests/${requestId}/retry`, {});
+    return data;
   },
   async createDraft(file: File, onProgress?: ProgressCallback): Promise<Order> {
     const body = thumbnailBody(file);

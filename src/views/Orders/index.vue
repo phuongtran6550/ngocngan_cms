@@ -1,5 +1,6 @@
 <template>
   <div>
+    <CheckoutRequests v-if="auth.can('orders.create')" :key="auth.user?.id" />
     <div v-if="store.message" class="alert alert-subtle-success" role="status">{{ store.message }}</div>
     <ListShell
       :definition="effectiveDefinition"
@@ -138,6 +139,7 @@
 </template>
 
 <script lang="ts">
+import CheckoutRequests from "@/views/Orders/components/CheckoutRequests.vue";
 import { defineComponent } from "vue";
 import { searchQueryFromRoute } from "@/utils/global-search";
 import ListShell from "@/components/ListLayout/ListShell.vue";
@@ -161,7 +163,7 @@ const orderStatuses: readonly OrderStatus[] = ["completed", "returned", "cancell
 
 export default defineComponent({
   name: "OrderListPage",
-  components: { AppIcon, ConfirmDialog, DrawerPanel, ListShell },
+  components: { CheckoutRequests, AppIcon, ConfirmDialog, DrawerPanel, ListShell },
   data() {
     return {
       filterOpen: false,

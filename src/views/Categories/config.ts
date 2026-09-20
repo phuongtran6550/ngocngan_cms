@@ -73,7 +73,7 @@ export const categoryDefinition: ResourceDefinition = {
   permission: categoryPermission,
   columns: [
     { key: "name", label: "Tên danh mục", type: "text", sortable: true },
-    { key: "groupSummary", label: "Nhóm giá (Đồ món)", type: "text" },
+    { key: "groupCount", label: "Nhóm giá (Đồ món)", type: "number" },
     { key: "productCount", label: "Số sản phẩm", type: "number" },
     {
       key: "createdBy",
@@ -202,18 +202,16 @@ const categoryTransport: ResourceTransport<
     const normalized = normalizeListResponse<Category>(result.response);
     return {
       ...normalized,
-      items: normalized.items.map((item) => ({
-        ...item,
-        groupSummary:
-          Array.isArray(item.groups) && item.groups.length
-            ? item.groups
-                .map(
-                  (g) =>
-                    `${g.name} (${Number(g.fromPrice || 0).toLocaleString()} - ${Number(g.toPrice || 0).toLocaleString()}₫)`,
-                )
-                .join("; ")
-            : "Chưa cấu hình",
-      })),
+      items: normalized.items.map((item) => {
+        const count = Array.isArray(item.groups)
+          ? item.groups.length
+          : Number(item.groupCount || 0);
+        return {
+          ...item,
+          groupCount: count,
+          groupSummary: count,
+        };
+      }),
     };
   },
   async create(input: CategoryFormModel): Promise<Category> {
@@ -253,7 +251,7 @@ export const categoryResource = defineResource<
   key: "categories",
   definition: categoryDefinition,
   initialFilters: {},
-  selectedColumns: ["name", "groupSummary", "productCount", "createdBy"],
+  selectedColumns: ["name", "groupCount", "productCount", "createdBy"],
   initialSort: { by: "name", direction: "asc" },
   emptyForm: () => ({ name: "", description: "", groups: [] }),
   formFromRow: (row) => ({

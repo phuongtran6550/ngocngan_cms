@@ -58,7 +58,7 @@ when that would hide business rules.
 The sales flow is optimized for a busy counter and uses the existing Product barcode scanner:
 
 - `/orders/create` keeps one versioned browser-local Pinia cart, supports continuous barcode scanning, and increments one cart row when the same SKU is scanned again.
-- Checkout is sequential: the seller finalizes the cart, captures the whole order in an embedded rear-camera frame, then optionally enters customer identity before the only persistence action runs.
+- Checkout is sequential: the seller finalizes the cart, captures the whole order in an embedded rear-camera frame, then optionally enters customer identity while the photo uploads in advance. Saving then sends a small JSON request.
 - The inline photo step auto-advances after capture, supports torch/retry and a validated existing-image fallback, and stops the camera whenever that step is left or the page is hidden.
 - The camera guide mirrors the physical board with fixed `Tên khách`, `Sản phẩm`, and `SĐT` zones. Sellers keep the board at least half of the frame, keep products out of identity bands, avoid glare, and do not write price calculations because the cart owns fixed prices.
 - Photos below a 1280-pixel longest edge still proceed without another confirmation click, but the customer step keeps a visible warning that OCR may require manual entry.
@@ -66,8 +66,9 @@ The sales flow is optimized for a busy counter and uses the existing Product bar
 - Product detail exposes `Thêm vào giỏ hàng` for active in-stock SKUs without navigating away.
 - Inventory price is read-only in the cart. Checkout sends only SKU identity and quantity; the API recalculates the authoritative price.
 - The order photo is required. Customer name and phone are optional and visually secondary.
-- Local stock warnings block submit immediately, while the API remains authoritative and never permits negative inventory.
-- Retryable checkout failures preserve the cart, photo, customer fields, and idempotency key. Cart conflicts return to the cart and invalidate the old photo; successful checkout clears the working data and local cart.
+- Unverified product data blocks submit until refreshed. Stock warnings remain informational; the existing API policy permits negative inventory.
+- A validated HTTP 202 receipt clears the matching working cart so the next sale can start. The server processes the accepted order in the background; accepted does not mean completed. An immutable request and idempotency key are saved in tab session storage before sending, so a lost acknowledgement can be retried after reload without a second sale.
+- The sales and order list pages show the current user’s accepted, processing, failed, and recent completed requests. Failed-request retry uses the original image and cart, independently of the new working cart.
 - `/orders/missing` contains completed sales waiting for OCR review or manual customer entry.
 - `/customers/:phone` shows derived KPIs, order history, SKU/product totals, and category totals for the normalized phone identity.
 

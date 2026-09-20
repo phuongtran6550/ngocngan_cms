@@ -31,7 +31,8 @@ export interface Category {
   description: string;
   productCount: number;
   groups?: CategoryGroup[];
-  groupSummary?: string;
+  groupCount?: number;
+  groupSummary?: string | number;
   createdBy: CategoryCreator;
   createdAt?: string;
   updatedAt?: string;

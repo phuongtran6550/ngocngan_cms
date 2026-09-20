@@ -18,6 +18,7 @@ export const productDefinition: ResourceDefinition = {
       type: "product",
       sortable: true,
       width: "350px",
+      display: { url: "/products/:id" },
     },
     { key: "price", label: "Giá bán", type: "money", sortable: true },
     { key: "stock", label: "Tồn kho", type: "number", sortable: true },

@@ -1,14 +1,10 @@
-import {
-  onBeforeUnmount,
-  readonly,
-  ref,
-  type Ref,
-} from "vue";
+import { computed, onBeforeUnmount, readonly, ref, type Ref } from "vue";
 import {
   attachEnvironmentCamera,
   normalizeEnvironmentCameraError,
   prepareEnvironmentCameraTrack,
   requestEnvironmentCamera,
+  setEnvironmentCameraFocus,
   setEnvironmentCameraTorch,
   stopEnvironmentCamera,
 } from "@/components/media/environment-camera";
@@ -26,11 +22,7 @@ const GUIDE_WIDTH_RATIO = 0.9;
 const GUIDE_HEIGHT_RATIO = 0.45;
 
 export type BarcodeCameraErrorCode =
-  | "unsupported"
-  | "permission-denied"
-  | "no-camera"
-  | "camera"
-  | "decoder";
+  "unsupported" | "permission-denied" | "no-camera" | "camera" | "decoder";
 
 export interface BarcodeCameraError {
   code: BarcodeCameraErrorCode;
@@ -40,6 +32,7 @@ export interface BarcodeCameraError {
 
 interface BarcodeCameraOptions {
   video: Ref<HTMLVideoElement | null>;
+  viewport?: Ref<HTMLElement | null>;
   onDetected(barcode: string): void;
   onUnsupported?(value: string): void;
   onInterrupted?(): void;
@@ -59,39 +52,53 @@ export function barcodeGuideSourceRegion(
   sourceHeight: number,
   viewportWidth: number,
   viewportHeight: number,
+  zoom = 1,
+  fullViewport = false,
 ): BarcodeSourceRegion {
   const safeViewportWidth = viewportWidth > 0 ? viewportWidth : 1;
   const safeViewportHeight = viewportHeight > 0 ? viewportHeight : 1;
-  const coverScale = Math.max(
-    safeViewportWidth / sourceWidth,
-    safeViewportHeight / sourceHeight,
-  );
+  const coverScale =
+    Math.max(
+      safeViewportWidth / sourceWidth,
+      safeViewportHeight / sourceHeight,
+    ) * zoom;
   const renderedWidth = sourceWidth * coverScale;
   const renderedHeight = sourceHeight * coverScale;
-  const cropX = Math.max((renderedWidth - safeViewportWidth) / 2, 0);
-  const cropY = Math.max((renderedHeight - safeViewportHeight) / 2, 0);
-  const guideWidth = safeViewportWidth * GUIDE_WIDTH_RATIO;
-  const guideHeight = safeViewportHeight * GUIDE_HEIGHT_RATIO;
+  const cropX = (renderedWidth - safeViewportWidth) / 2;
+  const cropY = (renderedHeight - safeViewportHeight) / 2;
+  const guideWidth = safeViewportWidth * (fullViewport ? 1 : GUIDE_WIDTH_RATIO);
+  const guideHeight =
+    safeViewportHeight * (fullViewport ? 1 : GUIDE_HEIGHT_RATIO);
   const guideX = (safeViewportWidth - guideWidth) / 2;
   const guideY = (safeViewportHeight - guideHeight) / 2;
-  const x = Math.max(Math.round((guideX + cropX) / coverScale), 0);
-  const y = Math.max(Math.round((guideY + cropY) / coverScale), 0);
+  const left = Math.round((guideX + cropX) / coverScale);
+  const top = Math.round((guideY + cropY) / coverScale);
+  const x = Math.max(left, 0);
+  const y = Math.max(top, 0);
 
   return {
     x,
     y,
     width: Math.min(
-      Math.max(Math.round(guideWidth / coverScale), 1),
+      Math.max(Math.round(guideWidth / coverScale) + Math.min(left, 0), 1),
       sourceWidth - x,
     ),
     height: Math.min(
-      Math.max(Math.round(guideHeight / coverScale), 1),
+      Math.max(Math.round(guideHeight / coverScale) + Math.min(top, 0), 1),
       sourceHeight - y,
     ),
   };
 }
 
 export function useBarcodeCamera(options: BarcodeCameraOptions) {
+  const zoom = ref(1);
+  const focusMessage = ref("");
+  const focusPoint = ref<{ x: number; y: number } | null>(null);
+  const sourceAspect = ref(1);
+  const previewStyle = computed(() => ({
+    width: `${Math.max(1, sourceAspect.value) * zoom.value * 100}%`,
+    height: `${Math.max(1, 1 / sourceAspect.value) * zoom.value * 100}%`,
+  }));
   const torchAvailable = ref(false);
   const torchEnabled = ref(false);
   const active = ref(false);
@@ -110,6 +117,29 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
   let disposed = false;
   let paused = false;
   let blockedBarcode = "";
+  let frameVersion = 0;
+  let focusRequestId = 0;
+  let focusBusy = false;
+
+  function updateFrame(): void {
+    const video = options.video.value;
+    if (video?.videoWidth && video.videoHeight) {
+      sourceAspect.value = video.videoWidth / video.videoHeight;
+      frameVersion += 1;
+      focusPoint.value = null;
+      focusMessage.value = "";
+      stabilizer.reset();
+    }
+  }
+
+  function setZoom(value: number): void {
+    if (!active.value || !Number.isFinite(value)) return;
+    zoom.value = Math.min(3, Math.max(0.5, Math.round(value * 100) / 100));
+    frameVersion += 1;
+    focusPoint.value = null;
+    focusMessage.value = "";
+    stabilizer.reset();
+  }
 
   function stop(): void {
     sessionId += 1;
@@ -123,6 +153,11 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     stabilizer.reset();
     paused = false;
     blockedBarcode = "";
+    zoom.value = 1;
+    focusRequestId += 1;
+    focusBusy = false;
+    focusPoint.value = null;
+    focusMessage.value = "";
     stopEnvironmentCamera(stream, options.video.value);
     stream = null;
     track = null;
@@ -133,28 +168,38 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     canvas.height = 0;
   }
 
-  function captureFrame(video: HTMLVideoElement, fullFrame: boolean): ImageData | null {
+  function captureFrame(
+    video: HTMLVideoElement,
+    fullFrame: boolean,
+  ): ImageData | null {
     if (!context || !video.videoWidth || !video.videoHeight) return null;
-    const viewportWidth = video.clientWidth || 1;
-    const viewportHeight = video.clientHeight || viewportWidth;
-    const region = fullFrame
-      ? {
-          x: 0,
-          y: 0,
-          width: video.videoWidth,
-          height: video.videoHeight,
-        }
-      : barcodeGuideSourceRegion(
-          video.videoWidth,
-          video.videoHeight,
-          viewportWidth,
-          viewportHeight,
-        );
+    const viewport = options.viewport?.value || video.parentElement || video;
+    const viewportWidth = viewport.clientWidth || 1;
+    const viewportHeight = viewport.clientHeight || viewportWidth;
+    const region =
+      fullFrame && zoom.value === 1
+        ? {
+            x: 0,
+            y: 0,
+            width: video.videoWidth,
+            height: video.videoHeight,
+          }
+        : barcodeGuideSourceRegion(
+            video.videoWidth,
+            video.videoHeight,
+            viewportWidth,
+            viewportHeight,
+            zoom.value,
+            fullFrame,
+          );
     const sourceX = region.x;
     const sourceY = region.y;
     const sourceWidth = region.width;
     const sourceHeight = region.height;
-    const scale = Math.min(1, MAX_DECODE_EDGE / Math.max(sourceWidth, sourceHeight));
+    const scale = Math.min(
+      1,
+      MAX_DECODE_EDGE / Math.max(sourceWidth, sourceHeight),
+    );
     const width = Math.max(Math.round(sourceWidth * scale), 1);
     const height = Math.max(Math.round(sourceHeight * scale), 1);
     if (canvas.width !== width) canvas.width = width;
@@ -201,14 +246,15 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     video: HTMLVideoElement,
     mode: BarcodeDecodeMode,
   ): Promise<void> {
+    const version = frameVersion;
     const image = captureFrame(video, mode === "recovery");
     if (!image) return;
     try {
       const values = await readBarcodeValues(image, mode);
-      if (session !== sessionId || disposed) return;
+      if (session !== sessionId || disposed || version !== frameVersion) return;
       observe(values, performance.now());
     } catch (error) {
-      if (session !== sessionId || disposed) return;
+      if (session !== sessionId || disposed || version !== frameVersion) return;
       stop();
       options.onError({
         code: "decoder",
@@ -222,9 +268,11 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     const loop = (time: number) => {
       if (session !== sessionId || disposed || !active.value) return;
       frameRequest = requestAnimationFrame(loop);
-      if (paused || decoding || time - lastDecodeAt < DECODE_INTERVAL_MS) return;
+      if (paused || decoding || time - lastDecodeAt < DECODE_INTERVAL_MS)
+        return;
       const video = options.video.value;
-      if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+        return;
       lastDecodeAt = time;
       framePass += 1;
       decoding = true;
@@ -264,6 +312,7 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
       if (track) await configureTrack(track);
       if (session !== sessionId || disposed) return;
       starting = false;
+      updateFrame();
       active.value = true;
       schedule(session);
     } catch (error) {
@@ -302,8 +351,7 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
       );
       if (session !== sessionId || disposed) return null;
       const barcode = localAverage.find(
-        (value) =>
-          isInventoryBarcode(value) && globalHistogram.includes(value),
+        (value) => isInventoryBarcode(value) && globalHistogram.includes(value),
       );
       if (barcode) return barcode;
       const unsupported = [...localAverage, ...globalHistogram].find((value) =>
@@ -340,6 +388,59 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     }
   }
 
+  async function focusAt(event?: {
+    clientX: number;
+    clientY: number;
+  }): Promise<void> {
+    const video = options.video.value;
+    const viewport = options.viewport?.value || video?.parentElement;
+    if (focusBusy || !active.value || !track || !video || !viewport) return;
+    const rendered = video.getBoundingClientRect();
+    const bounds = viewport.getBoundingClientRect();
+    if (!rendered.width || !rendered.height || !bounds.width || !bounds.height)
+      return;
+    const clientX = event?.clientX ?? bounds.left + bounds.width / 2;
+    const clientY = event?.clientY ?? bounds.top + bounds.height / 2;
+    const point = {
+      x: (clientX - rendered.left) / rendered.width,
+      y: (clientY - rendered.top) / rendered.height,
+    };
+    if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return;
+    const session = sessionId;
+    const version = frameVersion;
+    const request = ++focusRequestId;
+    const target = track;
+    focusBusy = true;
+    focusPoint.value = null;
+    focusMessage.value = "Đang yêu cầu camera lấy nét…";
+    try {
+      const result = await setEnvironmentCameraFocus(target, point).catch(
+        () => "unsupported" as const,
+      );
+      if (
+        session !== sessionId ||
+        version !== frameVersion ||
+        request !== focusRequestId ||
+        target !== track ||
+        disposed
+      )
+        return;
+      focusMessage.value =
+        result === "point"
+          ? "Camera đã nhận điểm lấy nét."
+          : result === "auto"
+            ? "Camera đang tự lấy nét; thiết bị không hỗ trợ chọn điểm."
+            : "Thiết bị không hỗ trợ điều khiển lấy nét. Giữ tem rõ trong khung.";
+      if (result === "point")
+        focusPoint.value = {
+          x: ((clientX - bounds.left) / bounds.width) * 100,
+          y: ((clientY - bounds.top) / bounds.height) * 100,
+        };
+    } finally {
+      if (session === sessionId && target === track) focusBusy = false;
+    }
+  }
+
   function resume(): void {
     if (!active.value) return;
     paused = false;
@@ -364,6 +465,13 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
   });
 
   return {
+    zoom: readonly(zoom),
+    previewStyle,
+    setZoom,
+    updateFrame,
+    focusAt,
+    focusPoint: readonly(focusPoint),
+    focusMessage: readonly(focusMessage),
     active: readonly(active),
     torchAvailable: readonly(torchAvailable),
     torchEnabled: readonly(torchEnabled),

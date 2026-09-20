@@ -19,6 +19,7 @@ export const warehouseDefinition: ResourceDefinition = {
       type: "product",
       sortable: true,
       width: "350px",
+      display: { url: "/warehoused-goods/:id" },
     },
     { key: "price", label: "Giá bán", type: "money", sortable: true },
     { key: "classificationTags", label: "Phân loại", type: "tags" },

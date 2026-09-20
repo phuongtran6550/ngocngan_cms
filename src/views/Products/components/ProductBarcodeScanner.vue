@@ -31,18 +31,37 @@
           </div>
 
           <div class="modal-body p-3 p-sm-4">
-            <div class="scanner-viewport" :class="`is-${state}`">
+            <div
+              ref="viewport"
+              class="scanner-viewport"
+              :class="`is-${state}`"
+              role="button"
+              tabindex="0"
+              aria-label="Chạm để lấy nét camera; nhấn Enter để lấy nét chính giữa"
+              :aria-disabled="!camera.active.value"
+              @pointerdown="camera.focusAt"
+              @keydown.enter.prevent="camera.focusAt()"
+              @keydown.space.prevent="camera.focusAt()"
+            >
               <video
                 ref="video"
                 class="scanner-video"
+                :style="camera.previewStyle.value"
                 autoplay
                 muted
                 playsinline
                 aria-label="Hình ảnh trực tiếp từ camera sau"
+                @resize="camera.updateFrame"
               />
               <div class="scanner-guide" aria-hidden="true">
                 <span v-for="corner in 4" :key="corner" />
               </div>
+              <span
+                v-if="camera.focusPoint.value"
+                class="scanner-focus-point"
+                :style="{ left: `${camera.focusPoint.value.x}%`, top: `${camera.focusPoint.value.y}%` }"
+                aria-hidden="true"
+              />
               <div
                 v-if="!camera.active.value"
                 class="scanner-placeholder text-center"
@@ -55,6 +74,41 @@
                 <AppIcon v-else name="scan-line" />
               </div>
 
+            </div>
+
+            <p v-if="camera.focusMessage.value" class="text-body-tertiary fs-10 mt-2 mb-0" role="status">
+              {{ camera.focusMessage.value }}
+            </p>
+
+            <div v-if="camera.active.value" class="d-flex align-items-center gap-2 mt-3">
+              <button
+                type="button"
+                class="btn btn-sm btn-phoenix-secondary"
+                aria-label="Thu nhỏ camera"
+                :disabled="camera.zoom.value <= 0.5"
+                @click="camera.setZoom(camera.zoom.value - 0.25)"
+              >−</button>
+              <input
+                type="range"
+                class="form-range flex-grow-1"
+                min="0.5"
+                max="3"
+                step="0.05"
+                :value="camera.zoom.value"
+                aria-label="Độ thu phóng camera"
+                :aria-valuetext="`${camera.zoom.value} lần`"
+                @input="camera.setZoom(Number(($event.target as HTMLInputElement).value))"
+              />
+              <output class="text-nowrap fs-9" aria-live="polite">
+                {{ camera.zoom.value.toFixed(2) }}×
+              </output>
+              <button
+                type="button"
+                class="btn btn-sm btn-phoenix-secondary"
+                aria-label="Phóng to camera"
+                :disabled="camera.zoom.value >= 3"
+                @click="camera.setZoom(camera.zoom.value + 0.25)"
+              >+</button>
             </div>
 
             <div
@@ -245,6 +299,7 @@ const emit = defineEmits<{
 const dialog = ref<HTMLElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const video = ref<HTMLVideoElement | null>(null);
+const viewport = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const state = ref<ScannerState>("idle");
 const barcode = ref("");
@@ -289,6 +344,7 @@ let startRequestId = 0;
 
 const camera = useBarcodeCamera({
   video,
+  viewport,
   continuous: props.continuous,
   onDetected: (value) => {
     barcode.value = value;
@@ -640,13 +696,11 @@ onBeforeUnmount(() => {
 
 .scanner-video {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.scanner-video {
-  object-fit: cover;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
 }
 
 .scanner-guide {
@@ -656,6 +710,17 @@ onBeforeUnmount(() => {
   height: 45%;
   border-radius: 0.75rem;
   box-shadow: 0 0 0 999px rgba(3, 10, 16, 0.42);
+  pointer-events: none;
+}
+
+.scanner-focus-point {
+  position: absolute;
+  z-index: 3;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid var(--phoenix-warning);
+  border-radius: 0.375rem;
+  transform: translate(-50%, -50%);
   pointer-events: none;
 }
 

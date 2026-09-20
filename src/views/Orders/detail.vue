@@ -7,11 +7,55 @@
         <template #actions>
           <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
           <OrderStatusBadge :status="order.status" />
-          <RouterLink class="btn btn-phoenix-secondary" to="/orders">Danh sách</RouterLink>
+          <RouterLink class="btn btn-phoenix-secondary" to="/orders">
+            <AppIcon name="arrow-left" class="me-1" />
+            <span>Danh sách</span>
+          </RouterLink>
           <button v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'" type="button" class="btn btn-primary" @click="reviewOpen = true">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt' : 'Bổ sung khách hàng' }}</button>
-          <button v-if="auth.can('orders.update') && order.status === 'completed'" type="button" class="btn btn-phoenix-warning" :disabled="saving" @click="confirmAction = 'return'">Đổi trả</button>
-          <button v-if="auth.can('orders.delete') && order.status === 'completed'" type="button" class="btn btn-phoenix-danger" :disabled="saving" @click="confirmAction = 'cancel'">Hủy đơn</button>
-          <button v-if="auth.isAdmin" type="button" class="btn btn-danger" :disabled="saving" @click="confirmAction = 'delete'">Xóa vĩnh viễn</button>
+          <div v-if="hasOrderActions" ref="actionMenu" class="dropdown">
+            <button
+              type="button"
+              class="btn btn-phoenix-secondary dropdown-toggle"
+              :aria-expanded="actionMenuOpen"
+              :disabled="saving"
+              @click.stop="actionMenuOpen = !actionMenuOpen"
+            >
+              <span>Thao tác</span>
+            </button>
+            <div v-if="actionMenuOpen" class="dropdown-menu dropdown-menu-end py-2 shadow-sm show" role="menu">
+              <button
+                v-if="canReturn"
+                type="button"
+                class="dropdown-item d-flex align-items-center gap-2"
+                :disabled="saving"
+                @click="triggerAction('return')"
+              >
+                <AppIcon name="refresh" class="text-warning" />
+                <span>Đổi trả</span>
+              </button>
+              <button
+                v-if="canCancel"
+                type="button"
+                class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                :disabled="saving"
+                @click="triggerAction('cancel')"
+              >
+                <AppIcon name="close" />
+                <span>Hủy đơn</span>
+              </button>
+              <div v-if="canDelete && (canReturn || canCancel)" class="dropdown-divider" />
+              <button
+                v-if="canDelete"
+                type="button"
+                class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                :disabled="saving"
+                @click="triggerAction('delete')"
+              >
+                <AppIcon name="trash-2" />
+                <span>Xóa vĩnh viễn</span>
+              </button>
+            </div>
+          </div>
         </template>
       </PageHeader>
 
@@ -63,11 +107,17 @@
             <div v-if="!order.items.length" class="card-body text-body-tertiary">Đơn cũ chưa lưu chi tiết SKU.</div>
             <div v-else class="order-product-lines">
               <article v-for="item in order.items" :key="item.id || `${item.skuId}-${item.category}`" class="order-product-line">
-                <img v-if="item.thumbnail" :src="assetUrl(item.thumbnail)" :alt="item.productName" />
+                <RouterLink v-if="item.skuId && item.thumbnail" :to="`/products/${item.skuId}`" class="order-product-line__thumb-link">
+                  <img :src="assetUrl(item.thumbnail)" :alt="item.productName" />
+                </RouterLink>
+                <img v-else-if="item.thumbnail" :src="assetUrl(item.thumbnail)" :alt="item.productName" />
                 <div class="order-product-line__copy">
                   <RouterLink v-if="item.skuId" :to="`/products/${item.skuId}`" class="fw-bold text-decoration-none">{{ item.productName || item.category }}</RouterLink>
                   <strong v-else>{{ item.productName || item.category }}</strong>
-                  <code>{{ item.skuCode || item.barcode || "SKU cũ" }}</code>
+                  <RouterLink v-if="item.skuId" :to="`/products/${item.skuId}`" class="text-decoration-none">
+                    <code class="order-product-line__sku">{{ item.skuCode || item.barcode || "SKU cũ" }}</code>
+                  </RouterLink>
+                  <code v-else>{{ item.skuCode || item.barcode || "SKU cũ" }}</code>
                   <small>{{ [item.category, item.material, item.pattern, item.size].filter(Boolean).join(" · ") }}</small>
                 </div>
                 <div class="order-product-line__price"><span>{{ item.quantity }} × {{ money(item.unitPrice) }}</span><strong>{{ money(item.lineTotal) }}</strong></div>
@@ -88,6 +138,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import AppIcon from "@/components/ui/AppIcon.vue";
 import DetailDefinitionList from "@/components/app/DetailDefinitionList.vue";
 import PageHeader from "@/components/app/PageHeader.vue";
 import LoadingSkeleton from "@/components/placeholder/LoadingSkeleton.vue";
@@ -95,6 +146,10 @@ import ImagePreview from "@/components/media/ImagePreview.vue";
 import ResourceImageCard from "@/components/media/ResourceImageCard.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
+import {
+  createDropdownBehavior,
+  type DropdownBehavior,
+} from "@/components/dropdown/behavior";
 import CustomerInfoStatusBadge from "@/views/Orders/components/CustomerInfoStatusBadge.vue";
 import OrderCustomerReview from "@/views/Orders/components/OrderCustomerReview.vue";
 import OrderStatusBadge from "@/views/Orders/components/OrderStatusBadge.vue";
@@ -107,10 +162,47 @@ import { formatDateTime, formatMoney } from "@/utils/resource-display";
 
 export default defineComponent({
   name: "OrderDetailPage",
-  components: { ConfirmDialog, CustomerInfoStatusBadge, DetailDefinitionList, DrawerPanel, ImagePreview, LoadingSkeleton, OrderCustomerReview, OrderStatusBadge, PageHeader, ResourceImageCard },
-  data() { return { order: null as Order | null, loading: true, saving: false, reviewOpen: false, error: "", message: "", preview: "", confirmAction: "" as "" | "return" | "cancel" | "delete" }; },
+  components: {
+    AppIcon,
+    ConfirmDialog,
+    CustomerInfoStatusBadge,
+    DetailDefinitionList,
+    DrawerPanel,
+    ImagePreview,
+    LoadingSkeleton,
+    OrderCustomerReview,
+    OrderStatusBadge,
+    PageHeader,
+    ResourceImageCard,
+  },
+  data() {
+    return {
+      order: null as Order | null,
+      loading: true,
+      saving: false,
+      reviewOpen: false,
+      error: "",
+      message: "",
+      preview: "",
+      confirmAction: "" as "" | "return" | "cancel" | "delete",
+      actionMenuOpen: false,
+      dropdown: null as DropdownBehavior | null,
+    };
+  },
   computed: {
     auth() { return authenStore(); },
+    canReturn(): boolean {
+      return Boolean(this.auth.can("orders.update") && this.order?.status === "completed");
+    },
+    canCancel(): boolean {
+      return Boolean(this.auth.can("orders.delete") && this.order?.status === "completed");
+    },
+    canDelete(): boolean {
+      return Boolean(this.auth.isAdmin);
+    },
+    hasOrderActions(): boolean {
+      return this.canReturn || this.canCancel || this.canDelete;
+    },
     actionConfirmation(): { title: string; message: string; label: string } {
       if (this.confirmAction === "delete") return {
         title: "Xóa vĩnh viễn đơn hàng",
@@ -142,7 +234,19 @@ export default defineComponent({
       ];
     },
   },
-  mounted() { void this.load(); },
+  mounted() {
+    this.dropdown = createDropdownBehavior(
+      () => this.$refs.actionMenu as HTMLElement | undefined,
+      () => {
+        this.actionMenuOpen = false;
+      },
+    );
+    this.dropdown.mount();
+    void this.load();
+  },
+  beforeUnmount() {
+    this.dropdown?.dispose();
+  },
   methods: {
     assetUrl,
     money(value: number): string { return formatMoney(value); },
@@ -152,6 +256,10 @@ export default defineComponent({
       if (value === "corrected") return "Đã sửa gợi ý";
       if (value === "entered") return "Người dùng nhập mới";
       return "—";
+    },
+    triggerAction(action: "return" | "cancel" | "delete"): void {
+      this.actionMenuOpen = false;
+      this.confirmAction = action;
     },
     async load(): Promise<void> { this.loading = true; this.error = ""; try { this.order = await orderService.detail(String(this.$route.params.id)); } catch (error) { this.error = apiError(error).message; } finally { this.loading = false; } },
     async saveCustomer(value: { name: string; phone: string; review: boolean }): Promise<void> {
@@ -193,8 +301,12 @@ export default defineComponent({
 .order-product-lines { display: grid; }
 .order-product-line { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; gap: .85rem; align-items: center; padding: 1rem; border-top: 1px solid var(--phoenix-border-color-translucent); }
 .order-product-line img { width: 4rem; height: 4rem; object-fit: cover; border-radius: .65rem; }
+.order-product-line__thumb-link { display: block; width: 4rem; height: 4rem; border-radius: .65rem; overflow: hidden; transition: opacity 150ms ease, transform 150ms ease; }
+.order-product-line__thumb-link:hover { opacity: .85; transform: scale(1.02); }
 .order-product-line__copy { display: grid; min-width: 0; gap: .15rem; }
 .order-product-line__copy code, .order-product-line__copy small { color: var(--phoenix-secondary-color); }
+.order-product-line__sku { transition: color 150ms ease; }
+.order-product-line__sku:hover { color: var(--phoenix-primary) !important; text-decoration: underline; }
 .order-product-line__price { display: grid; gap: .15rem; text-align: right; }
 .order-product-line__price span { color: var(--phoenix-secondary-color); font-size: .75rem; }
 @media (max-width: 991.98px) { .order-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

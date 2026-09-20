@@ -168,6 +168,33 @@ export interface OrderCheckoutInput {
   items: Array<{ skuId: string; quantity: number }>;
 }
 
+export interface CheckoutRequestInput {
+  imageId: string;
+  name: string;
+  phone: string;
+  items: Array<{ skuId: string; quantity: number }>;
+}
+
+export interface CheckoutRequest extends CheckoutRequestInput {
+  requestId: string;
+  thumbnail: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  orderId: string | null;
+  error: { code: string; message: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CheckoutRequestList {
+  items: CheckoutRequest[];
+  nextCursor: string | null;
+}
+
+export interface CheckoutAttempt {
+  key: string;
+  input: CheckoutRequestInput;
+}
+
 export interface OrderStatusCounts {
   all: number;
   completed: number;

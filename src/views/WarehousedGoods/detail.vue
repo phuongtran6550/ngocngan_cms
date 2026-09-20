@@ -442,7 +442,14 @@
                   </div>
                 </td>
                 <td>
-                  <code class="sku-code-cell">{{ sku.code || "—" }}</code>
+                  <RouterLink
+                    v-if="sku.id"
+                    :to="`/products/${sku.id}`"
+                    class="text-decoration-none"
+                  >
+                    <code class="sku-code-cell">{{ sku.code || "—" }}</code>
+                  </RouterLink>
+                  <code v-else class="sku-code-cell">{{ sku.code || "—" }}</code>
                   <span class="sku-code-sub">
                     SKU {{ String(index + 1).padStart(2, "0") }} ·
                     {{ item.pricingType || "—" }}
@@ -621,7 +628,16 @@
                     />
                   </div>
                   <div class="min-w-0">
-                    <code class="sku-code-cell text-break">
+                    <RouterLink
+                      v-if="sku.id"
+                      :to="`/products/${sku.id}`"
+                      class="text-decoration-none"
+                    >
+                      <code class="sku-code-cell text-break">
+                        {{ sku.code || "—" }}
+                      </code>
+                    </RouterLink>
+                    <code v-else class="sku-code-cell text-break">
                       {{ sku.code || "—" }}
                     </code>
                     <span class="sku-code-sub">
@@ -1724,6 +1740,12 @@ export default defineComponent({
   font-weight: 900;
   line-height: 1.5;
   white-space: nowrap;
+  transition: color 150ms ease;
+}
+
+a:hover .sku-code-cell {
+  color: var(--phoenix-primary) !important;
+  text-decoration: underline;
 }
 
 .sku-code-sub {

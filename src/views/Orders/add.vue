@@ -19,28 +19,43 @@
 
     <div v-if="created" class="sale-success-panel" role="status">
       <div>
-        <span class="sale-success-panel__eyebrow">Đơn vừa lưu thành công</span>
-        <h2>{{ created.orderCode }}</h2>
-        <p class="mb-0">
-          Tồn kho đã được trừ.
+        <h2 class="fs-7">
           {{
-            created.customerInfoStatus === "complete"
-              ? "Thông tin khách hàng đã đầy đủ."
-              : "OCR đang chạy nền để bổ sung thông tin khách hàng."
+            created.status === "failed"
+              ? "Đơn cần kiểm tra"
+              : created.status === "completed"
+                ? "Đã hoàn tất đơn"
+                : "Đã tiếp nhận đơn"
           }}
+        </h2>
+        <p class="mb-0">
+          Ảnh và giỏ hàng đã được lưu. Theo dõi kết quả trong mục bên dưới; bạn
+          có thể bán tiếp ngay.
         </p>
       </div>
-      <div class="d-flex flex-wrap gap-2">
-        <RouterLink
-          v-if="auth.can('orders.view')"
-          class="btn btn-phoenix-secondary"
-          :to="`/orders/${created.id}`"
-          >Xem đơn</RouterLink
-        >
-        <button type="button" class="btn btn-primary" @click="nextOrder">
-          Quét đơn tiếp theo
-        </button>
-      </div>
+      <button type="button" class="btn btn-primary" @click="nextOrder">
+        Quét đơn tiếp theo
+      </button>
+    </div>
+    <CheckoutRequests
+      :key="auth.user?.id"
+      :latest="created"
+      @updated="created = $event"
+    />
+    <div
+      v-if="attempt && !submitting"
+      class="alert alert-subtle-warning"
+      role="alert"
+    >
+      Chưa xác nhận được kết quả gửi đơn. Giỏ hàng và ảnh đã gửi được giữ
+      nguyên; kiểm tra lại bằng nút bên dưới để tránh tạo trùng đơn.
+      <button
+        type="button"
+        class="btn btn-sm btn-phoenix-warning ms-2"
+        @click="checkout"
+      >
+        Kiểm tra lại yêu cầu
+      </button>
     </div>
 
     <div
@@ -82,7 +97,7 @@
           <button
             type="button"
             class="btn btn-primary text-nowrap"
-            :disabled="submitting"
+            :disabled="submitting || Boolean(attempt)"
             @click="scannerOpen = true"
           >
             <AppIcon name="scan-line" class="me-2" />Quét barcode
@@ -94,7 +109,7 @@
     <OrderPhotoCapture
       v-if="step === 'photo'"
       :active="step === 'photo'"
-      :disabled="submitting"
+      :disabled="submitting || Boolean(attempt)"
       @back="returnToCart"
       @captured="acceptPhoto"
     />
@@ -115,9 +130,20 @@
                 khách còn thiếu.
               </p>
             </div>
-            <span class="badge badge-phoenix badge-phoenix-success"
-              >Đã có ảnh</span
+            <span
+              class="badge badge-phoenix"
+              :class="
+                imageId ? 'badge-phoenix-success' : 'badge-phoenix-warning'
+              "
             >
+              {{
+                imageId
+                  ? "Đã tải ảnh"
+                  : uploading
+                    ? "Đang tải ảnh…"
+                    : "Chưa tải ảnh"
+              }}
+            </span>
           </div>
           <div class="customer-photo-card__preview">
             <img
@@ -126,11 +152,26 @@
               alt="Ảnh đơn hàng chuẩn bị ghi nhận"
             />
           </div>
+          <div
+            v-if="uploadError"
+            class="alert alert-subtle-danger mt-3 mb-0"
+            role="alert"
+          >
+            {{ uploadError }}
+            <button
+              type="button"
+              class="btn btn-sm btn-link"
+              :disabled="uploading"
+              @click="uploadPhoto"
+            >
+              Tải ảnh lại
+            </button>
+          </div>
           <div class="d-flex flex-wrap gap-2 mt-3">
             <button
               type="button"
               class="btn btn-sm btn-phoenix-secondary"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(attempt)"
               @click="retakePhoto"
             >
               <AppIcon name="refresh" class="me-2" />Chụp lại
@@ -138,7 +179,7 @@
             <button
               type="button"
               class="btn btn-sm btn-link text-decoration-none"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(attempt)"
               @click="returnToCart"
             >
               <AppIcon name="arrow-left" class="me-2" />Sửa giỏ hàng
@@ -149,7 +190,7 @@
       <CustomerIdentityFields
         v-model:name="name"
         v-model:phone="phone"
-        :disabled="submitting"
+        :disabled="submitting || Boolean(attempt)"
       />
     </div>
 
@@ -189,7 +230,15 @@
           class="spinner-border spinner-border-sm me-2"
           aria-hidden="true"
         />
-        {{ submitting ? "Đang ghi nhận đơn…" : "Ghi nhận đơn hàng" }}
+        {{
+          submitting
+            ? "Đang tiếp nhận…"
+            : uploading
+              ? "Đang tải ảnh…"
+              : attempt
+                ? "Kiểm tra lại yêu cầu"
+                : "Ghi nhận đơn hàng"
+        }}
       </button>
     </div>
 
@@ -212,7 +261,12 @@ import {
   createOrderIdempotencyKey,
   orderService,
 } from "@/views/Orders/service";
-import type { Order } from "@/views/Orders/types";
+import type { CheckoutAttempt, CheckoutRequest } from "@/views/Orders/types";
+import {
+  readCheckoutAttempt,
+  writeCheckoutAttempt,
+} from "@/views/Orders/cart-storage";
+import CheckoutRequests from "@/views/Orders/components/CheckoutRequests.vue";
 import CustomerIdentityFields from "@/views/Orders/components/CustomerIdentityFields.vue";
 import OrderBarcodeScanner from "@/views/Orders/components/OrderBarcodeScanner.vue";
 import OrderPhotoCapture from "@/views/Orders/components/OrderPhotoCapture.vue";
@@ -234,8 +288,15 @@ const error = ref("");
 const feedback = ref("");
 const feedbackOk = ref(true);
 const submitting = ref(false);
-const created = ref<Order | null>(null);
-const submitKey = ref("");
+const created = ref<CheckoutRequest | null>(null);
+const attempt = ref<CheckoutAttempt | null>(null);
+const recoveryBlocked = ref(false);
+const imageId = ref("");
+const uploading = ref(false);
+const uploadError = ref("");
+let uploadController: AbortController | null = null;
+let disposed = false;
+const ownerId = auth.user?.id || "";
 const refreshingSkuIds = ref<string[]>([]);
 
 const checkoutSteps: Array<{
@@ -272,20 +333,25 @@ const stepPosition: Record<CheckoutStep, number> = {
 const canLockCart = computed(() =>
   Boolean(
     !submitting.value &&
+    !attempt.value &&
+    !recoveryBlocked.value &&
     cart.lines.length &&
     !cart.hasStockConflict &&
     !cart.hasUnverifiedStock,
   ),
 );
-const canCheckout = computed(() =>
-  Boolean(
+const canCheckout = computed(
+  () =>
     !submitting.value &&
-    step.value === "customer" &&
-    photo.value &&
-    cart.lines.length &&
-    !cart.hasStockConflict &&
-    !cart.hasUnverifiedStock,
-  ),
+    !recoveryBlocked.value &&
+    Boolean(
+      attempt.value ||
+      (step.value === "customer" &&
+        imageId.value &&
+        cart.lines.length &&
+        !cart.hasStockConflict &&
+        !cart.hasUnverifiedStock),
+    ),
 );
 const cartContentSignature = computed(() =>
   cart.lines
@@ -297,9 +363,8 @@ const cartContentSignature = computed(() =>
 function money(value: number): string {
   return formatMoney(value);
 }
-function resetSubmitKey(): void {
-  submitKey.value = "";
-  error.value = "";
+function clearError(): void {
+  if (!attempt.value) error.value = "";
 }
 function showCartFeedback(message: string): void {
   feedback.value = message;
@@ -309,7 +374,7 @@ function scannerFeedback(message: string, ok: boolean): void {
   created.value = null;
   feedback.value = message;
   feedbackOk.value = ok;
-  resetSubmitKey();
+  clearError();
 }
 
 function stepClass(target: CheckoutStep): Record<string, boolean> {
@@ -327,6 +392,11 @@ function revokePhotoPreview(): void {
 }
 
 function clearPhoto(): void {
+  uploadController?.abort();
+  uploadController = null;
+  imageId.value = "";
+  uploading.value = false;
+  uploadError.value = "";
   revokePhotoPreview();
   photo.value = null;
 }
@@ -335,7 +405,7 @@ function setPhoto(file: File): void {
   clearPhoto();
   photo.value = file;
   photoPreview.value = URL.createObjectURL(file);
-  resetSubmitKey();
+  clearError();
 }
 
 function lockCart(): void {
@@ -352,22 +422,47 @@ function acceptPhoto(file: File, warning = ""): void {
   feedback.value = warning;
   feedbackOk.value = false;
   step.value = "customer";
+  void uploadPhoto();
+}
+
+async function uploadPhoto(): Promise<void> {
+  const file = photo.value;
+  if (!file || uploading.value || auth.user?.id !== ownerId) return;
+  const controller = new AbortController();
+  uploadController = controller;
+  uploading.value = true;
+  uploadError.value = "";
+  try {
+    const result = await orderService.uploadCheckoutImage(
+      file,
+      controller.signal,
+    );
+    if (
+      uploadController === controller &&
+      !controller.signal.aborted &&
+      auth.user?.id === ownerId
+    )
+      imageId.value = result.imageId;
+  } catch (cause) {
+    if (uploadController === controller && !controller.signal.aborted)
+      uploadError.value = apiError(cause).message;
+  } finally {
+    if (uploadController === controller) uploading.value = false;
+  }
 }
 
 function retakePhoto(): void {
-  if (submitting.value) return;
+  if (submitting.value || attempt.value) return;
   clearPhoto();
-  submitKey.value = "";
   error.value = "";
   feedback.value = "";
   step.value = "photo";
 }
 
 function returnToCart(): void {
-  if (submitting.value) return;
+  if (submitting.value || attempt.value) return;
   const discardedPhoto = Boolean(photo.value);
   clearPhoto();
-  submitKey.value = "";
   error.value = "";
   step.value = "cart";
   if (discardedPhoto) {
@@ -378,55 +473,68 @@ function returnToCart(): void {
 }
 
 async function checkout(): Promise<void> {
-  if (!canCheckout.value || !photo.value) return;
+  if (!canCheckout.value) return;
   submitting.value = true;
   error.value = "";
   feedback.value = "";
-  if (!submitKey.value) submitKey.value = createOrderIdempotencyKey();
   try {
-    const order = await orderService.checkout(
-      {
-        image: photo.value,
-        name: name.value,
-        phone: phone.value,
-        items: cart.lines.map((line) => ({
-          skuId: line.skuId,
-          quantity: line.quantity,
-        })),
-      },
-      submitKey.value,
+    if (!ownerId || auth.user?.id !== ownerId)
+      throw new Error("Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.");
+    if (!attempt.value) {
+      const value: CheckoutAttempt = {
+        key: createOrderIdempotencyKey(),
+        input: {
+          imageId: imageId.value,
+          name: name.value.trim(),
+          phone: phone.value.trim(),
+          items: cart.lines.map(({ skuId, quantity }) => ({ skuId, quantity })),
+        },
+      };
+      // Persist before sending: a lost response must be replayed with the same payload and key.
+      writeCheckoutAttempt(ownerId, value);
+      attempt.value = value;
+    }
+    const current = attempt.value;
+    const receipt = await orderService.acceptCheckout(
+      current.input,
+      current.key,
     );
-    created.value = order;
-    cart.clear();
+    if (disposed || auth.user?.id !== ownerId) return;
+    created.value = receipt;
+    const sentSignature = current.input.items
+      .map((line) => `${line.skuId}:${line.quantity}`)
+      .sort()
+      .join("|");
     clearPhoto();
+    if (cartContentSignature.value === sentSignature) cart.clear();
     name.value = "";
     phone.value = "";
     step.value = "cart";
-    submitKey.value = "";
+    writeCheckoutAttempt(ownerId, null);
+    attempt.value = null;
   } catch (checkoutError) {
-    const normalized = apiError(checkoutError);
-    const conflictSkuId = String(
-      normalized.details?.skuId || normalized.errors?.skuId || "",
-    );
-    const cartConflict = [
-      "ORDER_STOCK_INSUFFICIENT",
-      "ORDER_SKU_NOT_FOUND",
-      "ORDER_SKU_INACTIVE",
-    ].includes(normalized.code || "");
-    if (cartConflict && conflictSkuId) {
-      await refreshSku(conflictSkuId);
-    }
-    if (cartConflict) {
-      clearPhoto();
-      submitKey.value = "";
-      step.value = "cart";
-      error.value =
-        normalized.message ||
-        (normalized.code === "ORDER_STOCK_INSUFFICIENT"
-          ? "Tồn kho vừa thay đổi. Giỏ hàng được giữ nguyên; vui lòng kiểm tra SKU được cảnh báo rồi chụp lại đơn."
-          : "Một SKU không còn khả dụng trong cơ sở dữ liệu. Vui lòng kiểm tra sản phẩm rồi chụp lại đơn.");
-    } else {
-      error.value = normalized.message;
+    if (!disposed) {
+      const failure = apiError(checkoutError);
+      error.value = failure.message;
+      // Validation rejection confirms the server did not accept this request.
+      if (
+        failure.status === 400 ||
+        failure.status === 422 ||
+        failure.code === "ORDER_CHECKOUT_IMAGE_UNAVAILABLE"
+      ) {
+        try {
+          writeCheckoutAttempt(ownerId, null);
+          attempt.value = null;
+          if (failure.code === "ORDER_CHECKOUT_IMAGE_UNAVAILABLE") {
+            imageId.value = "";
+            if (photo.value) void uploadPhoto();
+            else step.value = "cart";
+          }
+        } catch {
+          error.value +=
+            " Không thể cập nhật dữ liệu khôi phục trong trình duyệt.";
+        }
+      }
     }
   } finally {
     submitting.value = false;
@@ -461,10 +569,11 @@ async function refreshCart(): Promise<void> {
 }
 
 watch([name, phone], () => {
-  if (!submitting.value) resetSubmitKey();
+  if (!submitting.value) clearError();
 });
 watch(cartContentSignature, (next, previous) => {
-  resetSubmitKey();
+  if (attempt.value || submitting.value) return;
+  clearError();
   if (next === previous || !photo.value) return;
   clearPhoto();
   step.value = "cart";
@@ -474,9 +583,18 @@ watch(cartContentSignature, (next, previous) => {
 });
 onMounted(() => {
   cart.initialize();
+  try {
+    attempt.value = readCheckoutAttempt(ownerId);
+  } catch (cause) {
+    recoveryBlocked.value = true;
+    error.value = apiError(cause).message;
+  }
   void refreshCart();
 });
-onBeforeUnmount(() => clearPhoto());
+onBeforeUnmount(() => {
+  disposed = true;
+  clearPhoto();
+});
 </script>
 
 <style scoped>
@@ -543,15 +661,6 @@ onBeforeUnmount(() => clearPhoto());
   border-color: var(--phoenix-success);
   color: #fff;
   background: var(--phoenix-success);
-}
-.sale-success-panel__eyebrow {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.78;
 }
 .checkout-customer-grid {
   display: grid;
