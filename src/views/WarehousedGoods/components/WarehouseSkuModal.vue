@@ -339,14 +339,6 @@
                           <dd>{{ formatMoney(draft.importPrice) }}</dd>
                         </div>
                         <div>
-                          <dt>Tiền công</dt>
-                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
-                        </div>
-                        <div>
-                          <dt>Tiền xi</dt>
-                          <dd>{{ formatMoney(draft.platingCost) }}</dd>
-                        </div>
-                        <div>
                           <dt>Giá nhân đôi</dt>
                           <dd>{{ formatMoney((Number(draft.importPrice) || 0) * 2) }}</dd>
                         </div>
@@ -354,8 +346,24 @@
                           <dt>Mức giảm</dt>
                           <dd>{{ pieceDiscountLabel }}</dd>
                         </div>
+                        <div>
+                          <dt>Tiền hàng tạm tính</dt>
+                          <dd>{{ formatMoney(piecePreview.basePrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền hàng làm tròn</dt>
+                          <dd>{{ formatMoney(piecePreview.roundedBasePrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền xi</dt>
+                          <dd>{{ formatMoney(draft.platingCost) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền công</dt>
+                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
+                        </div>
                       </template>
-                      <div class="formula-subtotal">
+                      <div v-if="isWeighted" class="formula-subtotal">
                         <dt>Tạm tính</dt>
                         <dd>{{ formatMoney(rawPrice) }}</dd>
                       </div>
@@ -514,25 +522,24 @@ export default defineComponent({
     silverValue(): number {
       return Math.round((Number(this.silverPrice) || 0) * (Number(this.draft.weight) || 0));
     },
+    piecePreview(): ReturnType<typeof calculatePiecePrice> {
+      return calculatePiecePrice(
+        Number(this.draft.importPrice) || 0,
+        Number(this.draft.platingCost) || 0,
+        Number(this.draft.laborCost) || 0,
+      );
+    },
     rawPrice(): number {
       if (this.isWeighted) {
         return this.silverValue + (Number(this.draft.laborCost) || 0) + (Number(this.draft.platingCost) || 0);
       }
       if (this.isPiece) {
-        return calculatePiecePrice(
-          Number(this.draft.importPrice) || 0,
-          Number(this.draft.platingCost) || 0,
-          Number(this.draft.laborCost) || 0,
-        ).rawPrice;
+        return this.piecePreview.rawPrice;
       }
       return 0;
     },
     pieceDiscountLabel(): string {
-      const discount = calculatePiecePrice(
-        Number(this.draft.importPrice) || 0,
-        Number(this.draft.platingCost) || 0,
-        Number(this.draft.laborCost) || 0,
-      ).discountRate;
+      const discount = this.piecePreview.discountRate;
       const percentage = Math.round(discount * 100);
       return percentage ? `giảm ${percentage}%` : "không giảm";
     },

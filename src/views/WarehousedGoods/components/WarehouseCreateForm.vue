@@ -656,14 +656,6 @@
                             <dd>{{ money(sku.importPrice) }}</dd>
                           </div>
                           <div>
-                            <dt>Tiền công</dt>
-                            <dd>{{ money(sku.laborCost) }}</dd>
-                          </div>
-                          <div>
-                            <dt>Tiền xi</dt>
-                            <dd>{{ money(sku.platingCost) }}</dd>
-                          </div>
-                          <div>
                             <dt>Giá nhân đôi</dt>
                             <dd>{{ money(pieceDoublePrice(sku)) }}</dd>
                           </div>
@@ -671,8 +663,24 @@
                             <dt>Mức giảm</dt>
                             <dd>{{ pieceDiscountLabel(sku) }}</dd>
                           </div>
+                          <div>
+                            <dt>Tiền hàng tạm tính</dt>
+                            <dd>{{ money(piecePreview(sku).basePrice) }}</dd>
+                          </div>
+                          <div>
+                            <dt>Tiền hàng sau làm tròn</dt>
+                            <dd>{{ money(piecePreview(sku).roundedBasePrice) }}</dd>
+                          </div>
+                          <div>
+                            <dt>Tiền xi</dt>
+                            <dd>{{ money(sku.platingCost) }}</dd>
+                          </div>
+                          <div>
+                            <dt>Tiền công</dt>
+                            <dd>{{ money(sku.laborCost) }}</dd>
+                          </div>
                         </template>
-                        <div class="formula-subtotal">
+                        <div v-if="isWeighted" class="formula-subtotal">
                           <dt>Tạm tính</dt>
                           <dd>{{ money(rawPrice(sku)) }}</dd>
                         </div>

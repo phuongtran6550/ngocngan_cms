@@ -51,19 +51,24 @@ export function calculatePiecePrice(
   platingCost: number = 0,
   laborCost: number = 0,
 ): {
+  basePrice: number;
+  roundedBasePrice: number;
   rawPrice: number;
   price: number;
   multiplier: number;
   discountRate: number;
 } {
   const multiplier = piecePriceMultiplier(importPrice);
-  const rawPrice =
-    Math.round(numeric(importPrice) * multiplier) +
-    Math.max(0, numeric(platingCost)) +
-    Math.max(0, numeric(laborCost));
+  const basePrice = Math.round(numeric(importPrice) * multiplier);
+  const roundedBasePrice = roundSellingPrice(basePrice);
+  const plating = Math.max(0, numeric(platingCost));
+  const labor = Math.max(0, numeric(laborCost));
+  const price = roundedBasePrice + plating + labor;
   return {
-    rawPrice,
-    price: roundSellingPrice(rawPrice),
+    basePrice,
+    roundedBasePrice,
+    rawPrice: basePrice + plating + labor,
+    price,
     multiplier,
     discountRate: Number((1 - multiplier / 2).toFixed(2)),
   };

@@ -13,6 +13,8 @@ function setup(skus = []) {
       rawPrice: (silverPrice || 0) * (weight || 0),
     }),
     calculatePiecePrice: (importPrice, platingCost, laborCost) => ({
+      basePrice: importPrice * 2,
+      roundedBasePrice: importPrice * 2,
       price: importPrice * 2 + (platingCost || 0) + (laborCost || 0),
       rawPrice: importPrice * 2,
       discountRate: 0,
