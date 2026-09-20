@@ -6,4 +6,7 @@ export const sourceService = {
     const { data } = await request.get<SourceListResponse>("/source-of-goods", { params, signal });
     return data;
   },
+  async remove(id: string): Promise<void> {
+    await request.delete(`/source-of-goods/${encodeURIComponent(id)}`);
+  },
 };

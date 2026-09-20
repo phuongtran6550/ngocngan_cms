@@ -1,8 +1,8 @@
 import { PERMISSIONS } from "@/config/permissions";
 import type { ResourceDefinition } from "@/config/resource";
 import {
-  defineReadonlyResource,
-  type ReadonlyResourceDeclaration,
+  defineResource,
+  type ResourceDeclaration,
   type ResourceListInput,
 } from "@/components/resource/contracts";
 import { sourceService } from "@/views/Sources/service";
@@ -21,7 +21,10 @@ export const sourceDefinition: ResourceDefinition = {
     { text: "Nguồn hàng" },
   ],
   endpoint: "/source-of-goods",
-  permission: { view: PERMISSIONS.sourceGoodsView },
+  permission: {
+    view: PERMISSIONS.sourceGoodsView,
+    delete: PERMISSIONS.sourceGoodsDelete,
+  },
   columns: [
     { key: "name", label: "Nguồn hàng", type: "text", sortable: true },
     { key: "phone", label: "Số điện thoại", type: "text" },
@@ -29,10 +32,11 @@ export const sourceDefinition: ResourceDefinition = {
     { key: "totalImportValue", label: "Tổng giá nhập", type: "money", sortable: true },
     { key: "latestImportAt", label: "Nhập gần nhất", type: "datetime", sortable: true },
   ],
-  actions: { view: true, refresh: true, fieldSelector: true },
+  actions: { view: true, delete: true, refresh: true, fieldSelector: true },
 };
 
 type SourceFilters = Record<string, never>;
+type SourceFormModel = Record<string, never>;
 
 function sourceListParams(
   input: ResourceListInput<SourceFilters>,
@@ -46,24 +50,40 @@ function sourceListParams(
   };
 }
 
-/** Historical source totals and current inventory are exposed as a read-only report. */
-export const sourceResource: ReadonlyResourceDeclaration<
+export const sourceResource: ResourceDeclaration<
   SourceItem,
+  SourceFormModel,
   SourceFilters
-> = defineReadonlyResource<SourceItem, SourceFilters>({
+> = defineResource<SourceItem, SourceFormModel, SourceFilters>({
   key: "source-of-goods",
-  mode: "readonly",
   definition: sourceDefinition,
   initialFilters: {},
   selectedColumns: ["name", "phone", "itemCount", "totalImportValue", "latestImportAt"],
   initialSort: { by: "totalImportValue", direction: "desc" },
   viewPermission: PERMISSIONS.warehouseView,
+  emptyForm: () => ({}),
+  formFromRow: () => ({}),
+  labels: {
+    singular: "nguồn hàng",
+    create: "",
+    update: "",
+    delete: "Đã xóa nguồn hàng",
+  },
   transport: {
     list(
       input: ResourceListInput<SourceFilters>,
       signal?: AbortSignal,
     ): Promise<SourceListResponse> {
       return sourceService.list(sourceListParams(input), signal);
+    },
+    async create(): Promise<SourceItem> {
+      throw new Error("Không hỗ trợ tạo nguồn hàng trực tiếp");
+    },
+    async update(): Promise<SourceItem> {
+      throw new Error("Không hỗ trợ cập nhật nguồn hàng trực tiếp");
+    },
+    async remove(id: string): Promise<void> {
+      await sourceService.remove(id);
     },
   },
 });

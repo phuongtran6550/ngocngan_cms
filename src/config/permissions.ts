@@ -16,6 +16,7 @@ export const PERMISSIONS = Object.freeze({
   warehouseUpdate: "warehouse.update",
   warehouseDelete: "warehouse.delete",
   sourceGoodsView: "source-goods.view",
+  sourceGoodsDelete: "source-goods.delete",
   categoriesView: "categories.view",
   categoriesCreate: "categories.create",
   categoriesUpdate: "categories.update",

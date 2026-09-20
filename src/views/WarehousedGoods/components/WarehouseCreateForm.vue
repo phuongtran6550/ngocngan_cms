@@ -78,10 +78,38 @@
                 Mỗi SKU có tồn kho, trọng lượng, chi phí và giá bán độc lập.
               </p>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="badge badge-phoenix badge-phoenix-info fs-9">
                 {{ draft.skus.length }} SKU
               </span>
+              <select
+                id="warehouse-sku-sort-select"
+                v-model="skuSortOption"
+                class="form-select form-select-sm sku-sort-select"
+                :disabled="submitting || draft.skus.length <= 1"
+                data-testid="sku-sort-select"
+                aria-label="Sắp xếp danh sách SKU"
+                @change="handleSkuSortChange"
+              >
+                <option value="">Sắp xếp SKU...</option>
+                <option value="original">Thứ tự ban đầu</option>
+                <optgroup label="Trọng lượng chỉ">
+                  <option value="weight-asc">Trọng lượng chỉ: Tăng dần</option>
+                  <option value="weight-desc">Trọng lượng chỉ: Giảm dần</option>
+                </optgroup>
+                <optgroup label="Tồn kho">
+                  <option value="stock-asc">Tồn kho: Tăng dần</option>
+                  <option value="stock-desc">Tồn kho: Giảm dần</option>
+                </optgroup>
+                <optgroup label="Tiền công">
+                  <option value="laborCost-asc">Tiền công: Tăng dần</option>
+                  <option value="laborCost-desc">Tiền công: Giảm dần</option>
+                </optgroup>
+                <optgroup label="Tiền xi">
+                  <option value="platingCost-asc">Tiền xi: Tăng dần</option>
+                  <option value="platingCost-desc">Tiền xi: Giảm dần</option>
+                </optgroup>
+              </select>
               <button
                 type="button"
                 class="btn btn-sm btn-primary"
@@ -861,13 +889,16 @@ export default defineComponent({
   },
   emits: ["update:modelValue", "clear-field-error", "submit"],
   data() {
+    const draft = copyForm(this.modelValue);
     return {
-      draft: copyForm(this.modelValue),
+      draft,
       localError: "",
       localFieldErrors: {} as Record<string, string>,
       categoryGroupsMap: {} as Record<string, CategoryGroup[]>,
       skuCodeCheckController: null as AbortController | null,
       skuCodeCheckSequence: 0,
+      skuSortOption: "",
+      initialSkuOrder: draft.skus.map((sku) => sku.clientId),
     };
   },
   mounted() {
@@ -898,6 +929,7 @@ export default defineComponent({
       handler(value: WarehouseFormModel) {
         this.invalidateSkuCodeCheck(value);
         this.draft = copyForm(value);
+        this.syncInitialSkuOrder(value.skus);
       },
     },
     "options.silverPrice"() {
@@ -1288,11 +1320,64 @@ export default defineComponent({
       this.commit(this.withCalculatedPrices(next));
       await this.checkSkuCodesNow();
     },
+    syncInitialSkuOrder(skus: WarehouseSkuFormModel[]): void {
+      const currentClientIds = new Set(skus.map((s) => s.clientId));
+      const hasOverlap = this.initialSkuOrder.some((id) =>
+        currentClientIds.has(id),
+      );
+      if (!hasOverlap) {
+        this.initialSkuOrder = skus.map((s) => s.clientId);
+        this.skuSortOption = "";
+        return;
+      }
+      const existingSet = new Set(this.initialSkuOrder);
+      for (const sku of skus) {
+        if (sku.clientId && !existingSet.has(sku.clientId)) {
+          this.initialSkuOrder.push(sku.clientId);
+          existingSet.add(sku.clientId);
+        }
+      }
+    },
+    async handleSkuSortChange(): Promise<void> {
+      if (!this.skuSortOption || this.draft.skus.length <= 1) return;
+      this.clearLocalValidation();
+      const next = copyForm(this.draft);
+      const initialMap = new Map(
+        this.initialSkuOrder.map((id, index) => [id, index]),
+      );
+
+      if (this.skuSortOption === "original") {
+        next.skus.sort((a, b) => {
+          const idxA = initialMap.get(a.clientId) ?? 9999;
+          const idxB = initialMap.get(b.clientId) ?? 9999;
+          return idxA - idxB;
+        });
+      } else {
+        const [key, dir] = this.skuSortOption.split("-") as [
+          "weight" | "stock" | "laborCost" | "platingCost",
+          "asc" | "desc",
+        ];
+        next.skus.sort((a, b) => {
+          const valA = Number(a[key]) || 0;
+          const valB = Number(b[key]) || 0;
+          if (valA !== valB) {
+            return dir === "asc" ? valA - valB : valB - valA;
+          }
+          const idxA = initialMap.get(a.clientId) ?? 9999;
+          const idxB = initialMap.get(b.clientId) ?? 9999;
+          return idxA - idxB;
+        });
+      }
+
+      this.commit(this.withCalculatedPrices(next));
+      await this.checkSkuCodesNow();
+    },
     updateSkuNumber(
       index: number,
       key: "weight" | "stock",
       event: Event,
     ): void {
+      this.skuSortOption = "";
       this.clearFieldError(`skus.${index}.${key}`);
       const raw = this.eventValue(event);
       const next = copyForm(this.draft);
@@ -1307,6 +1392,7 @@ export default defineComponent({
       key: SkuMoneyKey,
       value: number | null,
     ): void {
+      this.skuSortOption = "";
       this.clearFieldError(`skus.${index}.${key}`);
       const next = copyForm(this.draft);
       if (this.isPiece && key === "importPrice") {
@@ -1397,12 +1483,16 @@ export default defineComponent({
       this.commit(this.withCalculatedPrices(next));
     },
     addSku(): void {
+      this.skuSortOption = "";
       const next = copyForm(this.draft);
-      next.skus.push(emptyWarehouseSku());
+      const newSku = emptyWarehouseSku();
+      this.initialSkuOrder.push(newSku.clientId);
+      next.skus.push(newSku);
       this.commit(this.withCalculatedPrices(next));
     },
     removeSku(index: number): void {
       if (this.draft.skus.length <= 1) return;
+      this.skuSortOption = "";
       const next = copyForm(this.draft);
       next.skus.splice(index, 1);
       this.commit(this.withCalculatedPrices(next));
@@ -1792,5 +1882,14 @@ export default defineComponent({
   .sku-code-field .input-group > .btn {
     margin-top: 0.5rem;
   }
+
+  .sku-sort-select {
+    width: 100%;
+  }
+}
+
+.sku-sort-select {
+  min-width: 12.5rem;
+  width: auto;
 }
 </style>
