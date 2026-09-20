@@ -16,7 +16,7 @@
     </ol>
   </nav>
 
-  <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-nowrap">
+  <div class="d-flex align-items-start align-items-sm-center justify-content-between gap-3 mb-4 flex-wrap flex-sm-nowrap">
     <div class="min-w-0">
       <h2 class="mb-0 text-truncate" :title="title">{{ title }}</h2>
       <h5 v-if="description" class="text-body-tertiary fw-semibold mb-0 mt-2 text-truncate" :title="description">
@@ -25,7 +25,7 @@
     </div>
     <div
       v-if="$slots.actions"
-      class="d-flex align-items-center flex-shrink-0 gap-2 ms-auto"
+      class="d-flex align-items-center flex-wrap flex-sm-nowrap gap-2 ms-sm-auto"
       data-testid="page-header-actions"
     >
       <slot name="actions" />

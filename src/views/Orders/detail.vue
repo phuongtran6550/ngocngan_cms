@@ -5,55 +5,73 @@
     <template v-else-if="order">
       <PageHeader :title="order.orderCode" :description="`${order.name || 'Khách chưa bổ sung'} · ${dateTime(order.createdAt)}`">
         <template #actions>
-          <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
-          <OrderStatusBadge :status="order.status" />
-          <RouterLink class="btn btn-phoenix-secondary" to="/orders">
-            <AppIcon name="arrow-left" class="me-1" />
-            <span>Danh sách</span>
-          </RouterLink>
-          <button v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'" type="button" class="btn btn-primary" @click="reviewOpen = true">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt' : 'Bổ sung khách hàng' }}</button>
-          <div v-if="hasOrderActions" ref="actionMenu" class="dropdown">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
+            <OrderStatusBadge :status="order.status" />
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-nowrap ms-auto">
+            <RouterLink class="btn btn-sm btn-phoenix-secondary" to="/orders" title="Danh sách đơn hàng">
+              <AppIcon name="arrow-left" class="me-sm-1" />
+              <span class="d-none d-sm-inline">Danh sách</span>
+            </RouterLink>
             <button
+              v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'"
               type="button"
-              class="btn btn-phoenix-secondary dropdown-toggle"
-              :aria-expanded="actionMenuOpen"
-              :disabled="saving"
-              @click.stop="actionMenuOpen = !actionMenuOpen"
+              class="btn btn-sm btn-primary text-nowrap"
+              @click="reviewOpen = true"
             >
-              <span>Thao tác</span>
+              <span class="d-none d-sm-inline">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt' : 'Bổ sung khách hàng' }}</span>
+              <span class="d-sm-none">{{ order.customerInfoStatus === 'review_required' ? 'Duyệt' : 'Bổ sung' }}</span>
             </button>
-            <div v-if="actionMenuOpen" class="dropdown-menu dropdown-menu-end py-2 shadow-sm show" role="menu">
+            <div v-if="hasOrderActions" ref="actionMenu" class="dropdown">
               <button
-                v-if="canReturn"
                 type="button"
-                class="dropdown-item d-flex align-items-center gap-2"
+                class="btn btn-sm btn-phoenix-secondary dropdown-toggle d-flex align-items-center gap-1"
+                :aria-expanded="actionMenuOpen"
                 :disabled="saving"
-                @click="triggerAction('return')"
+                data-testid="order-action-dropdown-btn"
+                @click.stop="actionMenuOpen = !actionMenuOpen"
               >
-                <AppIcon name="refresh" class="text-warning" />
-                <span>Đổi trả</span>
+                <span>Thao tác</span>
               </button>
-              <button
-                v-if="canCancel"
-                type="button"
-                class="dropdown-item d-flex align-items-center gap-2 text-danger"
-                :disabled="saving"
-                @click="triggerAction('cancel')"
+              <div
+                v-if="actionMenuOpen"
+                class="dropdown-menu dropdown-menu-end py-2 shadow-sm show"
+                role="menu"
+                style="z-index: 1050; min-width: 11rem;"
               >
-                <AppIcon name="close" />
-                <span>Hủy đơn</span>
-              </button>
-              <div v-if="canDelete && (canReturn || canCancel)" class="dropdown-divider" />
-              <button
-                v-if="canDelete"
-                type="button"
-                class="dropdown-item d-flex align-items-center gap-2 text-danger"
-                :disabled="saving"
-                @click="triggerAction('delete')"
-              >
-                <AppIcon name="trash-2" />
-                <span>Xóa vĩnh viễn</span>
-              </button>
+                <button
+                  v-if="canReturn"
+                  type="button"
+                  class="dropdown-item d-flex align-items-center gap-2"
+                  :disabled="saving"
+                  @click="triggerAction('return')"
+                >
+                  <AppIcon name="refresh" class="text-warning" />
+                  <span>Đổi trả</span>
+                </button>
+                <button
+                  v-if="canCancel"
+                  type="button"
+                  class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                  :disabled="saving"
+                  @click="triggerAction('cancel')"
+                >
+                  <AppIcon name="close" />
+                  <span>Hủy đơn</span>
+                </button>
+                <div v-if="canDelete && (canReturn || canCancel)" class="dropdown-divider" />
+                <button
+                  v-if="canDelete"
+                  type="button"
+                  class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                  :disabled="saving"
+                  @click="triggerAction('delete')"
+                >
+                  <AppIcon name="trash-2" />
+                  <span class="fw-medium">Xóa vĩnh viễn</span>
+                </button>
+              </div>
             </div>
           </div>
         </template>
@@ -100,7 +118,44 @@
         <div class="col-12 col-lg-7">
           <article class="card mb-4">
             <div class="card-header bg-transparent border-bottom"><h2 class="fs-7 mb-0">Thông tin giao dịch</h2></div>
-            <div class="card-body"><DetailDefinitionList :fields="detailFields" /></div>
+            <div class="card-body">
+              <DetailDefinitionList :fields="detailFields" />
+              <div v-if="hasOrderActions" class="d-md-none border-top border-translucent mt-3 pt-3">
+                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Thao tác đơn hàng</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button
+                    v-if="canReturn"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-warning d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('return')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Đổi trả</span>
+                  </button>
+                  <button
+                    v-if="canCancel"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-danger d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('cancel')"
+                  >
+                    <AppIcon name="close" />
+                    <span>Hủy đơn</span>
+                  </button>
+                  <button
+                    v-if="canDelete"
+                    type="button"
+                    class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
+                    :disabled="saving"
+                    @click="triggerAction('delete')"
+                  >
+                    <AppIcon name="trash-2" />
+                    <span>Xóa vĩnh viễn</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </article>
           <article class="card overflow-hidden">
             <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between"><h2 class="fs-7 mb-0">Sản phẩm đã bán</h2><span class="badge badge-phoenix badge-phoenix-primary">{{ order.items.length }} SKU</span></div>

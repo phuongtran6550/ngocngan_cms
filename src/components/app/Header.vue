@@ -37,7 +37,7 @@
         <li v-if="cartVisible" class="nav-item">
           <RouterLink
             to="/orders/create"
-            class="nav-link px-2 position-relative"
+            class="nav-link cart-button position-relative"
             :aria-label="`Giỏ bán hàng có ${cartCount} sản phẩm`"
             title="Giỏ bán hàng"
           >
@@ -155,19 +155,50 @@ export default defineComponent({
   width: 100%;
 }
 
+.navbar-top .nav-link.cart-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  margin-inline: 0.25rem;
+  border: 1px solid var(--phoenix-primary-border-subtle);
+  border-radius: 0.75rem;
+  color: var(--phoenix-primary);
+  background: var(--phoenix-primary-bg-subtle);
+  touch-action: manipulation;
+}
+
+.navbar-top .nav-link.cart-button:hover,
+.navbar-top .nav-link.cart-button:active {
+  color: var(--phoenix-white);
+  background: var(--phoenix-primary);
+}
+
+.cart-button:focus-visible {
+  outline: 2px solid var(--phoenix-primary);
+  outline-offset: 2px;
+}
+
+.cart-button .cms-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
 .cart-count-badge {
   position: absolute;
   top: .15rem;
-  right: -.05rem;
-  min-width: 1.15rem;
-  padding: .08rem .25rem;
+  right: 0;
+  min-width: 1.35rem;
+  padding: .1rem .25rem;
   border: 2px solid var(--phoenix-body-bg);
   border-radius: 999px;
   color: #fff;
   background: var(--phoenix-danger);
-  font-size: .58rem;
+  font-size: .7rem;
   font-weight: 800;
-  line-height: .9rem;
+  line-height: 1rem;
   text-align: center;
 }
 
