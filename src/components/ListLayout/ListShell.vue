@@ -149,14 +149,17 @@
             :allow-view="Boolean(definition.actions.view)"
             :allow-update="Boolean(definition.actions.update)"
             :allow-delete="Boolean(definition.actions.delete)"
+            :allow-restore="Boolean(definition.actions.restore)"
             :selectable="selectable"
             :selected-keys="selectedKeys"
             :can-update-row="canUpdateRow"
             :can-delete-row="canDeleteRow"
+            :can-restore-row="canRestoreRow"
             @sort="$emit('sort', $event)"
             @view="$emit('view', $event)"
             @edit="$emit('edit', $event)"
             @delete="$emit('delete', $event)"
+            @restore="$emit('restore', $event)"
             @cell-action="$emit('cell-action', $event)"
             @select-row="(row: any, val: any) => $emit('select-row', row, val)"
             @select-all="$emit('select-all', $event)"
@@ -170,13 +173,16 @@
             :allow-view="Boolean(definition.actions.view)"
             :allow-update="Boolean(definition.actions.update)"
             :allow-delete="Boolean(definition.actions.delete)"
+            :allow-restore="Boolean(definition.actions.restore)"
             :selectable="selectable"
             :selected-keys="selectedKeys"
             :can-update-row="canUpdateRow"
             :can-delete-row="canDeleteRow"
+            :can-restore-row="canRestoreRow"
             @view="$emit('view', $event)"
             @edit="$emit('edit', $event)"
             @delete="$emit('delete', $event)"
+            @restore="$emit('restore', $event)"
             @cell-action="$emit('cell-action', $event)"
             @select-row="(row: any, val: any) => $emit('select-row', row, val)"
           />
@@ -276,6 +282,10 @@ export default defineComponent({
       type: Function as PropType<(row: ResourceRow) => boolean>,
       default: () => true,
     },
+    canRestoreRow: {
+      type: Function as PropType<(row: ResourceRow) => boolean>,
+      default: () => false,
+    },
     selectable: { type: Boolean, default: false },
     selectedKeys: {
       type: Array as PropType<(string | number)[]>,
@@ -290,6 +300,7 @@ export default defineComponent({
     "view",
     "edit",
     "delete",
+    "restore",
     "cell-action",
     "tab",
     "page",

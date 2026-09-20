@@ -55,6 +55,7 @@ export interface PermissionSet {
   create?: string;
   update?: string;
   delete?: string;
+  restore?: string;
 }
 
 export interface BreadcrumbDefinition {
@@ -141,6 +142,7 @@ export interface ListActionDefinition {
   edit?: boolean;
   fieldSelector?: boolean;
   refresh?: boolean;
+  restore?: boolean;
   view?: boolean;
 }
 
@@ -166,6 +168,7 @@ export interface ResourceActions {
   create?: boolean;
   update?: boolean;
   delete?: boolean;
+  restore?: boolean;
   refresh?: boolean;
   fieldSelector?: boolean;
 }

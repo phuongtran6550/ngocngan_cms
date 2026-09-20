@@ -103,10 +103,12 @@
               :can-view="allowView"
               :can-edit="canUpdate(row)"
               :can-delete="canDelete(row)"
+              :can-restore="canRestore(row)"
               :resource-label="resourceLabel(row)"
               @view="$emit('view', row)"
               @edit="$emit('edit', row)"
               @delete="$emit('delete', row)"
+              @restore="$emit('restore', row)"
             />
           </td>
         </tr>
@@ -136,6 +138,7 @@ export default defineComponent({
     allowView: { type: Boolean, default: false },
     allowUpdate: { type: Boolean, default: false },
     allowDelete: { type: Boolean, default: false },
+    allowRestore: { type: Boolean, default: false },
     selectable: { type: Boolean, default: false },
     selectedKeys: {
       type: Array as PropType<(string | number)[]>,
@@ -149,8 +152,12 @@ export default defineComponent({
       type: Function as PropType<(row: ResourceRow) => boolean>,
       default: () => true,
     },
+    canRestoreRow: {
+      type: Function as PropType<(row: ResourceRow) => boolean>,
+      default: () => false,
+    },
   },
-  emits: ["sort", "view", "edit", "delete", "cell-action", "select-row", "select-all"],
+  emits: ["sort", "view", "edit", "delete", "restore", "cell-action", "select-row", "select-all"],
   computed: {
     visibleColumns(): ColumnDefinition[] {
       return this.columns.filter((column) =>
@@ -158,7 +165,7 @@ export default defineComponent({
       );
     },
     hasActions(): boolean {
-      return this.allowView || this.allowUpdate || this.allowDelete;
+      return this.allowView || this.allowUpdate || this.allowDelete || this.allowRestore;
     },
     selectedKeySet(): Set<string> {
       return new Set(this.selectedKeys.map(String));
@@ -230,6 +237,9 @@ export default defineComponent({
     },
     canDelete(row: ResourceRow): boolean {
       return this.allowDelete && this.canDeleteRow(row);
+    },
+    canRestore(row: ResourceRow): boolean {
+      return this.allowRestore && this.canRestoreRow(row);
     },
     valueFor(row: ResourceRow, column: ColumnDefinition): unknown {
       return cellValue(row, column);

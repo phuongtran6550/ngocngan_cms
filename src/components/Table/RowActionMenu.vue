@@ -51,6 +51,17 @@
         >
           Xóa
         </button>
+        <div v-if="canRestore && (canView || canEdit || canDelete)" class="dropdown-divider" />
+        <button
+          v-if="canRestore"
+          type="button"
+          class="dropdown-item text-success"
+          data-testid="row-action-restore"
+          :aria-label="`Khôi phục ${resourceLabel}`"
+          @click="select('restore')"
+        >
+          Khôi phục
+        </button>
       </div>
     </Teleport>
   </div>
@@ -62,7 +73,7 @@ import { createPopper, type Instance as PopperInstance } from "@popperjs/core";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import { createDropdownBehavior } from "@/components/dropdown/behavior";
 
-type RowAction = "view" | "edit" | "delete";
+type RowAction = "view" | "edit" | "delete" | "restore";
 
 export default defineComponent({
   name: "RowActionMenu",
@@ -71,9 +82,10 @@ export default defineComponent({
     canView: { type: Boolean, default: false },
     canEdit: { type: Boolean, default: false },
     canDelete: { type: Boolean, default: false },
+    canRestore: { type: Boolean, default: false },
     resourceLabel: { type: String, default: "bản ghi" },
   },
-  emits: ["view", "edit", "delete"],
+  emits: ["view", "edit", "delete", "restore"],
   data() {
     return {
       open: false,
@@ -93,7 +105,7 @@ export default defineComponent({
   },
   computed: {
     hasActions(): boolean {
-      return this.canView || this.canEdit || this.canDelete;
+      return this.canView || this.canEdit || this.canDelete || this.canRestore;
     },
   },
   mounted() {

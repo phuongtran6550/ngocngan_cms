@@ -5,7 +5,7 @@
         <div class="modal-content">
           <div class="modal-header"><h2 id="confirm-title" class="modal-title fs-7">{{ title }}</h2><button type="button" class="btn-close" aria-label="Đóng" @click="$emit('cancel')" /></div>
           <div class="modal-body">{{ message }}</div>
-          <div class="modal-footer"><button type="button" class="btn btn-phoenix-secondary" @click="$emit('cancel')">Hủy</button><button type="button" class="btn btn-danger" @click="$emit('confirm')">{{ confirmLabel }}</button></div>
+          <div class="modal-footer"><button type="button" class="btn btn-phoenix-secondary" @click="$emit('cancel')">Hủy</button><button type="button" :class="['btn', `btn-${confirmVariant}`]" @click="$emit('confirm')">{{ confirmLabel }}</button></div>
         </div>
       </div>
     </div>
@@ -24,6 +24,7 @@ export default defineComponent({
     title: { type: String, default: "Xác nhận" },
     message: { type: String, default: "Bạn có chắc chắn muốn tiếp tục?" },
     confirmLabel: { type: String, default: "Xác nhận" },
+    confirmVariant: { type: String, default: "danger" },
   },
   emits: ["cancel", "confirm"],
   data() {

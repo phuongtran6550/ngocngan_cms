@@ -217,6 +217,12 @@ export const orderService = {
     );
     return orderFromResponse(data);
   },
+  async restore(id: string): Promise<Order> {
+    const { data } = await request.post<Order | OrderResponse>(`/orders/${id}/restore`, {}, {
+      headers: writeHeaders(),
+    });
+    return orderFromResponse(data);
+  },
   async remove(id: string): Promise<void> {
     await request.delete(`/orders/${id}`, { headers: writeHeaders() });
   },

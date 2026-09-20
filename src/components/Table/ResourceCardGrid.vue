@@ -69,10 +69,12 @@
               :can-view="allowView"
               :can-edit="canUpdate(row)"
               :can-delete="canDelete(row)"
+              :can-restore="canRestore(row)"
               :resource-label="resourceLabel(row)"
               @view="$emit('view', row)"
               @edit="$emit('edit', row)"
               @delete="$emit('delete', row)"
+              @restore="$emit('restore', row)"
             />
           </div>
 
@@ -123,10 +125,12 @@ const props = withDefaults(
     allowView?: boolean;
     allowUpdate?: boolean;
     allowDelete?: boolean;
+    allowRestore?: boolean;
     selectable?: boolean;
     selectedKeys?: (string | number)[];
     canUpdateRow?: (row: ResourceRow) => boolean;
     canDeleteRow?: (row: ResourceRow) => boolean;
+    canRestoreRow?: (row: ResourceRow) => boolean;
   }>(),
   {
     rows: () => [],
@@ -135,10 +139,12 @@ const props = withDefaults(
     allowView: false,
     allowUpdate: false,
     allowDelete: false,
+    allowRestore: false,
     selectable: false,
     selectedKeys: () => [],
     canUpdateRow: () => true,
     canDeleteRow: () => true,
+    canRestoreRow: () => false,
   },
 );
 
@@ -146,6 +152,7 @@ const emit = defineEmits<{
   view: [row: ResourceRow];
   edit: [row: ResourceRow];
   delete: [row: ResourceRow];
+  restore: [row: ResourceRow];
   "cell-action": [payload: unknown];
   "select-row": [row: ResourceRow, selected: boolean];
 }>();
@@ -204,6 +211,10 @@ function canUpdate(row: ResourceRow): boolean {
 
 function canDelete(row: ResourceRow): boolean {
   return Boolean(props.allowDelete && props.canDeleteRow(row));
+}
+
+function canRestore(row: ResourceRow): boolean {
+  return Boolean(props.allowRestore && props.canRestoreRow(row));
 }
 
 function isSelected(row: ResourceRow): boolean {

@@ -11,6 +11,7 @@ export const orderDefinition: ResourceDefinition = {
     create: PERMISSIONS.ordersCreate,
     update: PERMISSIONS.ordersUpdate,
     delete: PERMISSIONS.ordersDelete,
+    restore: PERMISSIONS.ordersDelete,
   },
   columns: [
     { key: "thumbnail", label: "Ảnh", type: "image", width: "5rem", display: { url: "/orders/:id" } },
@@ -26,5 +27,5 @@ export const orderDefinition: ResourceDefinition = {
     { key: "createdAt", label: "Ngày tạo", type: "datetime", sortable: true },
     { key: "updatedAt", label: "Cập nhật", type: "datetime", sortable: true, displayIn: "table" },
   ],
-  actions: { view: true, create: true, delete: true, refresh: true, fieldSelector: true },
+  actions: { view: true, create: true, delete: true, restore: true, refresh: true, fieldSelector: true },
 };

@@ -60,7 +60,17 @@
                   <AppIcon name="close" />
                   <span>Hủy đơn</span>
                 </button>
-                <div v-if="canDelete && (canReturn || canCancel)" class="dropdown-divider" />
+                <button
+                  v-if="canRestore"
+                  type="button"
+                  class="dropdown-item d-flex align-items-center gap-2 text-success"
+                  :disabled="saving"
+                  @click="triggerAction('restore')"
+                >
+                  <AppIcon name="refresh" />
+                  <span>Khôi phục đơn</span>
+                </button>
+                <div v-if="canDelete && (canReturn || canCancel || canRestore)" class="dropdown-divider" />
                 <button
                   v-if="canDelete"
                   type="button"
@@ -144,6 +154,16 @@
                     <span>Hủy đơn</span>
                   </button>
                   <button
+                    v-if="canRestore"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-success d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('restore')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Khôi phục đơn</span>
+                  </button>
+                  <button
                     v-if="canDelete"
                     type="button"
                     class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
@@ -186,7 +206,7 @@
     <DrawerPanel :open="reviewOpen" title="Đối chiếu thông tin khách hàng" wide @close="reviewOpen = false">
       <OrderCustomerReview v-if="order" :order="order" :submitting="saving" :error="error" @submit="saveCustomer" />
     </DrawerPanel>
-    <ConfirmDialog :open="Boolean(confirmAction)" :title="actionConfirmation.title" :message="actionConfirmation.message" :confirm-label="actionConfirmation.label" @cancel="confirmAction = ''" @confirm="runAction" />
+    <ConfirmDialog :open="Boolean(confirmAction)" :title="actionConfirmation.title" :message="actionConfirmation.message" :confirm-label="actionConfirmation.label" :confirm-variant="actionConfirmation.variant || 'danger'" @cancel="confirmAction = ''" @confirm="runAction" />
     <ImagePreview :src="preview" :alt="order?.orderCode || 'Ảnh đơn hàng'" @close="preview = ''" />
   </section>
 </template>
@@ -239,7 +259,7 @@ export default defineComponent({
       error: "",
       message: "",
       preview: "",
-      confirmAction: "" as "" | "return" | "cancel" | "delete",
+      confirmAction: "" as "" | "return" | "cancel" | "delete" | "restore",
       actionMenuOpen: false,
       dropdown: null as DropdownBehavior | null,
     };
@@ -252,17 +272,29 @@ export default defineComponent({
     canCancel(): boolean {
       return Boolean(this.auth.can("orders.delete") && this.order?.status === "completed");
     },
+    canRestore(): boolean {
+      return Boolean(
+        (this.auth.can("orders.delete") || this.auth.can("orders.update")) &&
+        this.order?.status === "cancelled"
+      );
+    },
     canDelete(): boolean {
       return Boolean(this.auth.isAdmin);
     },
     hasOrderActions(): boolean {
-      return this.canReturn || this.canCancel || this.canDelete;
+      return this.canReturn || this.canCancel || this.canRestore || this.canDelete;
     },
-    actionConfirmation(): { title: string; message: string; label: string } {
+    actionConfirmation(): { title: string; message: string; label: string; variant?: string } {
       if (this.confirmAction === "delete") return {
         title: "Xóa vĩnh viễn đơn hàng",
         message: `Đơn ${this.order?.orderCode || ""} và chi tiết sản phẩm sẽ bị xóa, không thể khôi phục. ${this.order?.status === "completed" ? "Các món đã bán sẽ được hoàn lại tồn kho." : "Đơn đã hủy hoặc đổi trả sẽ không được hoàn tồn thêm lần nữa."}`,
         label: "Xóa vĩnh viễn",
+      };
+      if (this.confirmAction === "restore") return {
+        title: "Khôi phục đơn hàng",
+        message: "Đơn hàng sẽ được khôi phục về trạng thái hoàn tất và toàn bộ SKU sẽ được trừ lại vào tồn kho.",
+        label: "Khôi phục đơn hàng",
+        variant: "success",
       };
       return this.confirmAction === "return"
         ? { title: "Xác nhận đổi trả", message: "Đơn chuyển sang đổi trả và toàn bộ SKU được hoàn lại tồn kho.", label: "Đổi trả và hoàn tồn" }
@@ -312,7 +344,7 @@ export default defineComponent({
       if (value === "entered") return "Người dùng nhập mới";
       return "—";
     },
-    triggerAction(action: "return" | "cancel" | "delete"): void {
+    triggerAction(action: "return" | "cancel" | "delete" | "restore"): void {
       this.actionMenuOpen = false;
       this.confirmAction = action;
     },
@@ -335,6 +367,8 @@ export default defineComponent({
           await this.$router.push("/orders");
         } else if (action === "return") {
           this.order = await orderService.markReturned(this.order.id); this.message = "Đã đổi trả và hoàn tồn kho";
+        } else if (action === "restore") {
+          this.order = await orderService.restore(this.order.id); this.message = "Đã khôi phục đơn và cập nhật tồn kho";
         } else {
           await orderService.remove(this.order.id); await this.load(); this.message = "Đã hủy đơn và hoàn tồn kho";
         }

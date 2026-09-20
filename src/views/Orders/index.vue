@@ -10,12 +10,14 @@
       :error="store.error"
       :selected-columns="store.selectedColumns"
       :can-delete-row="canDeleteRow"
+      :can-restore-row="canRestoreRow"
       @create="$router.push('/orders/create')"
       @refresh="store.load"
       @fields="updateFields"
       @sort="store.applySort"
       @view="openDetail"
       @delete="requestDelete"
+      @restore="requestRestore"
       @page="store.load"
     >
       <template #header-actions>
@@ -135,6 +137,16 @@
       @cancel="store.cancelDelete"
       @confirm="store.confirmDelete"
     />
+
+    <ConfirmDialog
+      :open="Boolean(store.restoreTarget)"
+      title="Khôi phục đơn hàng"
+      :message="`Đơn của “${store.restoreTarget?.name || store.restoreTarget?.phone || 'khách lẻ'}” sẽ được khôi phục về trạng thái hoàn tất và sản phẩm sẽ được trừ lại vào tồn kho.`"
+      confirm-label="Khôi phục"
+      confirm-variant="success"
+      @cancel="store.cancelRestore"
+      @confirm="store.confirmRestore"
+    />
   </div>
 </template>
 
@@ -199,6 +211,7 @@ export default defineComponent({
           ...orderDefinition.actions,
           create: this.auth.can(orderDefinition.permission.create),
           delete: this.auth.can(orderDefinition.permission.delete),
+          restore: this.auth.can(orderDefinition.permission.restore || orderDefinition.permission.delete),
         },
       };
     },
@@ -229,7 +242,9 @@ export default defineComponent({
     updateFields(fields: string[]): void { if (fields.length) this.store.selectedColumns = fields; },
     openDetail(row: ResourceRow): void { void this.$router.push(`/orders/${row.id}`); },
     canDeleteRow(row: ResourceRow): boolean { return ["draft", "completed"].includes(String(row.status)); },
+    canRestoreRow(row: ResourceRow): boolean { return String(row.status) === "cancelled"; },
     requestDelete(row: ResourceRow): void { this.store.requestDelete(row as unknown as Order); },
+    requestRestore(row: ResourceRow): void { this.store.requestRestore(row as unknown as Order); },
     openFilters(): void {
       this.draftType = this.store.type;
       this.draftStatus = this.store.status;

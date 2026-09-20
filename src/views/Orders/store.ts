@@ -41,6 +41,7 @@ export const useOrderStore = defineStore("orders", {
     error: "",
     message: "",
     deleteTarget: null as Order | null,
+    restoreTarget: null as Order | null,
     draft: null as Order | null,
     listController: null as AbortController | null,
     missingController: null as AbortController | null,
@@ -212,6 +213,22 @@ export const useOrderStore = defineStore("orders", {
       try {
         await orderService.remove(target.id);
         this.message = "Đã hủy đơn hàng";
+        await this.load(this.pagination.page);
+        await this.loadCounts();
+      } catch (error) {
+        this.error = apiError(error).message;
+      }
+    },
+    requestRestore(item: Order): void { this.restoreTarget = item; },
+    cancelRestore(): void { this.restoreTarget = null; },
+    async confirmRestore(): Promise<void> {
+      const target = this.restoreTarget;
+      if (!target) return;
+      this.restoreTarget = null;
+      this.error = "";
+      try {
+        await orderService.restore(target.id);
+        this.message = "Đã khôi phục đơn hàng";
         await this.load(this.pagination.page);
         await this.loadCounts();
       } catch (error) {
