@@ -16,6 +16,7 @@ export interface WarehouseSku {
   size: string;
   weight: number;
   price: number;
+  manualPrice?: boolean;
   laborCost: number;
   platingCost: number;
   importPrice: number | null;
@@ -138,6 +139,7 @@ export function emptyWarehouseSku(
     size: input.size || "",
     weight: Number(input.weight) || 0,
     price: Number(input.price) || 0,
+    manualPrice: input.manualPrice ?? false,
     laborCost: Number(input.laborCost) || 0,
     platingCost: Number(input.platingCost) || 0,
     importPrice:

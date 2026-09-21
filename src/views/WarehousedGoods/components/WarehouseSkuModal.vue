@@ -220,14 +220,39 @@
                     <FieldError id="sku-modal-plating-cost-err" :message="fieldError('platingCost')" />
                   </div>
 
+                  <div v-if="isWeighted || isPiece" class="col-12 form-check ms-2">
+                    <input
+                      id="sku-modal-manual-price"
+                      class="form-check-input"
+                      type="checkbox"
+                      :checked="draft.manualPrice"
+                      :disabled="submitting"
+                      @change="updateManualPrice"
+                    />
+                    <label class="form-check-label" for="sku-modal-manual-price">
+                      Nhập giá bán thủ công
+                    </label>
+                  </div>
+
                   <!-- Trường tính tiền cho Đồ cân -->
                   <template v-if="isWeighted">
 
                     <div class="col-12">
                       <label class="form-label fs-9 fw-bold" for="sku-modal-selling-price">
-                        Giá bán sau làm tròn
+                        {{ draft.manualPrice ? "Giá bán" : "Giá bán sau làm tròn" }}
                       </label>
-                      <div class="input-group input-group-lg selling-price-input">
+                      <MoneyInput
+                        v-if="draft.manualPrice"
+                        id="sku-modal-selling-price"
+                        name="price"
+                        :model-value="draft.price"
+                        :disabled="submitting"
+                        :invalid="hasFieldError('price')"
+                        described-by="sku-modal-selling-price-err"
+                        required
+                        @update:model-value="updatePrice"
+                      />
+                      <div v-else class="input-group input-group-lg selling-price-input">
                         <input
                           id="sku-modal-selling-price"
                           class="form-control fw-bold"
@@ -237,8 +262,11 @@
                         />
                         <span class="input-group-text">₫</span>
                       </div>
+                      <FieldError id="sku-modal-selling-price-err" :message="fieldError('price')" />
                       <small class="text-body-tertiary fs-10">
-                        Tự động tính từ Tiền hàng sau làm tròn + Tiền công + Tiền xi.
+                        {{ draft.manualPrice
+                          ? "Giữ nguyên giá đã nhập, kể cả khi giá bạc thay đổi."
+                          : "Tự động tính từ Tiền hàng sau làm tròn + Tiền công + Tiền xi." }}
                       </small>
                     </div>
                   </template>
@@ -272,14 +300,14 @@
                         id="sku-modal-piece-price"
                         name="price"
                         :model-value="draft.price"
-                        :disabled="submitting"
+                        :disabled="submitting || !draft.manualPrice"
                         :invalid="hasFieldError('price')"
                         required
-                        @update:model-value="updatePiecePrice"
+                        @update:model-value="updatePrice"
                       />
                       <FieldError id="sku-modal-piece-price-err" :message="fieldError('price')" />
                       <small class="text-body-tertiary fs-10">
-                        Có thể điều chỉnh để quy ngược giá nhập.
+                        {{ draft.manualPrice ? "Giữ nguyên giá bán đã nhập." : "Tự động tính theo giá nhập, tiền công và tiền xi." }}
                       </small>
                     </div>
                   </template>
@@ -302,8 +330,12 @@
                     </div>
                   </div>
 
+                  <div v-if="draft.manualPrice" class="formula-total">
+                    <span>Giá bán thủ công áp dụng</span>
+                    <strong>{{ formatMoney(draft.price) }}</strong>
+                  </div>
                   <div
-                    v-if="isWeighted && !hasSilverPrice"
+                    v-else-if="isWeighted && !hasSilverPrice"
                     class="alert alert-subtle-warning fs-9 mb-0"
                     role="status"
                   >
@@ -450,8 +482,6 @@ import { formatMoney } from "@/utils/resource-display";
 import {
   calculatePiecePrice,
   calculateWeightedPrice,
-  estimatePieceImportPrice,
-  roundSellingPrice,
 } from "@/views/WarehousedGoods/pricing";
 import { warehouseService } from "@/views/WarehousedGoods/service";
 import { request } from "@/request";
@@ -479,6 +509,7 @@ function copySku(source?: WarehouseSku | null): WarehouseSkuFormModel {
     size: source.size || "",
     weight: Number(source.weight) || 0,
     price: Number(source.price) || 0,
+    manualPrice: source.manualPrice ?? false,
     laborCost: Number(source.laborCost) || 0,
     platingCost: Number(source.platingCost) || 0,
     importPrice: source.importPrice === null || source.importPrice === undefined
@@ -584,6 +615,9 @@ export default defineComponent({
         this.recalculatePrice();
       }
     },
+    silverPrice() {
+      if (this.open) this.recalculatePrice();
+    },
     error(newVal: string) {
       if (newVal) {
         this.scrollToError();
@@ -644,19 +678,19 @@ export default defineComponent({
       }
     },
     recalculatePrice(): void {
-      if (this.isWeighted) {
-        const calculated = this.weightedPreview.price;
-        this.draft.price = calculated;
-        this.draft.importPrice = null;
-      } else if (this.isPiece) {
-        if (!this.draft.price && this.draft.importPrice) {
-          this.draft.price = calculatePiecePrice(
-            Number(this.draft.importPrice) || 0,
-            Number(this.draft.platingCost) || 0,
-            Number(this.draft.laborCost) || 0,
-          ).price;
-        }
-      }
+      if (this.isWeighted) this.draft.importPrice = null;
+      if (this.draft.manualPrice) return;
+      if (this.isWeighted) this.draft.price = this.weightedPreview.price;
+      else if (this.isPiece) this.draft.price = this.piecePreview.price;
+    },
+    updateManualPrice(event: Event): void {
+      this.clearFieldError("price");
+      this.draft.manualPrice = (event.target as HTMLInputElement).checked;
+      this.recalculatePrice();
+    },
+    updatePrice(value: number | null): void {
+      this.clearFieldError("price");
+      this.draft.price = value ?? 0;
     },
     updateCode(e: Event): void {
       this.clearFieldError("code");
@@ -715,63 +749,19 @@ export default defineComponent({
     updateLaborCost(val: number | null): void {
       this.clearFieldError("laborCost");
       this.draft.laborCost = val ?? 0;
-      if (this.isWeighted) {
-        this.recalculatePrice();
-      } else if (this.isPiece) {
-        if (this.draft.importPrice) {
-          this.draft.price = calculatePiecePrice(
-            Number(this.draft.importPrice) || 0,
-            Number(this.draft.platingCost) || 0,
-            Number(this.draft.laborCost) || 0,
-          ).price;
-        }
-      }
+      this.recalculatePrice();
     },
     updatePlatingCost(val: number | null): void {
       this.clearFieldError("platingCost");
       this.draft.platingCost = val ?? 0;
-      if (this.isWeighted) {
-        this.recalculatePrice();
-      } else if (this.isPiece) {
-        if (this.draft.importPrice) {
-          this.draft.price = calculatePiecePrice(
-            Number(this.draft.importPrice) || 0,
-            Number(this.draft.platingCost) || 0,
-            Number(this.draft.laborCost) || 0,
-          ).price;
-        }
-      }
+      this.recalculatePrice();
     },
     updatePieceImportPrice(val: number | null): void {
       this.clearFieldError("importPrice");
       this.clearFieldError("price");
       this.draft.importPrice = val;
-      this.draft.price = calculatePiecePrice(
-        Number(val) || 0,
-        Number(this.draft.platingCost) || 0,
-        Number(this.draft.laborCost) || 0,
-      ).price;
-      if (this.draft.codeMode === "auto") {
-        this.applySuggestedCode();
-      }
-    },
-    updatePiecePrice(val: number | null): void {
-      this.clearFieldError("price");
-      this.clearFieldError("importPrice");
-      const price = val ?? 0;
-      this.draft.price = price;
-      if (price > 0) {
-        const estimate = estimatePieceImportPrice(
-          price,
-          Number(this.draft.importPrice) || 0,
-          Number(this.draft.platingCost) || 0,
-          Number(this.draft.laborCost) || 0,
-        );
-        this.draft.importPrice = estimate?.importPrice ?? null;
-      }
-      if (this.draft.codeMode === "auto") {
-        this.applySuggestedCode();
-      }
+      this.recalculatePrice();
+      if (this.draft.codeMode === "auto") this.applySuggestedCode();
     },
     async checkSkuCodeAvailability(): Promise<void> {
       const code = normalizeSkuCode(this.draft.code);
@@ -833,7 +823,7 @@ export default defineComponent({
       }
 
       if (this.isWeighted) {
-        if (!this.hasSilverPrice) {
+        if (!this.draft.manualPrice && !this.hasSilverPrice) {
           this.localError = "Chưa cấu hình giá bạc hiện tại. Không thể tính giá đồ cân.";
         }
       } else if (this.isPiece) {
@@ -845,6 +835,9 @@ export default defineComponent({
         }
       }
 
+      if (this.draft.manualPrice && !(Number.isFinite(this.draft.price) && this.draft.price > 0)) {
+        this.fieldErrors.price = "Giá bán phải lớn hơn 0";
+      }
       const hasFieldErrors = Object.keys(this.fieldErrors).length > 0;
       if (hasFieldErrors && !this.localError) {
         const firstKey = Object.keys(this.fieldErrors)[0];

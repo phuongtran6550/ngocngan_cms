@@ -1357,6 +1357,7 @@ export default defineComponent({
           ? `Đã cập nhật SKU "${skuForm.code}" thành công.`
           : `Đã thêm mới SKU "${skuForm.code}" thành công.`;
         this.showSkuFeedback(successMsg, "success");
+        this.skuModalSubmitting = false;
         this.closeSkuModal();
       } catch (error) {
         const errMsg = apiError(error).message;

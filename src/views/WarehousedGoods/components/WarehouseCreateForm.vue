@@ -468,6 +468,20 @@
                       />
                     </div>
 
+                    <div v-if="isWeighted || isPiece" class="col-12 form-check ms-2">
+                      <input
+                        :id="skuFieldId(index, 'manualPrice')"
+                        class="form-check-input"
+                        type="checkbox"
+                        :checked="sku.manualPrice"
+                        :disabled="submitting"
+                        @change="updateManualPrice(index, $event)"
+                      />
+                      <label class="form-check-label" :for="skuFieldId(index, 'manualPrice')">
+                        Nhập giá bán thủ công
+                      </label>
+                    </div>
+
                     <div v-if="isPiece" class="col-12 col-sm-6">
                       <label
                         class="form-label"
@@ -514,7 +528,7 @@
                         :id="skuFieldId(index, 'price')"
                         :name="`skus[${index}].price`"
                         :model-value="sku.price"
-                        :disabled="submitting"
+                        :disabled="submitting || !sku.manualPrice"
                         :invalid="hasFieldError(`skus.${index}.price`)"
                         :described-by="
                           hasFieldError(`skus.${index}.price`)
@@ -534,7 +548,7 @@
                         :id="`${skuFieldId(index, 'price')}-note`"
                         class="text-body-tertiary"
                       >
-                        Nhập giá bán để hệ thống tự quy ngược giá nhập.
+                        {{ sku.manualPrice ? "Giữ nguyên giá bán đã nhập." : "Tự động tính theo giá nhập, tiền công và tiền xi." }}
                       </small>
                     </div>
 
@@ -546,9 +560,21 @@
                         class="form-label"
                         :for="skuFieldId(index, 'price')"
                       >
-                        Giá bán sau làm tròn
+                        {{ sku.manualPrice ? "Giá bán" : "Giá bán sau làm tròn" }}
                       </label>
+                      <MoneyInput
+                        v-if="sku.manualPrice"
+                        :id="skuFieldId(index, 'price')"
+                        :name="`skus[${index}].price`"
+                        :model-value="sku.price"
+                        :disabled="submitting"
+                        :invalid="hasFieldError(`skus.${index}.price`)"
+                        :described-by="fieldErrorId(`skus.${index}.price`)"
+                        required
+                        @update:model-value="updateSkuMoney(index, 'price', $event)"
+                      />
                       <div
+                        v-else
                         class="input-group input-group-lg selling-price-input"
                       >
                         <input
@@ -584,7 +610,7 @@
                         :id="`${skuFieldId(index, 'price')}-note`"
                         class="text-body-tertiary"
                       >
-                        Hệ thống xác minh lại giá trước khi lưu.
+                        {{ sku.manualPrice ? "Giữ nguyên giá đã nhập, kể cả khi giá bạc thay đổi." : "Hệ thống xác minh lại giá trước khi lưu." }}
                       </small>
                     </div>
                   </div>
@@ -617,6 +643,10 @@
 
                     <div v-if="!draft.pricingType" class="formula-empty">
                       Chọn loại sản phẩm để xem công thức và chi phí tương ứng.
+                    </div>
+                    <div v-else-if="sku.manualPrice" class="formula-total">
+                      <span>Giá bán thủ công áp dụng</span>
+                      <strong>{{ money(sku.price) }}</strong>
                     </div>
                     <div
                       v-else-if="isWeighted && !hasSilverPrice"
@@ -884,8 +914,6 @@ import { formatMoney, formatNumberValue } from "@/utils/resource-display";
 import {
   calculatePiecePrice,
   calculateWeightedPrice,
-  estimatePieceImportPrice,
-  estimatePieceImportPrices,
 } from "@/views/WarehousedGoods/pricing";
 import { request } from "@/request";
 import type { CategoryGroup } from "@/views/Categories/types";
@@ -1152,32 +1180,10 @@ export default defineComponent({
       pricingType: WarehouseFormModel["pricingType"],
     ): WarehouseSkuFormModel {
       if (pricingType === "Đồ cân") {
-        return {
-          ...sku,
-          importPrice: null,
-          price: this.weightedPreview(sku).price,
-        };
+        return { ...sku, importPrice: null, price: sku.manualPrice ? sku.price : this.weightedPreview(sku).price };
       }
       if (pricingType === "Đồ món") {
-        const enteredPrice = Number(sku.price) || 0;
-        const platingCost = Number(sku.platingCost) || 0;
-        const laborCost = Number(sku.laborCost) || 0;
-        const keepsEnteredPrice = estimatePieceImportPrices(
-          enteredPrice,
-          platingCost,
-          laborCost,
-        ).some(
-          (candidate) =>
-            candidate.importPrice === Number(sku.importPrice),
-        );
-        return {
-          ...sku,
-          laborCost,
-          platingCost,
-          price: keepsEnteredPrice
-            ? enteredPrice
-            : this.piecePreview(sku).price,
-        };
+        return { ...sku, price: sku.manualPrice ? sku.price : this.piecePreview(sku).price };
       }
       return { ...sku, price: 0 };
     },
@@ -1534,79 +1540,16 @@ export default defineComponent({
       this.skuSortOption = "";
       this.clearFieldError(`skus.${index}.${key}`);
       const next = copyForm(this.draft);
-      if (this.isPiece && key === "importPrice") {
-        this.clearFieldError(`skus.${index}.price`);
-        const importPrice = value;
-        next.skus[index] = {
-          ...next.skus[index],
-          importPrice,
-          price: calculatePiecePrice(
-            Number(importPrice) || 0,
-            Number(next.skus[index].platingCost) || 0,
-            Number(next.skus[index].laborCost) || 0,
-          ).price,
-        };
-        this.commit(this.withCalculatedPrices(next));
-        return;
-      }
-      if (this.isPiece && key === "laborCost") {
-        const laborCost = value ?? 0;
-        next.skus[index] = {
-          ...next.skus[index],
-          laborCost,
-        };
-        if (next.skus[index].importPrice) {
-          next.skus[index].price = calculatePiecePrice(
-            Number(next.skus[index].importPrice) || 0,
-            Number(next.skus[index].platingCost) || 0,
-            laborCost,
-          ).price;
-        }
-        this.commit(this.withCalculatedPrices(next));
-        return;
-      }
-      if (this.isPiece && key === "platingCost") {
-        const platingCost = value ?? 0;
-        next.skus[index] = {
-          ...next.skus[index],
-          platingCost,
-        };
-        if (next.skus[index].importPrice) {
-          next.skus[index].price = calculatePiecePrice(
-            Number(next.skus[index].importPrice) || 0,
-            platingCost,
-            Number(next.skus[index].laborCost) || 0,
-          ).price;
-        }
-        this.commit(this.withCalculatedPrices(next));
-        return;
-      }
-      if (this.isPiece && key === "price") {
-        this.clearFieldError(`skus.${index}.importPrice`);
-        const price = value ?? 0;
-        if (!(price > 0)) {
-          next.skus[index] = { ...next.skus[index], price: 0 };
-          this.commit(next);
-          return;
-        }
-        const estimate = estimatePieceImportPrice(
-          price,
-          Number(next.skus[index].importPrice) || 0,
-          Number(next.skus[index].platingCost) || 0,
-          Number(next.skus[index].laborCost) || 0,
-        );
-        next.skus[index] = {
-          ...next.skus[index],
-          price,
-          importPrice: estimate?.importPrice ?? null,
-        };
-        this.commit(this.withCalculatedPrices(next));
-        return;
-      }
       next.skus[index] = {
         ...next.skus[index],
         [key]: key === "importPrice" ? value : value ?? 0,
       };
+      this.commit(this.withCalculatedPrices(next));
+    },
+    updateManualPrice(index: number, event: Event): void {
+      this.clearFieldError(`skus.${index}.price`);
+      const next = copyForm(this.draft);
+      next.skus[index].manualPrice = (event.target as HTMLInputElement).checked;
       this.commit(this.withCalculatedPrices(next));
     },
     updatePricingType(event: Event): void {
@@ -1663,7 +1606,7 @@ export default defineComponent({
         ],
         [this.draft.skus.length > 0, "", "Cần ít nhất 1 SKU"],
         [
-          !this.isWeighted || this.hasSilverPrice,
+          !this.isWeighted || this.hasSilverPrice || this.draft.skus.every((sku) => sku.manualPrice),
           "",
           "Chưa cấu hình giá bạc hiện tại",
         ],
@@ -1720,6 +1663,10 @@ export default defineComponent({
             `skus.${index}.stock`,
             `SKU ${index + 1}: Tồn kho phải là số nguyên`,
           );
+          return null;
+        }
+        if (sku.manualPrice && !(Number.isFinite(sku.price) && sku.price > 0)) {
+          this.setLocalFieldError(`skus.${index}.price`, `SKU ${index + 1}: Giá bán phải lớn hơn 0`);
           return null;
         }
         if (this.isPiece) {

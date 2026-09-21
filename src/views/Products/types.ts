@@ -91,9 +91,10 @@ export type ProductSkuHistoryField =
   | "platingCost"
   | "importPrice"
   | "price"
+  | "manualPrice"
   | "stock";
 
-export type ProductSkuHistoryValue = string | number | null;
+export type ProductSkuHistoryValue = string | number | boolean | null;
 
 export interface ProductSkuHistoryChange {
   field: ProductSkuHistoryField;

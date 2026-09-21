@@ -504,6 +504,7 @@ const historyFieldLabels: Record<ProductSkuHistoryField, string> = {
   platingCost: "Tiền xi",
   importPrice: "Giá nhập",
   price: "Giá bán",
+  manualPrice: "Nhập giá bán thủ công",
   stock: "Tồn kho",
 };
 const moneyHistoryFields = new Set<ProductSkuHistoryField>([
@@ -679,6 +680,7 @@ function historyValue(
   value: ProductSkuHistoryValue,
 ): string {
   if (value === null || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Bật" : "Tắt";
   if (moneyHistoryFields.has(field)) return formatMoney(value);
   if (field === "weight" && typeof value === "number") {
     return `${decimal.format(value)} chỉ`;
