@@ -692,10 +692,6 @@
                             <dd>{{ money(sku.laborCost) }}</dd>
                           </div>
                         </template>
-                        <div v-if="isWeighted" class="formula-subtotal">
-                          <dt>Tạm tính</dt>
-                          <dd>{{ money(rawPrice(sku)) }}</dd>
-                        </div>
                       </dl>
                       <div class="formula-total">
                         <span>Giá bán áp dụng</span>

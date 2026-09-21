@@ -238,7 +238,7 @@
                         <span class="input-group-text">₫</span>
                       </div>
                       <small class="text-body-tertiary fs-10">
-                        Tự động tính từ (Trọng lượng × Giá bạc) + Tiền công + Tiền xi.
+                        Tự động tính từ Tiền hàng sau làm tròn + Tiền công + Tiền xi.
                       </small>
                     </div>
                   </template>
@@ -375,10 +375,6 @@
                           <dd>{{ formatMoney(draft.laborCost) }}</dd>
                         </div>
                       </template>
-                      <div v-if="isWeighted" class="formula-subtotal">
-                        <dt>Tạm tính</dt>
-                        <dd>{{ formatMoney(rawPrice) }}</dd>
-                      </div>
                     </dl>
                     <div class="formula-total">
                       <span>Giá bán áp dụng</span>
