@@ -137,7 +137,7 @@
                 </div>
                 <div v-if="weightedCostBreakdown">
                   <dt>
-                    Tiền bạc
+                    Tiền bạc (giá gốc)
                     <small
                       v-if="currentSilverPrice"
                       class="sku-definition-hint d-block text-body-tertiary"
@@ -147,33 +147,39 @@
                   </dt>
                   <dd>{{ formatMoney(weightedCostBreakdown.silverCost) }}</dd>
                 </div>
-                <div>
-                  <dt>Tiền công</dt>
-                  <dd>{{ formatMoney(item.laborCost) }}</dd>
+                <div v-if="weightedCostBreakdown">
+                  <dt>Tỷ lệ cộng thêm</dt>
+                  <dd>
+                    <span class="badge badge-phoenix badge-phoenix-primary me-1">
+                      +{{ Math.round(weightedCostBreakdown.markupRate * 100) }}%
+                    </span>
+                  </dd>
+                </div>
+                <div v-if="weightedCostBreakdown">
+                  <dt>
+                    Tiền hàng tạm tính
+                    <small class="sku-definition-hint d-block text-body-tertiary">
+                      Tiền bạc + (Tiền bạc × {{ Math.round(weightedCostBreakdown.markupRate * 100) }}%)
+                    </small>
+                  </dt>
+                  <dd>{{ formatMoney(weightedCostBreakdown.basePrice) }}</dd>
+                </div>
+                <div v-if="weightedCostBreakdown">
+                  <dt>
+                    Tiền hàng sau làm tròn
+                    <small class="sku-definition-hint d-block text-body-tertiary">
+                      Theo bậc giá chuẩn đồ cân
+                    </small>
+                  </dt>
+                  <dd>{{ formatMoney(weightedCostBreakdown.roundedBasePrice) }}</dd>
                 </div>
                 <div>
                   <dt>Tiền xi</dt>
                   <dd>{{ formatMoney(item.platingCost) }}</dd>
                 </div>
-                <div v-if="weightedCostBreakdown" class="is-subtotal">
-                  <dt>
-                    Tạm tính chi phí
-                    <small class="sku-definition-hint d-block text-body-tertiary">
-                      Tiền bạc + Tiền công + Tiền xi
-                    </small>
-                  </dt>
-                  <dd>{{ formatMoney(weightedCostBreakdown.rawPrice) }}</dd>
-                </div>
-                <div v-if="weightedCostBreakdown && weightedCostBreakdown.roundingDiff !== 0">
-                  <dt>
-                    Làm tròn bậc giá
-                    <small class="sku-definition-hint d-block text-body-tertiary">
-                      Quy chuẩn giá bán
-                    </small>
-                  </dt>
-                  <dd>
-                    {{ weightedCostBreakdown.roundingDiff > 0 ? "+" : "" }}{{ formatMoney(weightedCostBreakdown.roundingDiff) }}
-                  </dd>
+                <div>
+                  <dt>Tiền công</dt>
+                  <dd>{{ formatMoney(item.laborCost) }}</dd>
                 </div>
                 <div v-if="weightedCostBreakdown && weightedCostBreakdown.hasManualAdjustment">
                   <dt>
@@ -572,22 +578,25 @@ const weightedCostBreakdown = computed(() => {
     return null;
   }
 
-  const { rawPrice, price: calculatedPrice } = calculateWeightedPrice({
+  const result = calculateWeightedPrice({
     weight: sku.weight,
     silverPrice,
     laborCost: sku.laborCost,
     platingCost: sku.platingCost,
   });
-  const roundingDiff = calculatedPrice - rawPrice;
-  const manualDiff = sku.price - calculatedPrice;
+  const roundingDiff = result.roundedBasePrice - result.basePrice;
+  const manualDiff = sku.price - result.price;
   return {
-    silverCost: Math.round(sku.weight * silverPrice),
-    rawPrice,
-    calculatedPrice,
+    silverCost: result.silverCost,
+    markupRate: result.markupRate,
+    basePrice: result.basePrice,
+    roundedBasePrice: result.roundedBasePrice,
+    rawPrice: result.rawPrice,
+    calculatedPrice: result.price,
     roundingDiff,
     manualDiff,
     hasManualAdjustment: manualDiff !== 0,
-    otherCost: sku.price - rawPrice > 0 ? sku.price - rawPrice : null,
+    otherCost: sku.price - result.rawPrice > 0 ? sku.price - result.rawPrice : null,
   };
 });
 

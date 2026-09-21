@@ -321,16 +321,28 @@
                           <dd>{{ draft.weight || 0 }} chỉ</dd>
                         </div>
                         <div>
-                          <dt>Tiền bạc</dt>
-                          <dd>{{ formatMoney(silverValue) }}</dd>
+                          <dt>Tiền bạc (giá gốc)</dt>
+                          <dd>{{ formatMoney(weightedPreview.silverCost) }}</dd>
                         </div>
                         <div>
-                          <dt>Tiền công</dt>
-                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
+                          <dt>Tỷ lệ cộng thêm</dt>
+                          <dd>+{{ Math.round(weightedPreview.markupRate * 100) }}%</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền hàng tạm tính</dt>
+                          <dd>{{ formatMoney(weightedPreview.basePrice) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền hàng sau làm tròn</dt>
+                          <dd>{{ formatMoney(weightedPreview.roundedBasePrice) }}</dd>
                         </div>
                         <div>
                           <dt>Tiền xi</dt>
                           <dd>{{ formatMoney(draft.platingCost) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Tiền công</dt>
+                          <dd>{{ formatMoney(draft.laborCost) }}</dd>
                         </div>
                       </template>
                       <template v-else-if="isPiece">
@@ -441,6 +453,7 @@ import { createOverlayBehavior } from "@/components/overlay/behavior";
 import { formatMoney } from "@/utils/resource-display";
 import {
   calculatePiecePrice,
+  calculateWeightedPrice,
   estimatePieceImportPrice,
   roundSellingPrice,
 } from "@/views/WarehousedGoods/pricing";
@@ -522,6 +535,14 @@ export default defineComponent({
     silverValue(): number {
       return Math.round((Number(this.silverPrice) || 0) * (Number(this.draft.weight) || 0));
     },
+    weightedPreview(): ReturnType<typeof calculateWeightedPrice> {
+      return calculateWeightedPrice({
+        weight: Number(this.draft.weight) || 0,
+        silverPrice: Number(this.silverPrice) || 0,
+        laborCost: Number(this.draft.laborCost) || 0,
+        platingCost: Number(this.draft.platingCost) || 0,
+      });
+    },
     piecePreview(): ReturnType<typeof calculatePiecePrice> {
       return calculatePiecePrice(
         Number(this.draft.importPrice) || 0,
@@ -531,7 +552,7 @@ export default defineComponent({
     },
     rawPrice(): number {
       if (this.isWeighted) {
-        return this.silverValue + (Number(this.draft.laborCost) || 0) + (Number(this.draft.platingCost) || 0);
+        return this.weightedPreview.rawPrice;
       }
       if (this.isPiece) {
         return this.piecePreview.rawPrice;
@@ -628,7 +649,7 @@ export default defineComponent({
     },
     recalculatePrice(): void {
       if (this.isWeighted) {
-        const calculated = roundSellingPrice(this.rawPrice);
+        const calculated = this.weightedPreview.price;
         this.draft.price = calculated;
         this.draft.importPrice = null;
       } else if (this.isPiece) {
