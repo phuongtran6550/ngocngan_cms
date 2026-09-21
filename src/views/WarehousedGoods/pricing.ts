@@ -136,3 +136,45 @@ export function calculateWeightedPrice(input: {
   );
   return { rawPrice, price: roundSellingPrice(rawPrice) };
 }
+
+export function calculateSkuRawPrice(
+  sku: {
+    pricingType?: string;
+    weight?: number;
+    laborCost?: number;
+    platingCost?: number;
+    importPrice?: number | null;
+    price?: number;
+  },
+  silverPrice?: number | null,
+): number | null {
+  const pricingType = sku.pricingType || "";
+  const importPrice = Number(sku.importPrice);
+  if (pricingType === "Đồ món" || (importPrice > 0 && !pricingType)) {
+    if (importPrice > 0) {
+      const preview = calculatePiecePrice(
+        importPrice,
+        Number(sku.platingCost) || 0,
+        Number(sku.laborCost) || 0,
+      );
+      return preview.rawPrice;
+    }
+  }
+
+  const weight = Number(sku.weight);
+  const sp = Number(silverPrice);
+  if (pricingType === "Đồ cân" || (weight > 0 && !pricingType)) {
+    if (weight > 0 && sp > 0) {
+      const { rawPrice } = calculateWeightedPrice({
+        weight,
+        silverPrice: sp,
+        laborCost: Number(sku.laborCost) || 0,
+        platingCost: Number(sku.platingCost) || 0,
+      });
+      return rawPrice;
+    }
+  }
+
+  return null;
+}
+

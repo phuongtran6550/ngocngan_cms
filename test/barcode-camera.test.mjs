@@ -66,9 +66,9 @@ function setup({ width = 1920, height = 1080, continuous = true } = {}) {
   };
   const cameraModule = {
     requestEnvironmentCamera: async () => stream,
-    attachEnvironmentCamera: async () => {},
+    attachEnvironmentCamera: async () => { },
     prepareEnvironmentCameraTrack: async () => ({ torchAvailable: true }),
-    setEnvironmentCameraTorch: async () => {},
+    setEnvironmentCameraTorch: async () => { },
     stopEnvironmentCamera: (value) => {
       if (value) stopped++;
     },
@@ -225,7 +225,7 @@ test("natural-aspect preview reveals source at .5; source rotation updates dimen
   assert.equal(f.camera.previewStyle.value.height, "100%");
   assert.ok(
     Math.abs(parseFloat(f.camera.previewStyle.value.width) - 177.7777777778) <
-      1e-7,
+    1e-7,
   );
   f.camera.setZoom(0.5);
   assert.equal(f.camera.previewStyle.value.height, "50%");
@@ -425,3 +425,50 @@ test("scanner template wires accessible zoom, intrinsic resize and focus without
   assert.match(source, /object-fit: contain/);
   assert.doesNotMatch(source, /object-fit: cover/);
 });
+
+test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs", async () => {
+  const { calculateSkuRawPrice } = await import(
+    "../src/views/WarehousedGoods/pricing.ts"
+  );
+  // Piece item unrounded price: 569k * 1.7 + 20k + 30k = 1017.3k
+  const pieceRaw = calculateSkuRawPrice({
+    pricingType: "Đồ món",
+    importPrice: 569000,
+    platingCost: 20000,
+    laborCost: 30000,
+  });
+  assert.equal(pieceRaw, 1017300);
+
+  // Weighted item unrounded price: 1.6 * 220000 + 200000 + 30000 = 582000
+  const weightedRaw = calculateSkuRawPrice(
+    {
+      pricingType: "Đồ cân",
+      weight: 1.6,
+      laborCost: 200000,
+      platingCost: 30000,
+    },
+    220000,
+  );
+  assert.equal(weightedRaw, 582000);
+
+  const salesCartSource = readFileSync(
+    new URL(
+      "../src/views/Orders/components/SalesCart.vue",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(salesCartSource, /Tạm tính \(chưa làm tròn\):/);
+  assert.match(salesCartSource, /line\.rawPrice/);
+
+  const scannerSource = readFileSync(
+    new URL(
+      "../src/views/Products/components/ProductBarcodeScanner.vue",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(scannerSource, /Tạm tính \(chưa làm tròn\)/);
+  assert.match(scannerSource, /lastProduct\.rawPrice/);
+});
+

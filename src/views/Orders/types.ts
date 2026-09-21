@@ -159,6 +159,11 @@ export interface OrderCartLine {
   stock: number;
   status: "active" | "inactive";
   quantity: number;
+  pricingType?: string;
+  laborCost?: number;
+  platingCost?: number;
+  importPrice?: number | null;
+  rawPrice?: number | null;
 }
 
 export interface OrderCheckoutInput {

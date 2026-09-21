@@ -40,13 +40,31 @@
               <h3 class="fs-9 mb-1">{{ line.productName }}</h3>
               <code class="fs-10">{{ line.skuCode || line.barcode }}</code>
             </div>
-            <strong class="text-nowrap">{{
-              money(line.unitPrice * line.quantity)
-            }}</strong>
+            <div class="text-end">
+              <strong class="text-nowrap d-block">{{
+                money(line.unitPrice * line.quantity)
+              }}</strong>
+              <small
+                v-if="line.rawPrice !== undefined && line.rawPrice !== null"
+                class="text-body-tertiary text-nowrap d-block fs-10"
+              >
+                Tạm tính: {{ money(line.rawPrice * line.quantity) }}
+              </small>
+            </div>
           </div>
-          <p class="fs-10 text-body-tertiary mb-2">
-            {{ money(line.unitPrice) }} / món · Tồn {{ line.stock }}
-          </p>
+          <div class="fs-10 text-body-tertiary mb-2">
+            <div>{{ money(line.unitPrice) }} / món · Tồn {{ line.stock }}</div>
+            <div
+              v-if="line.rawPrice !== undefined && line.rawPrice !== null"
+              class="d-flex flex-wrap align-items-center gap-1 mt-1"
+            >
+              <span>Tạm tính (chưa làm tròn):</span>
+              <strong class="text-warning-emphasis fw-bold">{{ money(line.rawPrice) }} / món</strong>
+              <span v-if="line.unitPrice !== line.rawPrice" class="text-body-tertiary">
+                ({{ line.unitPrice > line.rawPrice ? '+' : '' }}{{ money(line.unitPrice - line.rawPrice) }})
+              </span>
+            </div>
+          </div>
           <div
             v-if="cart.isStockUnverified(line.skuId)"
             class="alert alert-subtle-warning py-2 px-3 mb-2 fs-10"
@@ -109,11 +127,19 @@
           </div>
         </div>
       </article>
+      <div
+        v-if="cart.lines.length && cart.rawTotal !== cart.total"
+        class="sales-cart-footer d-flex justify-content-between align-items-center px-3 py-2 border-top border-translucent bg-body-tertiary"
+      >
+        <span class="fs-10 text-body-secondary fw-semibold">Tổng tạm tính (chưa làm tròn):</span>
+        <strong class="fs-8 text-warning-emphasis">{{ money(cart.rawTotal) }}</strong>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { onMounted } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import { assetUrl } from "@/request";
 import { formatMoney } from "@/utils/resource-display";
@@ -128,6 +154,10 @@ const emit = defineEmits<{
   retry: [skuId: string];
 }>();
 const cart = useSalesCartStore();
+
+onMounted(() => {
+  void cart.loadSilverPrice();
+});
 
 function money(value: number): string {
   return formatMoney(value);

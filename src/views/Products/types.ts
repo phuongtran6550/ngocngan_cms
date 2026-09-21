@@ -5,6 +5,7 @@ export interface BarcodeResolutionFeedback {
   quantity?: number;
   total?: number;
   itemQuantity?: number;
+  rawPrice?: number | null;
 }
 export type ProductSortField =
   | "name"

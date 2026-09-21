@@ -130,6 +130,13 @@
                     <span>Giá sản phẩm</span>
                     <strong>{{ formatMoney(lastProduct.sku.price) }}</strong>
                   </div>
+                  <div
+                    v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null"
+                    class="scanner-product-metric"
+                  >
+                    <span>Tạm tính (chưa làm tròn)</span>
+                    <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.rawPrice) }}</strong>
+                  </div>
                   <div v-if="lastProduct.itemQuantity !== undefined" class="scanner-product-metric">
                     <span>Tổng sản phẩm</span>
                     <strong>{{ lastProduct.itemQuantity }}</strong>
@@ -307,22 +314,46 @@ const message = ref("");
 const cameraHelp = ref("");
 const lookupErrorCode = ref("");
 const resolutionError = ref(false);
-const lastProduct = ref<{ sku: ProductSku; total?: number; itemQuantity?: number } | null>(null);
+const lastProduct = ref<{
+  sku: ProductSku;
+  total?: number;
+  itemQuantity?: number;
+  rawPrice?: number | null;
+} | null>(null);
 const scanResult = ref<{
   ok: boolean;
   sku?: ProductSku;
   quantity?: number;
   total?: number;
+  rawPrice?: number | null;
   message: string;
 } | null>(null);
 let resultTimer: ReturnType<typeof setTimeout> | undefined;
 const scanToasts = computed(() => {
   const result = scanResult.value;
   if (!result) return [];
-  const text = result.ok && result.sku
-    ? `${props.continuous ? "Đã thêm" : "Đã tìm thấy"} ${result.sku.name}\nGiá: ${formatMoney(result.sku.price)}${result.total !== undefined ? `\nTổng đơn hiện tại: ${formatMoney(result.total)}` : ""}`
-    : result.message;
-  return [{ id: "scanner-result", message: text, variant: result.ok ? "success" as const : "danger" as const }];
+  const text =
+    result.ok && result.sku
+      ? [
+          `${props.continuous ? "Đã thêm" : "Đã tìm thấy"} ${result.sku.name}`,
+          `Giá: ${formatMoney(result.sku.price)}`,
+          result.rawPrice !== undefined && result.rawPrice !== null
+            ? `Tạm tính: ${formatMoney(result.rawPrice)}`
+            : null,
+          result.total !== undefined
+            ? `Tổng đơn hiện tại: ${formatMoney(result.total)}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : result.message;
+  return [
+    {
+      id: "scanner-result",
+      message: text,
+      variant: result.ok ? ("success" as const) : ("danger" as const),
+    },
+  ];
 });
 function clearScanResult(): void {
   clearTimeout(resultTimer);
@@ -512,8 +543,23 @@ async function lookupBarcode(value: string): Promise<void> {
     if (requestId !== lookupRequestId || !props.open) return;
     const resolution = props.resolver?.(sku);
     const ok = resolution?.ok !== false;
-    if (ok) lastProduct.value = { sku, total: resolution?.total, itemQuantity: resolution?.itemQuantity };
-    showScanResult({ ok, sku, quantity: resolution?.quantity, total: resolution?.total, message: resolution?.message || "" });
+    const rawPrice = resolution?.rawPrice ?? null;
+    if (ok) {
+      lastProduct.value = {
+        sku,
+        total: resolution?.total,
+        itemQuantity: resolution?.itemQuantity,
+        rawPrice,
+      };
+    }
+    showScanResult({
+      ok,
+      sku,
+      quantity: resolution?.quantity,
+      total: resolution?.total,
+      rawPrice,
+      message: resolution?.message || "",
+    });
     feedback(ok);
     emit("resolved", sku);
     if (props.continuous) {

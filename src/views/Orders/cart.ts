@@ -1,15 +1,22 @@
 import { defineStore } from "pinia";
 import { readStoredCart, writeStoredCart } from "@/views/Orders/cart-storage";
 import type { OrderCartLine } from "@/views/Orders/types";
+import { productService } from "@/views/Products/service";
 import type { ProductSku } from "@/views/Products/types";
+import { calculateSkuRawPrice } from "@/views/WarehousedGoods/pricing";
 
 export interface CartMutationResult {
   ok: boolean;
   message: string;
   quantity: number;
+  rawPrice?: number | null;
 }
 
-function lineFromSku(sku: ProductSku, quantity = 1): OrderCartLine {
+function lineFromSku(
+  sku: ProductSku,
+  quantity = 1,
+  silverPrice?: number | null,
+): OrderCartLine {
   return {
     skuId: sku.id,
     productId: sku.productId,
@@ -26,6 +33,11 @@ function lineFromSku(sku: ProductSku, quantity = 1): OrderCartLine {
     stock: sku.stock,
     status: sku.status,
     quantity,
+    pricingType: sku.pricingType,
+    laborCost: sku.laborCost,
+    platingCost: sku.platingCost,
+    importPrice: sku.importPrice,
+    rawPrice: calculateSkuRawPrice(sku, silverPrice),
   };
 }
 
@@ -39,6 +51,7 @@ export const useSalesCartStore = defineStore("sales-cart", {
     lines: [] as OrderCartLine[],
     unverifiedSkuIds: [] as string[],
     initialized: false,
+    silverPrice: null as number | null,
   }),
   getters: {
     itemQuantity: (state): number =>
@@ -46,6 +59,11 @@ export const useSalesCartStore = defineStore("sales-cart", {
     total: (state): number =>
       state.lines.reduce(
         (sum, line) => sum + line.unitPrice * line.quantity,
+        0,
+      ),
+    rawTotal: (state): number =>
+      state.lines.reduce(
+        (sum, line) => sum + (line.rawPrice ?? line.unitPrice) * line.quantity,
         0,
       ),
     hasStockConflict: (): boolean => false,
@@ -60,6 +78,34 @@ export const useSalesCartStore = defineStore("sales-cart", {
       if (this.initialized) return;
       this.lines = readStoredCart();
       this.initialized = true;
+      void this.loadSilverPrice();
+    },
+    async loadSilverPrice(): Promise<number | null> {
+      if (this.silverPrice !== null && this.silverPrice > 0) {
+        return this.silverPrice;
+      }
+      try {
+        const options = await productService.options();
+        if (typeof options.silverPrice === "number" && options.silverPrice > 0) {
+          this.silverPrice = options.silverPrice;
+          this.updateRawPrices();
+          return this.silverPrice;
+        }
+      } catch {
+        // ignore network error
+      }
+      return null;
+    },
+    updateRawPrices(): void {
+      let changed = false;
+      for (const line of this.lines) {
+        const calculated = calculateSkuRawPrice(line, this.silverPrice);
+        if (calculated !== null && calculated !== line.rawPrice) {
+          line.rawPrice = calculated;
+          changed = true;
+        }
+      }
+      if (changed) this.persist();
     },
     persist(): void {
       if (this.initialized) writeStoredCart(this.lines);
@@ -68,7 +114,10 @@ export const useSalesCartStore = defineStore("sales-cart", {
       this.initialize();
       const existing = this.lines.find((line) => line.skuId === sku.id);
       if (existing) {
-        Object.assign(existing, lineFromSku(sku, existing.quantity));
+        Object.assign(
+          existing,
+          lineFromSku(sku, existing.quantity, this.silverPrice),
+        );
         this.markVerified(sku.id);
         existing.quantity += 1;
         this.persist();
@@ -76,17 +125,27 @@ export const useSalesCartStore = defineStore("sales-cart", {
           ok: true,
           message: `Đã tăng lên ${existing.quantity}`,
           quantity: existing.quantity,
+          rawPrice: existing.rawPrice,
         };
       }
-      this.lines.push(lineFromSku(sku));
+      const newLine = lineFromSku(sku, 1, this.silverPrice);
+      this.lines.push(newLine);
       this.markVerified(sku.id);
       this.persist();
-      return { ok: true, message: "Đã thêm vào giỏ hàng", quantity: 1 };
+      return {
+        ok: true,
+        message: "Đã thêm vào giỏ hàng",
+        quantity: 1,
+        rawPrice: newLine.rawPrice,
+      };
     },
     refreshSku(sku: ProductSku): void {
       const existing = this.lines.find((line) => line.skuId === sku.id);
       if (!existing) return;
-      Object.assign(existing, lineFromSku(sku, existing.quantity));
+      Object.assign(
+        existing,
+        lineFromSku(sku, existing.quantity, this.silverPrice),
+      );
       this.markVerified(sku.id);
       this.persist();
     },

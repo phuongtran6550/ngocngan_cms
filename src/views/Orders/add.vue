@@ -200,7 +200,12 @@
       :class="{ 'has-conflict': cart.hasStockConflict }"
     >
       <div>
-        <span>{{ cart.itemQuantity }} món</span>
+        <span>
+          {{ cart.itemQuantity }} món
+          <template v-if="cart.rawTotal && cart.rawTotal !== cart.total">
+            · Tạm tính: {{ money(cart.rawTotal) }}
+          </template>
+        </span>
         <strong>{{ money(cart.total) }}</strong>
         <small v-if="cart.hasUnverifiedStock"
           >Có SKU chưa xác minh tồn kho</small
