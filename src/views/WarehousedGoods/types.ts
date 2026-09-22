@@ -101,6 +101,7 @@ export interface WarehouseOptionsResponse {
   materials: InventoryOption[];
   patterns: InventoryOption[];
   silverPrice: number | null;
+  roundingMarks?: { piece: number[]; weighted: number[] } | null;
 }
 
 export interface WarehouseLabelPrintResponse {

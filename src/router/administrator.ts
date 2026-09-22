@@ -51,6 +51,22 @@ const administratorRoutes: ClientRoute[] = [
     component: () => import("@/views/Settings/index.vue"),
   },
   {
+    path: "/price-roundings",
+    name: "price-roundings",
+    meta: {
+      auth: true,
+      title: "Mốc làm tròn",
+      permission: PERMISSIONS.settingsManage,
+      navigation: {
+        group: "system",
+        groupLabel: "Quản trị",
+        icon: "dollar-sign",
+        order: 40,
+      },
+    },
+    component: () => import("@/views/PriceRoundings/index.vue"),
+  },
+  {
     path: "/zalo",
     name: "zalo",
     meta: {

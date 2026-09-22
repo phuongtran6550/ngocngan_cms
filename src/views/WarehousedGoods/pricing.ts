@@ -18,13 +18,14 @@ function numeric(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function roundSellingPrice(value: number): number {
+export function roundSellingPrice(value: number, customMarks?: readonly number[]): number {
   const price = numeric(value);
   if (price <= 0) return 0;
 
-  const lastFixedMark = FIXED_PRICE_MARKS[FIXED_PRICE_MARKS.length - 1];
+  const marks = customMarks && customMarks.length > 0 ? customMarks : FIXED_PRICE_MARKS;
+  const lastFixedMark = marks[marks.length - 1];
   if (price <= lastFixedMark) {
-    return FIXED_PRICE_MARKS.reduce((nearest, mark) => {
+    return marks.reduce((nearest, mark) => {
       const currentDistance = Math.abs(price - nearest);
       const nextDistance = Math.abs(price - mark);
       return nextDistance < currentDistance ? mark : nearest;
@@ -44,14 +45,14 @@ export const WEIGHTED_FIXED_PRICE_MARKS = [
   800_000, 850_000, 900_000, 950_000, 1_000_000, 1_100_000,
 ] as const;
 
-export function roundWeightedSellingPrice(value: number): number {
+export function roundWeightedSellingPrice(value: number, customMarks?: readonly number[]): number {
   const price = numeric(value);
   if (price <= 0) return 0;
 
-  const lastFixedMark =
-    WEIGHTED_FIXED_PRICE_MARKS[WEIGHTED_FIXED_PRICE_MARKS.length - 1];
+  const marks = customMarks && customMarks.length > 0 ? customMarks : WEIGHTED_FIXED_PRICE_MARKS;
+  const lastFixedMark = marks[marks.length - 1];
   if (price <= lastFixedMark) {
-    return WEIGHTED_FIXED_PRICE_MARKS.reduce((nearest, mark) => {
+    return marks.reduce((nearest, mark) => {
       const currentDistance = Math.abs(price - nearest);
       const nextDistance = Math.abs(price - mark);
       return nextDistance < currentDistance ? mark : nearest;
@@ -86,6 +87,7 @@ export function calculatePiecePrice(
   importPrice: number,
   platingCost: number = 0,
   laborCost: number = 0,
+  customMarks?: readonly number[],
 ): {
   basePrice: number;
   roundedBasePrice: number;
@@ -96,7 +98,7 @@ export function calculatePiecePrice(
 } {
   const multiplier = piecePriceMultiplier(importPrice);
   const basePrice = Math.round(numeric(importPrice) * multiplier);
-  const roundedBasePrice = roundSellingPrice(basePrice);
+  const roundedBasePrice = roundSellingPrice(basePrice, customMarks);
   const plating = Math.max(0, numeric(platingCost));
   const labor = Math.max(0, numeric(laborCost));
   const price = roundedBasePrice + plating + labor;
@@ -173,13 +175,14 @@ export function calculateWeightedPrice(input: {
   silverPrice: number;
   laborCost: number;
   platingCost: number;
+  customMarks?: readonly number[];
 }): WeightedPriceResult {
   const silverCost = Math.round(
     numeric(input.weight) * numeric(input.silverPrice),
   );
   const markupRate = weightedPriceMarkupRate(silverCost);
   const basePrice = Math.round(silverCost + silverCost * markupRate);
-  const roundedBasePrice = roundWeightedSellingPrice(basePrice);
+  const roundedBasePrice = roundWeightedSellingPrice(basePrice, input.customMarks);
   const plating = Math.max(0, numeric(input.platingCost));
   const labor = Math.max(0, numeric(input.laborCost));
   const price = roundedBasePrice + plating + labor;
@@ -203,6 +206,7 @@ export function calculateSkuRawPrice(
     price?: number;
   },
   silverPrice?: number | null,
+  customMarks?: readonly number[],
 ): number | null {
   const pricingType = sku.pricingType || "";
   const importPrice = Number(sku.importPrice);
@@ -212,6 +216,7 @@ export function calculateSkuRawPrice(
         importPrice,
         Number(sku.platingCost) || 0,
         Number(sku.laborCost) || 0,
+        customMarks,
       );
       return preview.rawPrice;
     }
@@ -226,6 +231,7 @@ export function calculateSkuRawPrice(
         silverPrice: sp,
         laborCost: Number(sku.laborCost) || 0,
         platingCost: Number(sku.platingCost) || 0,
+        customMarks,
       });
       return rawPrice;
     }

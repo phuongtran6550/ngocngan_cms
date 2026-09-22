@@ -832,6 +832,7 @@
       :sku="editingSku"
       :product="item"
       :silver-price="silverPrice"
+      :rounding-marks="roundingMarks"
       :existing-codes="existingSkuCodes"
       :submitting="skuModalSubmitting"
       :error="skuModalError"
@@ -978,6 +979,9 @@ export default defineComponent({
     },
     silverPrice(): number | null {
       return this.store.options.silverPrice;
+    },
+    roundingMarks(): { piece: number[]; weighted: number[] } | null | undefined {
+      return this.store.options.roundingMarks;
     },
     displaySkus(): WarehouseSku[] {
       const skus = [...(this.item?.skus || [])];

@@ -1112,6 +1112,7 @@ export default defineComponent({
         weight: sku.weight,
         laborCost: sku.laborCost,
         platingCost: sku.platingCost,
+        customMarks: this.options.roundingMarks?.weighted,
       });
     },
     piecePreview(
@@ -1121,6 +1122,7 @@ export default defineComponent({
         Number(sku.importPrice) || 0,
         Number(sku.platingCost) || 0,
         Number(sku.laborCost) || 0,
+        this.options.roundingMarks?.piece,
       );
     },
     rawPrice(sku: WarehouseSkuFormModel): number {

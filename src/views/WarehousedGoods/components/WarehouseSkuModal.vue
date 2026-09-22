@@ -528,6 +528,10 @@ export default defineComponent({
     sku: { type: Object as PropType<WarehouseSku | null>, default: null },
     product: { type: Object as PropType<WarehouseItem>, required: true },
     silverPrice: { type: Number as PropType<number | null>, default: null },
+    roundingMarks: {
+      type: Object as PropType<{ piece: number[]; weighted: number[] } | null>,
+      default: null,
+    },
     existingCodes: { type: Array as PropType<string[]>, default: () => [] },
     submitting: { type: Boolean, default: false },
     error: { type: String, default: "" },
@@ -548,7 +552,7 @@ export default defineComponent({
       return Boolean(this.sku?.id);
     },
     modalTitleId(): string {
-      return `sku-modal-title-${this.draft.clientId}`;
+      return this.isEdit ? "warehouse-sku-modal-edit" : "warehouse-sku-modal-new";
     },
     isWeighted(): boolean {
       return this.product.pricingType === "Đồ cân";
@@ -559,7 +563,13 @@ export default defineComponent({
     hasSilverPrice(): boolean {
       return Number(this.silverPrice) > 0;
     },
+    hasValidSilverPrice(): boolean {
+      return Number(this.silverPrice) > 0;
+    },
     silverValue(): number {
+      return Math.round((Number(this.silverPrice) || 0) * (Number(this.draft.weight) || 0));
+    },
+    silverCost(): number {
       return Math.round((Number(this.silverPrice) || 0) * (Number(this.draft.weight) || 0));
     },
     weightedPreview(): ReturnType<typeof calculateWeightedPrice> {
@@ -568,6 +578,7 @@ export default defineComponent({
         silverPrice: Number(this.silverPrice) || 0,
         laborCost: Number(this.draft.laborCost) || 0,
         platingCost: Number(this.draft.platingCost) || 0,
+        customMarks: this.roundingMarks?.weighted,
       });
     },
     piecePreview(): ReturnType<typeof calculatePiecePrice> {
@@ -575,6 +586,7 @@ export default defineComponent({
         Number(this.draft.importPrice) || 0,
         Number(this.draft.platingCost) || 0,
         Number(this.draft.laborCost) || 0,
+        this.roundingMarks?.piece,
       );
     },
     rawPrice(): number {
