@@ -32,6 +32,41 @@ const sku = () => types.emptyWarehouseSku({
 });
 const item = () => ({ id: "product", name: "Vòng", pricingType: "Đồ cân", skus: [sku()] });
 
+test("SKU history accepts manual price transitions and legacy values, rejects invalid responses", async () => {
+  const entry = {
+    id: "event", skuId: "sku", skuCode: "V-VTKB561C8", action: "updated",
+    changes: [], silverPriceBefore: null, silverPriceAfter: null,
+    actor: null, changedAt: "2026-09-21T15:00:00.000Z",
+  };
+  const data = { items: [entry], page: 1, limit: 20, total: 1, totalPages: 1 };
+  const service = load("views/Products/service.ts", {
+    "@/request": { request: { get: async () => ({ data }) } },
+  }).productService;
+  for (const [before, after] of [[null, true], [false, true], [true, false]]) {
+    entry.changes = [{ field: "manualPrice", before, after }];
+    const result = await service.history("sku", { page: 1, limit: 20 });
+    assert.equal(result.items[0].changes[0].before, before);
+    assert.equal(result.items[0].changes[0].after, after);
+  }
+  entry.changes = [
+    { field: "price", before: 730000, after: 550000 },
+    { field: "code", before: null, after: "V-VTKB561C8" },
+    { field: "stock", before: 7, after: 0 },
+  ];
+  assert.equal((await service.history("sku", { page: 1, limit: 20 })).items[0].changes.length, 3);
+  for (const change of [
+    { field: "unknown", before: null, after: true },
+    ...[{}, [], undefined, NaN, Infinity].map(after => ({ field: "manualPrice", before: false, after })),
+  ]) {
+    entry.changes = [change];
+    await assert.rejects(service.history("sku", { page: 1, limit: 20 }), { code: "INVALID_PRODUCT_RESPONSE" });
+  }
+  data.items = [];
+  data.total = 0;
+  data.totalPages = 0;
+  assert.equal((await service.history("sku", { page: 1, limit: 20 })).items.length, 0);
+});
+
 function instance(component, props) {
   const emitted = [];
   const page = { ...props, ...component.data.call(props), $emit: (...args) => emitted.push(args), $nextTick: async () => {} };

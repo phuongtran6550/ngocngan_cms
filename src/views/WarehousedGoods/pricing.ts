@@ -75,9 +75,9 @@ export function weightedPriceMarkupRate(silverCost: number): number {
 
 export function piecePriceMultiplier(importPrice: number): number {
   const value = numeric(importPrice);
-  if (value < 300_000) return 2;
-  if (value < 400_000) return 1.9;
-  if (value < 500_000) return 1.8;
+  if (value <= 300_000) return 2;
+  if (value <= 400_000) return 1.9;
+  if (value <= 500_000) return 1.8;
   if (value <= 700_000) return 1.7;
   return 1.6;
 }

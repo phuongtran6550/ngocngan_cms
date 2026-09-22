@@ -49,6 +49,7 @@ const historyFields: readonly ProductSkuHistoryField[] = [
   "platingCost",
   "importPrice",
   "price",
+  "manualPrice",
   "stock",
 ];
 
@@ -132,6 +133,7 @@ function normalizedProductList(value: unknown): ProductListResponse {
 
 function normalizedHistoryValue(value: unknown): ProductSkuHistoryValue {
   if (value === null || typeof value === "string") return value;
+  if (typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   throw invalidProductResponse();
 }
