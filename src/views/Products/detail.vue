@@ -137,7 +137,7 @@
                 </div>
                 <div v-if="weightedCostBreakdown">
                   <dt>
-                    Tiền bạc (giá gốc)
+                    Tiền bạc
                     <small
                       v-if="currentSilverPrice"
                       class="sku-definition-hint d-block text-body-tertiary"
@@ -148,25 +148,8 @@
                   <dd>{{ formatMoney(weightedCostBreakdown.silverCost) }}</dd>
                 </div>
                 <div v-if="weightedCostBreakdown">
-                  <dt>Tỷ lệ cộng thêm</dt>
-                  <dd>
-                    <span class="badge badge-phoenix badge-phoenix-primary me-1">
-                      +{{ Math.round(weightedCostBreakdown.markupRate * 100) }}%
-                    </span>
-                  </dd>
-                </div>
-                <div v-if="weightedCostBreakdown">
                   <dt>
-                    Tiền hàng tạm tính
-                    <small class="sku-definition-hint d-block text-body-tertiary">
-                      Tiền bạc + (Tiền bạc × {{ Math.round(weightedCostBreakdown.markupRate * 100) }}%)
-                    </small>
-                  </dt>
-                  <dd>{{ formatMoney(weightedCostBreakdown.basePrice) }}</dd>
-                </div>
-                <div v-if="weightedCostBreakdown">
-                  <dt>
-                    Tiền hàng sau làm tròn
+                    Tiền bạc sau làm tròn
                     <small class="sku-definition-hint d-block text-body-tertiary">
                       Theo bậc giá chuẩn đồ cân
                     </small>
@@ -589,7 +572,6 @@ const weightedCostBreakdown = computed(() => {
   const manualDiff = sku.price - result.price;
   return {
     silverCost: result.silverCost,
-    markupRate: result.markupRate,
     basePrice: result.basePrice,
     roundedBasePrice: result.roundedBasePrice,
     rawPrice: result.rawPrice,

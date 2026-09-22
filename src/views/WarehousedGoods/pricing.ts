@@ -65,14 +65,6 @@ export function roundWeightedSellingPrice(value: number, customMarks?: readonly 
   return price - lower <= upper - price ? lower : upper;
 }
 
-export function weightedPriceMarkupRate(silverCost: number): number {
-  const value = numeric(silverCost);
-  if (value <= 200_000) return 0.6;
-  if (value <= 400_000) return 0.5;
-  if (value <= 600_000) return 0.4;
-  if (value <= 1_000_000) return 0.3;
-  return 0.2;
-}
 
 export function piecePriceMultiplier(importPrice: number): number {
   const value = numeric(importPrice);
@@ -163,7 +155,6 @@ export function estimatePieceImportPrice(
 
 export interface WeightedPriceResult {
   silverCost: number;
-  markupRate: number;
   basePrice: number;
   roundedBasePrice: number;
   rawPrice: number;
@@ -180,15 +171,13 @@ export function calculateWeightedPrice(input: {
   const silverCost = Math.round(
     numeric(input.weight) * numeric(input.silverPrice),
   );
-  const markupRate = weightedPriceMarkupRate(silverCost);
-  const basePrice = Math.round(silverCost + silverCost * markupRate);
+  const basePrice = silverCost;
   const roundedBasePrice = roundWeightedSellingPrice(basePrice, input.customMarks);
   const plating = Math.max(0, numeric(input.platingCost));
   const labor = Math.max(0, numeric(input.laborCost));
   const price = roundedBasePrice + plating + labor;
   return {
     silverCost,
-    markupRate,
     basePrice,
     roundedBasePrice,
     rawPrice: basePrice + plating + labor,

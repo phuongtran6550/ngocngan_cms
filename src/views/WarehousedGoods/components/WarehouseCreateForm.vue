@@ -668,19 +668,11 @@
                             <dd>{{ number(sku.weight) }} chỉ</dd>
                           </div>
                           <div>
-                            <dt>Tiền bạc (giá gốc)</dt>
-                            <dd>{{ money(weightedPreview(sku).silverCost) }}</dd>
-                          </div>
-                          <div>
-                            <dt>Tỷ lệ cộng thêm</dt>
-                            <dd>+{{ Math.round(weightedPreview(sku).markupRate * 100) }}%</dd>
-                          </div>
-                          <div>
-                            <dt>Tiền hàng tạm tính</dt>
+                            <dt>Tiền bạc tạm tính</dt>
                             <dd>{{ money(weightedPreview(sku).basePrice) }}</dd>
                           </div>
                           <div>
-                            <dt>Tiền hàng sau làm tròn</dt>
+                            <dt>Tiền bạc sau làm tròn</dt>
                             <dd>{{ money(weightedPreview(sku).roundedBasePrice) }}</dd>
                           </div>
                           <div>

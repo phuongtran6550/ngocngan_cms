@@ -28,7 +28,7 @@ const deps = {
 };
 const sku = () => types.emptyWarehouseSku({
   id: "sku", code: "V-VTKB561C8", codeMode: "manual", weight: 1.8,
-  laborCost: 130000, price: 730000, stock: 7,
+  laborCost: 130000, price: 530000, stock: 7,
 });
 const item = () => ({ id: "product", name: "Vòng", pricingType: "Đồ cân", skus: [sku()] });
 
@@ -49,7 +49,7 @@ test("SKU history accepts manual price transitions and legacy values, rejects in
     assert.equal(result.items[0].changes[0].after, after);
   }
   entry.changes = [
-    { field: "price", before: 730000, after: 550000 },
+    { field: "price", before: 530000, after: 550000 },
     { field: "code", before: null, after: "V-VTKB561C8" },
     { field: "stock", before: 7, after: 0 },
   ];
@@ -132,10 +132,10 @@ test("create form isolates price modes per SKU and preserves them when editing c
   page.updateSkuMoney(0, "laborCost", 140000);
   page.updateSkuNumber(0, "weight", { target: { value: "2" } });
   assert.equal(page.draft.skus[0].price, 550000);
-  assert.equal(page.draft.skus[1].price, 730000);
+  assert.equal(page.draft.skus[1].price, 530000);
   page.updateManualPrice(0, { target: { checked: false } });
   assert.equal(page.draft.skus[0].price, pricing.calculateWeightedPrice({ ...page.draft.skus[0], silverPrice: 221000 }).price);
-  assert.equal(page.draft.skus[1].price, 730000);
+  assert.equal(page.draft.skus[1].price, 530000);
   page.draft.pricingType = "Đồ món";
   page.updateSkuMoney(0, "importPrice", 100000);
   page.updateManualPrice(0, { target: { checked: true } });
@@ -156,7 +156,7 @@ test("multipart transport includes false and true price modes; returned prices d
   } } }).warehouseService;
   for (const manualPrice of [true, false]) {
     const form = types.warehouseFormFromItem(item());
-    form.skus[0] = { ...form.skus[0], manualPrice, price: manualPrice ? 550000 : 730000 };
+    form.skus[0] = { ...form.skus[0], manualPrice, price: manualPrice ? 550000 : 530000 };
     const saved = await service.update("product", form);
     assert.equal(saved.skus[0].manualPrice, manualPrice);
     assert.equal(saved.skus[0].price, form.skus[0].price);
@@ -190,7 +190,7 @@ test("successful SKU saves close the modal after the response; failures keep the
     assert.equal(page.skuModalSubmitting, false);
     assert.equal(page.skuModalOpen, outcome === "failure");
     if (outcome === "failure") {
-      assert.equal(page.item.skus[0].price, 730000);
+      assert.equal(page.item.skus[0].price, 530000);
       assert.equal(page.skuModalError, "Không lưu được");
     } else {
       assert.equal(page.editingSku, null);

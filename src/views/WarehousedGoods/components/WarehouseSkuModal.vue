@@ -353,19 +353,11 @@
                           <dd>{{ draft.weight || 0 }} chỉ</dd>
                         </div>
                         <div>
-                          <dt>Tiền bạc (giá gốc)</dt>
-                          <dd>{{ formatMoney(weightedPreview.silverCost) }}</dd>
-                        </div>
-                        <div>
-                          <dt>Tỷ lệ cộng thêm</dt>
-                          <dd>+{{ Math.round(weightedPreview.markupRate * 100) }}%</dd>
-                        </div>
-                        <div>
-                          <dt>Tiền hàng tạm tính</dt>
+                          <dt>Tiền bạc tạm tính</dt>
                           <dd>{{ formatMoney(weightedPreview.basePrice) }}</dd>
                         </div>
                         <div>
-                          <dt>Tiền hàng sau làm tròn</dt>
+                          <dt>Tiền bạc sau làm tròn</dt>
                           <dd>{{ formatMoney(weightedPreview.roundedBasePrice) }}</dd>
                         </div>
                         <div>
