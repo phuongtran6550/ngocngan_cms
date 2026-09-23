@@ -71,155 +71,39 @@
               </span>
             </div>
 
-            <!-- Chi phí SKU: Các loại tính tiền SKU ghi trực tiếp, không ẩn -->
-            <template v-if="line.pricingType === 'Đồ món' && getPieceBreakdown(line)">
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Giá nhập :</span>
-                <strong class="text-warning-emphasis">{{ money(getPieceBreakdown(line)!.importPrice) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Giá nhân đôi</div>
-                  <small class="text-body-tertiary fs-11">Mức giá trần (100%)</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ money(getPieceBreakdown(line)!.doublePrice) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Hệ số tính giá :</span>
-                <div>
-                  <span class="badge badge-phoenix badge-phoenix-primary me-1">x{{ getPieceBreakdown(line)!.multiplier }}</span>
-                  <span class="text-body-secondary fs-11">{{ getPieceBreakdown(line)!.discountLabel }}</span>
-                </div>
-              </div>
-              <div class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Tiền hàng tạm tính</div>
-                  <small class="text-body-tertiary fs-11">Giá nhập × {{ getPieceBreakdown(line)!.multiplier }}</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ money(getPieceBreakdown(line)!.basePrice) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Tiền hàng sau làm tròn</div>
-                  <small class="text-body-tertiary fs-11">Theo bậc giá chuẩn</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ money(getPieceBreakdown(line)!.roundedBasePrice) }}</strong>
-              </div>
-              <div v-if="line.platingCost && line.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền xi :</span>
-                <strong class="text-warning-emphasis">{{ money(line.platingCost) }}</strong>
-              </div>
-              <div v-if="line.laborCost && line.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền công :</span>
-                <strong class="text-warning-emphasis">{{ money(line.laborCost) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tạm tính (chưa làm tròn):</span>
-                <strong class="text-warning-emphasis fw-bold">
-                  {{ money(line.rawPrice ?? getPieceBreakdown(line)!.calculatedPrice) }} / món
-                  <span v-if="line.unitPrice !== (line.rawPrice ?? getPieceBreakdown(line)!.calculatedPrice)" class="text-body-tertiary fw-normal">
-                    ({{ line.unitPrice > (line.rawPrice ?? getPieceBreakdown(line)!.calculatedPrice) ? '+' : '' }}{{ money(line.unitPrice - (line.rawPrice ?? getPieceBreakdown(line)!.calculatedPrice)) }})
-                  </span>
-                </strong>
-              </div>
-              <div v-if="getPieceBreakdown(line)!.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Điều chỉnh thủ công</div>
-                  <small class="text-body-tertiary fs-11">Chênh lệch so với giá chuẩn</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ getPieceBreakdown(line)!.manualDiff > 0 ? "+" : "" }}{{ money(getPieceBreakdown(line)!.manualDiff) }}</strong>
-              </div>
-            </template>
-            <template v-else-if="line.pricingType === 'Đồ món'">
-              <div v-if="line.importPrice !== null && line.importPrice !== undefined && line.importPrice > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Giá nhập :</span>
-                <strong class="text-warning-emphasis">{{ money(line.importPrice) }}</strong>
-              </div>
-              <div v-if="line.platingCost && line.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền xi :</span>
-                <strong class="text-warning-emphasis">{{ money(line.platingCost) }}</strong>
-              </div>
-              <div v-if="line.laborCost && line.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền công :</span>
-                <strong class="text-warning-emphasis">{{ money(line.laborCost) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tạm tính (chưa làm tròn):</span>
-                <strong class="text-warning-emphasis fw-bold">{{ money(line.rawPrice ?? line.unitPrice) }} / món</strong>
-              </div>
-            </template>
-
-            <!-- Chi phí SKU: Đồ cân -->
-            <template v-else-if="line.pricingType === 'Đồ cân'">
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Giá Bạc :</span>
-                <strong class="text-warning-emphasis">{{ cart.silverPrice ? `${money(cart.silverPrice)} / chỉ` : "Chưa cấu hình" }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Trọng lượng :</span>
-                <strong class="text-warning-emphasis">{{ formatWeight(line.weight) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền công :</span>
-                <strong class="text-warning-emphasis">{{ money(line.laborCost || 0) }}</strong>
-              </div>
-              <div v-if="getWeightedBreakdown(line)" class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>CT (Trọng lượng * Giá bạc) + Công</div>
-                  <small v-if="cart.silverPrice" class="text-body-tertiary fs-11">
-                    ({{ formatWeight(line.weight) }} × {{ money(cart.silverPrice) }}) + {{ money(line.laborCost || 0) }}
+            <!-- Bảng thành tiền rút gọn: 1. Thành tiền (Đã làm tròn), 2. Tiền xi, 3. Tổng thành tiền -->
+            <div class="sales-cart-pricing-summary mt-2 pt-1 border-top border-translucent">
+              <div class="d-flex justify-content-between align-items-center py-1">
+                <span>Thành tiền (Đã làm tròn) :</span>
+                <strong class="text-warning-emphasis">
+                  {{ money(getLineRoundedBasePrice(line) * line.quantity) }}
+                  <small
+                    v-if="line.quantity > 1"
+                    class="text-body-tertiary fw-normal fs-11 ms-1"
+                  >
+                    ({{ money(getLineRoundedBasePrice(line)) }} × {{ line.quantity }})
                   </small>
-                </div>
-                <strong class="text-warning-emphasis">{{ money(getWeightedBreakdown(line)!.basePrice) }}</strong>
-              </div>
-              <div v-if="getWeightedBreakdown(line)" class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Thành tiền (Đã làm tròn)</div>
-                  <small class="text-body-tertiary fs-11">Theo bậc giá chuẩn đồ cân</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ money(getWeightedBreakdown(line)!.roundedBasePrice) }}</strong>
-              </div>
-              <div v-if="line.platingCost && line.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền Xi :</span>
-                <strong class="text-warning-emphasis">{{ money(line.platingCost) }}</strong>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tạm tính (chưa làm tròn):</span>
-                <strong class="text-warning-emphasis fw-bold">
-                  {{ money(line.rawPrice ?? (getWeightedBreakdown(line)?.basePrice ?? line.unitPrice)) }} / món
-                  <span v-if="line.rawPrice !== undefined && line.rawPrice !== null && line.unitPrice !== line.rawPrice" class="text-body-tertiary fw-normal">
-                    ({{ line.unitPrice > line.rawPrice ? '+' : '' }}{{ money(line.unitPrice - line.rawPrice) }})
-                  </span>
                 </strong>
               </div>
-              <div v-if="getWeightedBreakdown(line)?.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
-                <div>
-                  <div>Điều chỉnh thủ công</div>
-                  <small class="text-body-tertiary fs-11">Chênh lệch so với giá chuẩn</small>
-                </div>
-                <strong class="text-warning-emphasis">{{ getWeightedBreakdown(line)!.manualDiff > 0 ? "+" : "" }}{{ money(getWeightedBreakdown(line)!.manualDiff) }}</strong>
-              </div>
-            </template>
-
-            <!-- Chi phí SKU: Fallback loại khác -->
-            <template v-else>
-              <div v-if="line.importPrice !== null && line.importPrice !== undefined && line.importPrice > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Giá nhập :</span>
-                <strong class="text-warning-emphasis">{{ money(line.importPrice) }}</strong>
-              </div>
-              <div v-if="line.laborCost && line.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tiền công :</span>
-                <strong class="text-warning-emphasis">{{ money(line.laborCost) }}</strong>
-              </div>
-              <div v-if="line.platingCost && line.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+              <div class="d-flex justify-content-between align-items-center py-1">
                 <span>Tiền xi :</span>
-                <strong class="text-warning-emphasis">{{ money(line.platingCost) }}</strong>
+                <strong class="text-warning-emphasis">
+                  {{ money((Number(line.platingCost) || 0) * line.quantity) }}
+                  <small
+                    v-if="line.quantity > 1 && (Number(line.platingCost) || 0) > 0"
+                    class="text-body-tertiary fw-normal fs-11 ms-1"
+                  >
+                    ({{ money(Number(line.platingCost) || 0) }} × {{ line.quantity }})
+                  </small>
+                </strong>
               </div>
-              <div v-if="line.rawPrice !== undefined && line.rawPrice !== null" class="d-flex justify-content-between align-items-center mt-1">
-                <span>Tạm tính (chưa làm tròn):</span>
-                <strong class="text-warning-emphasis fw-bold">{{ money(line.rawPrice) }} / món</strong>
+              <div class="d-flex justify-content-between align-items-center py-1 border-top border-dashed">
+                <span class="fw-semibold text-body-highlight">Tổng thành tiền :</span>
+                <strong class="text-warning-emphasis fw-bold">
+                  {{ money(line.unitPrice * line.quantity) }}
+                </strong>
               </div>
-            </template>
+            </div>
           </div>
 
           <div
@@ -441,6 +325,21 @@ function getPieceBreakdown(line: OrderCartLine): PieceBreakdown | null {
     manualDiff,
     hasManualAdjustment: manualDiff !== 0,
   };
+}
+
+function getLineRoundedBasePrice(line: OrderCartLine): number {
+  if (line.pricingType === "Đồ món") {
+    const piece = getPieceBreakdown(line);
+    if (piece && !piece.hasManualAdjustment) {
+      return piece.roundedBasePrice + (Number(line.laborCost) || 0);
+    }
+  } else if (line.pricingType === "Đồ cân") {
+    const weighted = getWeightedBreakdown(line);
+    if (weighted && !weighted.hasManualAdjustment) {
+      return weighted.roundedBasePrice;
+    }
+  }
+  return Math.max(0, line.unitPrice - (Number(line.platingCost) || 0));
 }
 
 function isRefreshing(skuId: string): boolean {

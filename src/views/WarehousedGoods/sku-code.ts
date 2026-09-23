@@ -174,7 +174,11 @@ export function matchCategoryGroup(
 export function formatGroupName(name?: string): string {
   if (!name) return "";
   const norm = ascii(name).trim();
-  return norm.replace(/^NHOM\s*/i, "N").replace(/[^A-Z0-9]/g, "");
+  const stripped = norm.replace(/^NHOM\s*/i, "N").replace(/[^A-Z0-9]/g, "");
+  if (/^\d+$/.test(stripped)) {
+    return `N${stripped}`;
+  }
+  return stripped;
 }
 
 export function buildSkuCode(source: SkuCodeSource): string {
@@ -183,7 +187,19 @@ export function buildSkuCode(source: SkuCodeSource): string {
     ascii(source.pricingType).includes("MON");
 
   const matPrefix = getMaterialPrefix(source.name, source.material);
-  const firstPart = matPrefix;
+
+  // Đồ món: lấy mã nhóm theo khoảng giá danh mục và ghép trước dấu "-" (ví dụ: VN7-...)
+  const groupPart = isPiece
+    ? (() => {
+        const matchedGroup = matchCategoryGroup(
+          source.categoryGroups,
+          source.price,
+        );
+        return matchedGroup ? formatGroupName(matchedGroup.name) : "";
+      })()
+    : "";
+
+  const firstPart = isPiece ? `${matPrefix}${groupPart}` : matPrefix;
 
   const nameAbbr = getAbbreviatedName(
     source.name,
@@ -192,16 +208,7 @@ export function buildSkuCode(source: SkuCodeSource): string {
   );
 
   const sizePart = formatSkuSize(source.size);
-  // Công thức cũ giữ nguyên, riêng đồ món chỉ đổi phần trọng lượng sang tên nhóm theo danh mục
-  const weightPart = isPiece
-    ? (() => {
-        const matchedGroup = matchCategoryGroup(
-          source.categoryGroups,
-          source.price,
-        );
-        return matchedGroup ? formatGroupName(matchedGroup.name) : "";
-      })()
-    : formatSkuWeight(source.weight);
+  const weightPart = isPiece ? "" : formatSkuWeight(source.weight);
 
   const restPart = `${nameAbbr}${sizePart}${weightPart}`;
 

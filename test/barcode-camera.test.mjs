@@ -480,8 +480,9 @@ test("SalesCart and cart store support SKU cost breakdown and totals", async () 
     ),
     "utf8",
   );
-  assert.match(salesCartSource, /Chi phí SKU/);
-  assert.match(salesCartSource, /Giá nhập/);
+  assert.match(salesCartSource, /Thành tiền \(Đã làm tròn\)/);
+  assert.match(salesCartSource, /Tiền xi/);
+  assert.match(salesCartSource, /Tổng thành tiền/);
   assert.match(salesCartSource, /Tổng TL bạc:/);
   assert.match(salesCartSource, /Tổng tiền công:/);
   assert.match(salesCartSource, /Tổng tiền xi:/);
