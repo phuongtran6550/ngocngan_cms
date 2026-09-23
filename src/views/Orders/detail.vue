@@ -177,26 +177,154 @@
               </div>
             </div>
           </article>
-          <article class="card overflow-hidden">
-            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between"><h2 class="fs-7 mb-0">Sản phẩm đã bán</h2><span class="badge badge-phoenix badge-phoenix-primary">{{ order.items.length }} SKU</span></div>
-            <div v-if="!order.items.length" class="card-body text-body-tertiary">Đơn cũ chưa lưu chi tiết SKU.</div>
-            <div v-else class="order-product-lines">
-              <article v-for="item in order.items" :key="item.id || `${item.skuId}-${item.category}`" class="order-product-line">
-                <RouterLink v-if="item.skuId && item.thumbnail" :to="`/products/${item.skuId}`" class="order-product-line__thumb-link">
-                  <img :src="assetUrl(item.thumbnail)" :alt="item.productName" />
-                </RouterLink>
-                <img v-else-if="item.thumbnail" :src="assetUrl(item.thumbnail)" :alt="item.productName" />
-                <div class="order-product-line__copy">
-                  <RouterLink v-if="item.skuId" :to="`/products/${item.skuId}`" class="fw-bold text-decoration-none">{{ item.productName || item.category }}</RouterLink>
-                  <strong v-else>{{ item.productName || item.category }}</strong>
-                  <RouterLink v-if="item.skuId" :to="`/products/${item.skuId}`" class="text-decoration-none">
-                    <code class="order-product-line__sku">{{ item.skuCode || item.barcode || "SKU cũ" }}</code>
-                  </RouterLink>
-                  <code v-else>{{ item.skuCode || item.barcode || "SKU cũ" }}</code>
-                  <small>{{ [item.category, item.material, item.pattern, item.size].filter(Boolean).join(" · ") }}</small>
+          <article class="card sold-products-card overflow-hidden border border-translucent shadow-sm">
+            <div class="card-header bg-body-tertiary bg-opacity-25 border-bottom py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="sold-header-icon">
+                  <AppIcon name="gem" />
                 </div>
-                <div class="order-product-line__price"><span>{{ item.quantity }} × {{ money(item.unitPrice) }}</span><strong>{{ money(item.lineTotal) }}</strong></div>
+                <div>
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h2 class="fs-8 fs-sm-7 fw-bold mb-0 text-body-emphasis">Sản phẩm đã bán</h2>
+                    <span class="badge badge-phoenix badge-phoenix-primary fs-10 px-2 py-0.5">{{ order.items.length }} SKU</span>
+                  </div>
+                  <p class="fs-10 text-body-tertiary mb-0 mt-0.5">Danh sách mặt hàng và SKU xuất kho trong giao dịch</p>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2 ms-auto">
+                <span class="badge badge-phoenix badge-phoenix-info fs-10 px-2.5 py-1">
+                  Tổng {{ itemQuantity }} món
+                </span>
+              </div>
+            </div>
+
+            <div v-if="!order.items.length" class="card-body text-center py-5 px-3">
+              <div class="sold-empty-icon mx-auto mb-3">
+                <AppIcon name="archive" />
+              </div>
+              <h3 class="fs-8 fw-semibold text-body-emphasis mb-1">Chưa lưu chi tiết SKU</h3>
+              <p class="fs-9 text-body-tertiary mb-0 mx-auto" style="max-width: 320px;">
+                Đơn hàng này được tạo từ hệ thống cũ hoặc chưa lưu thông tin từng dòng SKU.
+              </p>
+            </div>
+
+            <div v-else class="sold-products-list p-3 p-sm-4">
+              <article
+                v-for="(item, index) in order.items"
+                :key="item.id || `${item.skuId}-${item.category}-${index}`"
+                class="sold-product-item"
+              >
+                <!-- Thumbnail & Preview -->
+                <div class="sold-product-thumb-box">
+                  <button
+                    v-if="item.thumbnail"
+                    type="button"
+                    class="sold-product-thumb-btn"
+                    :title="`Xem ảnh ${item.productName || item.category || 'sản phẩm'}`"
+                    @click="preview = assetUrl(item.thumbnail)"
+                  >
+                    <img
+                      :src="assetUrl(item.thumbnail)"
+                      :alt="item.productName || item.category || 'Ảnh sản phẩm'"
+                      class="sold-product-thumb-img"
+                      loading="lazy"
+                    />
+                    <span class="sold-product-thumb-hover">
+                      <AppIcon name="eye" />
+                    </span>
+                  </button>
+                  <div v-else class="sold-product-thumb-fallback" title="Không có ảnh sản phẩm">
+                    <AppIcon name="gem" />
+                  </div>
+                </div>
+
+                <!-- Product Info & Jewelry Attributes -->
+                <div class="sold-product-main">
+                  <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+                    <div class="sold-product-heading">
+                      <RouterLink
+                        v-if="item.skuId"
+                        :to="`/products/${item.skuId}`"
+                        class="sold-product-name text-decoration-none fw-bold"
+                        :title="`Xem chi tiết sản phẩm: ${item.productName || item.category}`"
+                      >
+                        <span>{{ item.productName || item.category || 'Sản phẩm' }}</span>
+                        <AppIcon name="external-link" class="sold-link-icon ms-1" />
+                      </RouterLink>
+                      <span v-else class="sold-product-name fw-bold text-body-emphasis">
+                        {{ item.productName || item.category || 'Sản phẩm' }}
+                      </span>
+                    </div>
+
+                    <!-- SKU / Barcode Pill -->
+                    <div class="sold-product-sku-wrap">
+                      <RouterLink
+                        v-if="item.skuId"
+                        :to="`/products/${item.skuId}`"
+                        class="sold-sku-code text-decoration-none"
+                        title="Xem SKU trong kho"
+                      >
+                        <AppIcon name="scan-line" class="sold-sku-icon me-1" />
+                        <span>{{ item.skuCode || item.barcode || 'SKU cũ' }}</span>
+                      </RouterLink>
+                      <span v-else class="sold-sku-code">
+                        <AppIcon name="scan-line" class="sold-sku-icon me-1" />
+                        <span>{{ item.skuCode || item.barcode || 'SKU cũ' }}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Jewelry Attribute Chips -->
+                  <div class="sold-product-tags d-flex flex-wrap align-items-center gap-1.5 mt-2">
+                    <span v-if="item.category" class="sold-tag sold-tag-category">
+                      <AppIcon name="tag" class="sold-tag-icon me-1" />
+                      <span>{{ item.category }}</span>
+                    </span>
+                    <span v-if="item.material" class="sold-tag sold-tag-material">
+                      <AppIcon name="gem" class="sold-tag-icon me-1" />
+                      <span>{{ item.material }}</span>
+                    </span>
+                    <span v-if="item.weight" class="sold-tag sold-tag-weight">
+                      <span class="sold-tag-label me-1">KL:</span>
+                      <strong>{{ item.weight }}g</strong>
+                    </span>
+                    <span v-if="item.size" class="sold-tag sold-tag-size">
+                      <span class="sold-tag-label me-1">Size:</span>
+                      <strong>{{ item.size }}</strong>
+                    </span>
+                    <span v-if="item.pattern" class="sold-tag sold-tag-pattern">
+                      <span>{{ item.pattern }}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Pricing & Quantity Column -->
+                <div class="sold-product-pricing">
+                  <div class="sold-pricing-calc">
+                    <span class="sold-qty-badge">
+                      x{{ item.quantity }}
+                    </span>
+                    <span class="sold-unit-rate text-body-tertiary">
+                      {{ money(item.unitPrice) }}
+                    </span>
+                  </div>
+                  <div class="sold-line-total text-primary fw-bolder font-monospace">
+                    {{ money(item.lineTotal) }}
+                  </div>
+                </div>
               </article>
+            </div>
+
+            <!-- Card Summary Footer -->
+            <div v-if="order.items.length" class="card-footer bg-body-tertiary bg-opacity-25 border-top py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+              <div class="d-flex align-items-center gap-2 text-body-secondary fs-9">
+                <AppIcon name="shopping-cart" class="text-body-tertiary" />
+                <span>Tổng cộng <strong class="text-body-emphasis">{{ itemQuantity }}</strong> món hàng ({{ order.items.length }} SKU)</span>
+              </div>
+              <div class="d-flex align-items-baseline gap-2 ms-auto">
+                <span class="text-body-tertiary fs-9">Thành tiền:</span>
+                <span class="fs-7 fw-bolder text-primary font-monospace">{{ money(order.price) }}</span>
+              </div>
             </div>
           </article>
         </div>
@@ -387,17 +515,263 @@ export default defineComponent({
 .order-kpis strong { font-size: 1.05rem; }
 .ocr-summary { display: grid; gap: .6rem; }
 .ocr-summary div { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: .5rem; border-bottom: 1px dashed var(--phoenix-border-color-translucent); }
-.order-product-lines { display: grid; }
-.order-product-line { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; gap: .85rem; align-items: center; padding: 1rem; border-top: 1px solid var(--phoenix-border-color-translucent); }
-.order-product-line img { width: 4rem; height: 4rem; object-fit: cover; border-radius: .65rem; }
-.order-product-line__thumb-link { display: block; width: 4rem; height: 4rem; border-radius: .65rem; overflow: hidden; transition: opacity 150ms ease, transform 150ms ease; }
-.order-product-line__thumb-link:hover { opacity: .85; transform: scale(1.02); }
-.order-product-line__copy { display: grid; min-width: 0; gap: .15rem; }
-.order-product-line__copy code, .order-product-line__copy small { color: var(--phoenix-secondary-color); }
-.order-product-line__sku { transition: color 150ms ease; }
-.order-product-line__sku:hover { color: var(--phoenix-primary) !important; text-decoration: underline; }
-.order-product-line__price { display: grid; gap: .15rem; text-align: right; }
-.order-product-line__price span { color: var(--phoenix-secondary-color); font-size: .75rem; }
-@media (max-width: 991.98px) { .order-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 575.98px) { .order-kpis { grid-template-columns: 1fr; } .order-product-line { grid-template-columns: 3.5rem minmax(0, 1fr); } .order-product-line img { width: 3.5rem; height: 3.5rem; } .order-product-line__price { grid-column: 2; text-align: left; } }
+
+/* Sold Products Card & Items */
+.sold-header-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  background: rgba(var(--phoenix-primary-rgb), 0.1);
+  color: var(--phoenix-primary);
+  flex-shrink: 0;
+}
+
+.sold-empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--phoenix-body-highlight-bg);
+  color: var(--phoenix-secondary-color);
+}
+
+.sold-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sold-product-item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  border-radius: 0.75rem;
+  background-color: var(--phoenix-body-bg);
+  transition: all 0.2s ease;
+}
+
+.sold-product-item:hover {
+  background-color: var(--phoenix-body-highlight-bg);
+  border-color: rgba(var(--phoenix-primary-rgb), 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.sold-product-thumb-box {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+}
+
+.sold-product-thumb-btn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  border-radius: 0.625rem;
+  overflow: hidden;
+  position: relative;
+  background: var(--phoenix-body-highlight-bg);
+  cursor: pointer;
+  display: block;
+}
+
+.sold-product-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.sold-product-thumb-hover {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sold-product-thumb-btn:hover .sold-product-thumb-hover {
+  opacity: 1;
+}
+
+.sold-product-thumb-btn:hover .sold-product-thumb-img {
+  transform: scale(1.08);
+}
+
+.sold-product-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--phoenix-border-color-translucent);
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--phoenix-body-highlight-bg);
+  color: var(--phoenix-secondary-color);
+  opacity: 0.75;
+}
+
+.sold-product-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sold-product-name {
+  font-size: 0.925rem;
+  color: var(--phoenix-emphasis-color);
+  transition: color 0.15s ease;
+}
+
+.sold-product-name:hover {
+  color: var(--phoenix-primary);
+}
+
+.sold-link-icon {
+  width: 13px;
+  height: 13px;
+  opacity: 0.55;
+  vertical-align: -1px;
+}
+
+.sold-product-name:hover .sold-link-icon {
+  opacity: 1;
+}
+
+.sold-sku-code {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--phoenix-font-monospace);
+  font-size: 0.725rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--phoenix-body-highlight-bg);
+  border: 1px solid var(--phoenix-border-color-translucent);
+  border-radius: 0.375rem;
+  color: var(--phoenix-secondary-color);
+  transition: all 0.15s ease;
+}
+
+.sold-sku-code:hover {
+  color: var(--phoenix-primary);
+  border-color: rgba(var(--phoenix-primary-rgb), 0.5);
+}
+
+.sold-sku-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sold-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.sold-tag-icon {
+  width: 11px;
+  height: 11px;
+}
+
+.sold-tag-category {
+  background: rgba(var(--phoenix-primary-rgb), 0.08);
+  color: var(--phoenix-primary);
+  border-color: rgba(var(--phoenix-primary-rgb), 0.2);
+}
+
+.sold-tag-material {
+  background: rgba(var(--phoenix-warning-rgb), 0.1);
+  color: var(--phoenix-warning-emphasis, #b27300);
+  border-color: rgba(var(--phoenix-warning-rgb), 0.25);
+}
+
+.sold-tag-weight {
+  background: rgba(var(--phoenix-info-rgb), 0.08);
+  color: var(--phoenix-info);
+  border-color: rgba(var(--phoenix-info-rgb), 0.2);
+}
+
+.sold-tag-size {
+  background: var(--phoenix-body-highlight-bg);
+  color: var(--phoenix-secondary-color);
+  border-color: var(--phoenix-border-color-translucent);
+}
+
+.sold-tag-pattern {
+  background: var(--phoenix-body-highlight-bg);
+  color: var(--phoenix-body-color);
+  border-color: var(--phoenix-border-color-translucent);
+}
+
+.sold-product-pricing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sold-pricing-calc {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+}
+
+.sold-qty-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  background: rgba(var(--phoenix-secondary-rgb, 108, 117, 125), 0.12);
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--phoenix-secondary-color);
+}
+
+.sold-line-total {
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 991.98px) {
+  .order-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 575.98px) {
+  .order-kpis { grid-template-columns: 1fr; }
+  .sold-product-item {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+  .sold-product-thumb-box {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+  .sold-product-pricing {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.65rem;
+    border-top: 1px dashed var(--phoenix-border-color-translucent);
+    margin-top: 0.25rem;
+  }
+}
 </style>
