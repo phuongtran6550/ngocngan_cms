@@ -45,6 +45,7 @@ export interface ProductSku {
   laborCost: number;
   platingCost: number;
   importPrice: number | null;
+  manualPrice?: boolean;
   status: ProductStatus;
   printCount?: number;
   createdAt?: string;
@@ -75,6 +76,7 @@ export interface ProductOptionsResponse {
   categories: ProductOption[];
   materials: ProductOption[];
   patterns: ProductOption[];
+  roundingMarks?: { piece: number[]; weighted: number[] } | null;
 }
 
 export type ProductSkuHistoryAction =

@@ -540,6 +540,7 @@ const historyLoading = ref(false);
 const historyLoadingMore = ref(false);
 const historyError = ref("");
 const currentSilverPrice = ref<number | null>(null);
+const roundingMarks = ref<{ piece: number[]; weighted: number[] } | null>(null);
 const silverPriceLoading = ref(false);
 const silverPriceError = ref(false);
 const cartMessage = ref("");
@@ -595,6 +596,7 @@ const weightedCostBreakdown = computed(() => {
     silverPrice,
     laborCost: sku.laborCost,
     platingCost: sku.platingCost,
+    customMarks: roundingMarks.value?.weighted,
   });
   const roundingDiff = result.roundedBasePrice - result.basePrice;
   const manualDiff = sku.price - result.price;
@@ -626,6 +628,7 @@ const pieceCostBreakdown = computed(() => {
     sku.importPrice,
     sku.platingCost,
     sku.laborCost,
+    roundingMarks.value?.piece,
   );
   const doublePrice = sku.importPrice * 2;
   const discountPercent = Math.round(preview.discountRate * 100);
@@ -729,6 +732,7 @@ async function loadCurrentSilverPrice(): Promise<void> {
     const status = await productService.options(silverPriceController.signal);
     if (currentRequest !== silverPriceRequestId) return;
     currentSilverPrice.value = status.silverPrice ?? null;
+    roundingMarks.value = status.roundingMarks ?? null;
   } catch (loadError) {
     if (currentRequest !== silverPriceRequestId) return;
     const normalized = apiError(loadError);
@@ -807,6 +811,7 @@ async function load(skuId: string): Promise<void> {
   historyTotalPages.value = 0;
   historyError.value = "";
   currentSilverPrice.value = null;
+  roundingMarks.value = null;
   silverPriceLoading.value = false;
   silverPriceError.value = false;
   try {

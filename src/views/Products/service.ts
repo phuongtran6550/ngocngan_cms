@@ -266,6 +266,7 @@ export const productService = {
       categories: normalizedOptions(data?.categories, "category"),
       materials: normalizedOptions(data?.materials, "material"),
       patterns: normalizedOptions(data?.patterns, "pattern"),
+      roundingMarks: data?.roundingMarks || null,
     };
   },
 };
