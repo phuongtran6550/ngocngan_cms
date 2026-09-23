@@ -16,18 +16,29 @@
           <AppIcon name="arrow-left" class="me-2" />Giỏ hàng
         </button>
         <strong>Ảnh đơn hàng</strong>
-        <button
-          v-if="torchAvailable"
-          type="button"
-          class="btn btn-sm btn-light"
-          :disabled="disabled || state !== 'ready'"
-          :aria-pressed="torchEnabled"
-          @click="toggleTorch"
-        >
-          <AppIcon name="zap" class="me-1" />{{
-            torchEnabled ? "Tắt đèn" : "Bật đèn"
-          }}
-        </button>
+        <div class="d-flex align-items-center gap-1">
+          <button
+            v-if="canSwitchCamera"
+            type="button"
+            class="btn btn-sm btn-light"
+            :disabled="disabled || state !== 'ready'"
+            @click="switchCamera"
+          >
+            <AppIcon name="refresh" class="me-1" />Đổi camera
+          </button>
+          <button
+            v-if="torchAvailable"
+            type="button"
+            class="btn btn-sm btn-light"
+            :disabled="disabled || state !== 'ready'"
+            :aria-pressed="torchEnabled"
+            @click="toggleTorch"
+          >
+            <AppIcon name="zap" class="me-1" />{{
+              torchEnabled ? "Tắt đèn" : "Bật đèn"
+            }}
+          </button>
+        </div>
       </header>
       <div
         ref="viewport"
@@ -166,7 +177,7 @@
             type="button"
             class="btn btn-primary"
             :disabled="disabled"
-            @click="startCamera"
+            @click="() => startCamera()"
           >
             Mở lại camera
           </button>
@@ -196,6 +207,7 @@ import {
 } from "vue";
 import {
   attachEnvironmentCamera,
+  listEnvironmentCameraDevices,
   normalizeEnvironmentCameraError,
   prepareEnvironmentCameraTrack,
   requestEnvironmentCamera,
@@ -418,13 +430,34 @@ function releaseStream(target = stream): void {
   }
 }
 
+const availableCameras = ref<MediaDeviceInfo[]>([]);
+const currentCameraIndex = ref(0);
+const canSwitchCamera = computed(() => availableCameras.value.length > 1);
+
+async function refreshCameras(): Promise<void> {
+  if (typeof listEnvironmentCameraDevices === "function") {
+    availableCameras.value =
+      (await listEnvironmentCameraDevices().catch(() => [])) || [];
+  }
+}
+
+async function switchCamera(): Promise<void> {
+  if (availableCameras.value.length <= 1) return;
+  currentCameraIndex.value =
+    (currentCameraIndex.value + 1) % availableCameras.value.length;
+  const target = availableCameras.value[currentCameraIndex.value];
+  if (target?.deviceId) {
+    await startCamera(target.deviceId);
+  }
+}
+
 function stopCamera(nextState: CaptureState = "idle"): void {
   sessionId += 1;
   releaseStream();
   state.value = nextState;
 }
 
-async function startCamera(): Promise<void> {
+async function startCamera(preferredDeviceId?: string): Promise<void> {
   const session = ++sessionId;
   releaseStream();
   state.value = "starting";
@@ -435,7 +468,7 @@ async function startCamera(): Promise<void> {
   await nextTick();
 
   try {
-    const nextStream = await requestEnvironmentCamera();
+    const nextStream = await requestEnvironmentCamera(preferredDeviceId);
     if (session !== sessionId || disposed || !props.active) {
       stopEnvironmentCamera(nextStream);
       return;
@@ -465,6 +498,7 @@ async function startCamera(): Promise<void> {
     updateView();
     state.value = "ready";
     message.value = "Giữ máy ổn định và chụp rõ toàn bộ đơn hàng.";
+    void refreshCameras();
   } catch (error) {
     if (session !== sessionId || disposed || !props.active) return;
     releaseStream();

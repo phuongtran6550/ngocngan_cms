@@ -8,6 +8,49 @@ import wasmUrl from "zxing-wasm/reader/zxing_reader.wasm?url";
 
 export type BarcodeDecodeMode = "fast" | "recovery";
 export type BarcodeImageInput = Blob | ImageData;
+export type BarcodeDetectableSource = BarcodeImageInput | HTMLVideoElement;
+
+interface DetectedBarcode {
+  rawValue?: string;
+  format?: string;
+}
+
+interface NativeBarcodeDetector {
+  detect(source: unknown): Promise<DetectedBarcode[]>;
+}
+
+let nativeDetectorPromise: Promise<NativeBarcodeDetector | null> | null = null;
+
+export function isNativeBarcodeDetectorSupported(): boolean {
+  return typeof window !== "undefined" && "BarcodeDetector" in window;
+}
+
+export async function getNativeBarcodeDetector(): Promise<NativeBarcodeDetector | null> {
+  if (!isNativeBarcodeDetectorSupported()) return null;
+  if (!nativeDetectorPromise) {
+    nativeDetectorPromise = (async () => {
+      try {
+        const Detector = (
+          window as unknown as {
+            BarcodeDetector: {
+              getSupportedFormats?: () => Promise<string[]>;
+              new (opt?: { formats: string[] }): NativeBarcodeDetector;
+            };
+          }
+        ).BarcodeDetector;
+        if (!Detector?.getSupportedFormats) return null;
+        const formats = await Detector.getSupportedFormats();
+        if (formats.includes("code_128")) {
+          return new Detector({ formats: ["code_128"] });
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    })();
+  }
+  return nativeDetectorPromise;
+}
 
 const locateFile = (path: string, prefix: string): string =>
   path.endsWith(".wasm") ? wasmUrl : `${prefix}${path}`;
@@ -48,6 +91,9 @@ function resetReader(): void {
 }
 
 export function preloadBarcodeReader(): Promise<unknown> {
+  if (isNativeBarcodeDetectorSupported()) {
+    void getNativeBarcodeDetector();
+  }
   configure();
   if (!preloadPromise) {
     preloadPromise = Promise.resolve()
@@ -62,15 +108,42 @@ export function preloadBarcodeReader(): Promise<unknown> {
 }
 
 export async function readBarcodeValues(
-  input: BarcodeImageInput,
+  input: BarcodeDetectableSource,
   mode: BarcodeDecodeMode,
   binarizer?: ReaderOptions["binarizer"],
 ): Promise<string[]> {
+  const native = await getNativeBarcodeDetector();
+  if (native) {
+    try {
+      const results = await native.detect(input);
+      if (results && results.length > 0) {
+        const barcodes = results
+          .filter(
+            (r) =>
+              r.rawValue &&
+              r.rawValue.trim() &&
+              (r.format === "code_128" || !r.format),
+          )
+          .map((r) => r.rawValue!.trim());
+        if (barcodes.length > 0) return barcodes;
+      }
+    } catch {
+      // In case native detector encounters an error, fall through to WASM
+    }
+  }
+
+  if (
+    typeof HTMLVideoElement !== "undefined" &&
+    input instanceof HTMLVideoElement
+  ) {
+    return [];
+  }
+
   configure();
   const options = mode === "fast" ? fastOptions : recoveryOptions;
   let results: Awaited<ReturnType<typeof readBarcodes>>;
   try {
-    results = await readBarcodes(input, {
+    results = await readBarcodes(input as BarcodeImageInput, {
       ...options,
       ...(binarizer ? { binarizer } : {}),
     });

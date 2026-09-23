@@ -13,11 +13,13 @@ interface CameraCodedError extends Error {
 interface ExtendedTrackCapabilities extends MediaTrackCapabilities {
   focusMode?: string[];
   torch?: boolean;
+  zoom?: { min?: number; max?: number; step?: number };
 }
 
 interface ExtendedTrackConstraintSet extends MediaTrackConstraintSet {
   focusMode?: string;
   torch?: boolean;
+  zoom?: number;
 }
 
 function unsupportedCameraError(): CameraCodedError {
@@ -49,14 +51,138 @@ export function normalizeEnvironmentCameraError(
   return { code: "camera", cause: error };
 }
 
-export async function requestEnvironmentCamera(): Promise<MediaStream> {
+export async function listEnvironmentCameraDevices(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter((d) => d.kind === "videoinput");
+    // Only return back-facing cameras with identifiable labels to prevent switching to front camera on iOS
+    return videoInputs.filter((d) => {
+      const label = (d.label || "").toLowerCase();
+      if (!label) return false;
+      if (label.includes("front") || label.includes("user")) return false;
+      return (
+        label.includes("back") ||
+        label.includes("rear") ||
+        label.includes("environment") ||
+        label.includes("sau")
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getBestEnvironmentCameraDeviceId(): Promise<string | undefined> {
+  if (!navigator.mediaDevices?.enumerateDevices) return undefined;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter((d) => d.kind === "videoinput");
+    if (videoInputs.length <= 1) return undefined;
+
+    // Check if labels are accessible (on iOS Safari before permission or due to privacy, labels may be empty)
+    const hasLabels = videoInputs.some((d) => Boolean(d.label));
+    if (!hasLabels) {
+      // If no labels, do NOT guess by index (which might pick the front camera on iPhone).
+      // Return undefined so browser relies on facingMode: "environment"
+      return undefined;
+    }
+
+    // Filter to confirmed back-facing cameras
+    const backCameras = videoInputs.filter((d) => {
+      const label = (d.label || "").toLowerCase();
+      if (label.includes("front") || label.includes("user")) return false;
+      return (
+        label.includes("back") ||
+        label.includes("rear") ||
+        label.includes("environment") ||
+        label.includes("sau")
+      );
+    });
+
+    if (backCameras.length <= 1) return backCameras[0]?.deviceId;
+
+    // Look for primary wide lens (avoid telephoto, zoom, macro, ultra-wide)
+    const mainCamera = backCameras.find((d) => {
+      const label = (d.label || "").toLowerCase();
+      const isUltraWide =
+        label.includes("ultra") ||
+        label.includes("0.5") ||
+        label.includes("0.6") ||
+        label.includes("siêu rộng");
+      const isTele =
+        label.includes("tele") ||
+        label.includes("zoom") ||
+        label.includes("macro") ||
+        label.includes("depth");
+      if (isUltraWide || isTele) return false;
+      return (
+        label.includes("main") ||
+        label.includes("wide") ||
+        label.includes("chính") ||
+        label.includes("0")
+      );
+    });
+
+    return mainCamera?.deviceId || backCameras[0]?.deviceId;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function requestEnvironmentCamera(
+  deviceId?: string,
+): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) throw unsupportedCameraError();
 
+  const isPortrait =
+    typeof window !== "undefined" &&
+    window.innerHeight > window.innerWidth;
+
+  let targetDeviceId = deviceId;
+  if (!targetDeviceId) {
+    targetDeviceId = await getBestEnvironmentCameraDeviceId();
+  }
+
+  const baseConstraints: MediaTrackConstraints = targetDeviceId
+    ? { deviceId: { exact: targetDeviceId } }
+    : { facingMode: { ideal: "environment" } };
+
+  // 1. Preferred: Orientation-adaptive with 3:4 / 4:3 aspect ratio (avoids sensor crop on mobile)
   try {
     return await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
-        facingMode: { ideal: "environment" },
+        ...baseConstraints,
+        width: { ideal: isPortrait ? 1080 : 1920 },
+        height: { ideal: isPortrait ? 1920 : 1080 },
+        aspectRatio: { ideal: isPortrait ? 3 / 4 : 4 / 3 },
+      },
+    });
+  } catch (error) {
+    if (!isOverconstrained(error)) throw error;
+  }
+
+  // 2. Adaptive resolution without aspect ratio constraint
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        ...baseConstraints,
+        width: { ideal: isPortrait ? 1080 : 1920 },
+        height: { ideal: isPortrait ? 1920 : 1080 },
+      },
+    });
+  } catch (error) {
+    if (!isOverconstrained(error)) throw error;
+  }
+
+  // 3. Fallback: 1920x1080 landscape
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        ...baseConstraints,
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
@@ -65,10 +191,13 @@ export async function requestEnvironmentCamera(): Promise<MediaStream> {
     if (!isOverconstrained(error)) throw error;
   }
 
+  // 4. Fallback: deviceId or facingMode without dimension constraints (lets sensor choose native FOV)
   try {
     return await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: "environment" },
+      video: baseConstraints.deviceId
+        ? baseConstraints
+        : { facingMode: "environment" },
     });
   } catch (error) {
     if (!isOverconstrained(error)) throw error;
@@ -105,6 +234,18 @@ export async function prepareEnvironmentCameraTrack(
     capabilities = track.getCapabilities?.() as ExtendedTrackCapabilities;
   } catch {
     return { torchAvailable: false };
+  }
+
+  // Reset hardware zoom to baseline if available to prevent sensor zoom trap on Samsung/Oppo
+  if (capabilities?.zoom) {
+    const minZoom = capabilities.zoom.min ?? 1;
+    await track
+      .applyConstraints({
+        advanced: [
+          { zoom: Math.max(1, minZoom) } as ExtendedTrackConstraintSet,
+        ],
+      })
+      .catch(() => undefined);
   }
 
   if (capabilities?.focusMode?.includes("continuous")) {

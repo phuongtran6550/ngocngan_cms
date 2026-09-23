@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, readonly, ref, type Ref } from "vue";
 import {
   attachEnvironmentCamera,
+  listEnvironmentCameraDevices,
   normalizeEnvironmentCameraError,
   prepareEnvironmentCameraTrack,
   requestEnvironmentCamera,
@@ -11,6 +12,7 @@ import {
 import { isInventoryBarcode } from "@/utils/inventory-barcode";
 import { BarcodeCandidateStabilizer } from "@/views/Products/scanner/barcode-candidate";
 import {
+  isNativeBarcodeDetectorSupported,
   readBarcodeValues,
   type BarcodeDecodeMode,
 } from "@/views/Products/scanner/zxing-reader";
@@ -241,6 +243,27 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     return true;
   }
 
+  const availableCameras = ref<MediaDeviceInfo[]>([]);
+  const currentCameraIndex = ref(0);
+  const canSwitchCamera = computed(() => availableCameras.value.length > 1);
+
+  async function refreshCameras(): Promise<void> {
+    if (typeof listEnvironmentCameraDevices === "function") {
+      const devices = await listEnvironmentCameraDevices().catch(() => []);
+      availableCameras.value = devices;
+    }
+  }
+
+  async function switchCamera(): Promise<void> {
+    if (availableCameras.value.length <= 1) return;
+    currentCameraIndex.value =
+      (currentCameraIndex.value + 1) % availableCameras.value.length;
+    const target = availableCameras.value[currentCameraIndex.value];
+    if (target?.deviceId) {
+      await start(target.deviceId);
+    }
+  }
+
   async function decodeFrame(
     session: number,
     video: HTMLVideoElement,
@@ -250,7 +273,20 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     const image = captureFrame(video, mode === "recovery");
     if (!image) return;
     try {
-      const values = await readBarcodeValues(image, mode);
+      let values = await readBarcodeValues(image, mode);
+      if (
+        !values.length &&
+        typeof isNativeBarcodeDetectorSupported === "function" &&
+        isNativeBarcodeDetectorSupported() &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
+        const fullVideoValues = await readBarcodeValues(video, mode).catch(
+          () => [],
+        );
+        if (fullVideoValues.length) {
+          values = fullVideoValues;
+        }
+      }
       if (session !== sessionId || disposed || version !== frameVersion) return;
       observe(values, performance.now());
     } catch (error) {
@@ -290,12 +326,12 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     torchAvailable.value = result.torchAvailable;
   }
 
-  async function start(): Promise<void> {
+  async function start(preferredDeviceId?: string): Promise<void> {
     stop();
     const session = ++sessionId;
     starting = true;
     try {
-      const nextStream = await requestEnvironmentCamera();
+      const nextStream = await requestEnvironmentCamera(preferredDeviceId);
       if (session !== sessionId || disposed) {
         stopEnvironmentCamera(nextStream);
         return;
@@ -314,6 +350,7 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
       starting = false;
       updateFrame();
       active.value = true;
+      void refreshCameras();
       schedule(session);
     } catch (error) {
       if (session !== sessionId || disposed) return;
@@ -475,6 +512,9 @@ export function useBarcodeCamera(options: BarcodeCameraOptions) {
     active: readonly(active),
     torchAvailable: readonly(torchAvailable),
     torchEnabled: readonly(torchEnabled),
+    availableCameras: readonly(availableCameras),
+    canSwitchCamera,
+    switchCamera,
     start,
     stop,
     scanFile,

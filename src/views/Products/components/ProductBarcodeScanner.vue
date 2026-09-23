@@ -110,6 +110,24 @@
                 @click="camera.setZoom(camera.zoom.value + 0.25)"
               >+</button>
             </div>
+            <div v-if="camera.active.value" class="d-flex justify-content-center gap-2 mt-2">
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="camera.zoom.value <= 0.55 ? 'btn-primary' : 'btn-phoenix-secondary'"
+                @click="camera.setZoom(0.5)"
+              >
+                Góc rộng (0.5×)
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="Math.abs(camera.zoom.value - 1) < 0.05 ? 'btn-primary' : 'btn-phoenix-secondary'"
+                @click="camera.setZoom(1)"
+              >
+                Tiêu chuẩn (1×)
+              </button>
+            </div>
 
             <div
               class="scanner-status mt-3"
@@ -189,6 +207,15 @@
               >
                 <AppIcon name="zap" class="me-2" />
                 {{ camera.torchEnabled.value ? "Tắt đèn" : "Bật đèn" }}
+              </button>
+              <button
+                v-if="camera.canSwitchCamera.value && (state === 'scanning' || state === 'idle')"
+                type="button"
+                class="btn btn-sm btn-phoenix-secondary"
+                @click="camera.switchCamera"
+              >
+                <AppIcon name="refresh" class="me-2" />
+                Đổi camera
               </button>
               <button
                 v-if="canRescan"

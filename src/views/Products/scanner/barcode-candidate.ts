@@ -1,6 +1,6 @@
 import { isInventoryBarcode } from "@/utils/inventory-barcode";
 
-const DEFAULT_STABILITY_WINDOW_MS = 1_200;
+const DEFAULT_STABILITY_WINDOW_MS = 2_000;
 
 export class BarcodeCandidateStabilizer {
   private candidate = "";
