@@ -164,6 +164,7 @@ export interface OrderCartLine {
   platingCost?: number;
   importPrice?: number | null;
   rawPrice?: number | null;
+  manualPrice?: boolean;
 }
 
 export interface OrderCheckoutInput {

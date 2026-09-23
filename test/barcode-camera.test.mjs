@@ -472,3 +472,30 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
   assert.match(scannerSource, /lastProduct\.rawPrice/);
 });
 
+test("SalesCart and cart store support SKU cost breakdown and totals", async () => {
+  const salesCartSource = readFileSync(
+    new URL(
+      "../src/views/Orders/components/SalesCart.vue",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(salesCartSource, /Chi phí SKU/);
+  assert.match(salesCartSource, /isCostExpanded/);
+  assert.match(salesCartSource, /Tổng TL bạc:/);
+  assert.match(salesCartSource, /Tổng tiền công:/);
+  assert.match(salesCartSource, /Tổng tiền xi:/);
+
+  const cartSource = readFileSync(
+    new URL(
+      "../src/views/Orders/cart.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(cartSource, /totalWeight/);
+  assert.match(cartSource, /totalLaborCost/);
+  assert.match(cartSource, /totalPlatingCost/);
+  assert.match(cartSource, /roundingMarks/);
+});
+

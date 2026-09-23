@@ -16,6 +16,7 @@ function lineFromSku(
   sku: ProductSku,
   quantity = 1,
   silverPrice?: number | null,
+  customMarks?: readonly number[],
 ): OrderCartLine {
   return {
     skuId: sku.id,
@@ -37,7 +38,8 @@ function lineFromSku(
     laborCost: sku.laborCost,
     platingCost: sku.platingCost,
     importPrice: sku.importPrice,
-    rawPrice: calculateSkuRawPrice(sku, silverPrice),
+    rawPrice: calculateSkuRawPrice(sku, silverPrice, customMarks),
+    manualPrice: sku.manualPrice,
   };
 }
 
@@ -52,6 +54,7 @@ export const useSalesCartStore = defineStore("sales-cart", {
     unverifiedSkuIds: [] as string[],
     initialized: false,
     silverPrice: null as number | null,
+    roundingMarks: null as { piece?: number[]; weighted?: number[] } | null,
   }),
   getters: {
     itemQuantity: (state): number =>
@@ -64,6 +67,38 @@ export const useSalesCartStore = defineStore("sales-cart", {
     rawTotal: (state): number =>
       state.lines.reduce(
         (sum, line) => sum + (line.rawPrice ?? line.unitPrice) * line.quantity,
+        0,
+      ),
+    totalWeight: (state): number =>
+      state.lines.reduce(
+        (sum, line) =>
+          line.pricingType === "Đồ cân" && Number.isFinite(line.weight) && line.weight > 0
+            ? sum + line.weight * line.quantity
+            : sum,
+        0,
+      ),
+    totalLaborCost: (state): number =>
+      state.lines.reduce(
+        (sum, line) =>
+          Number.isFinite(line.laborCost) && (line.laborCost ?? 0) > 0
+            ? sum + (line.laborCost ?? 0) * line.quantity
+            : sum,
+        0,
+      ),
+    totalPlatingCost: (state): number =>
+      state.lines.reduce(
+        (sum, line) =>
+          Number.isFinite(line.platingCost) && (line.platingCost ?? 0) > 0
+            ? sum + (line.platingCost ?? 0) * line.quantity
+            : sum,
+        0,
+      ),
+    totalImportPrice: (state): number =>
+      state.lines.reduce(
+        (sum, line) =>
+          Number.isFinite(line.importPrice) && (line.importPrice ?? 0) > 0
+            ? sum + (line.importPrice ?? 0) * line.quantity
+            : sum,
         0,
       ),
     hasStockConflict: (): boolean => false,
@@ -88,9 +123,12 @@ export const useSalesCartStore = defineStore("sales-cart", {
         const options = await productService.options();
         if (typeof options.silverPrice === "number" && options.silverPrice > 0) {
           this.silverPrice = options.silverPrice;
-          this.updateRawPrices();
-          return this.silverPrice;
         }
+        if (options.roundingMarks) {
+          this.roundingMarks = options.roundingMarks;
+        }
+        this.updateRawPrices();
+        return this.silverPrice;
       } catch {
         // ignore network error
       }
@@ -99,7 +137,15 @@ export const useSalesCartStore = defineStore("sales-cart", {
     updateRawPrices(): void {
       let changed = false;
       for (const line of this.lines) {
-        const calculated = calculateSkuRawPrice(line, this.silverPrice);
+        const customMarks =
+          line.pricingType === "Đồ cân"
+            ? this.roundingMarks?.weighted
+            : this.roundingMarks?.piece;
+        const calculated = calculateSkuRawPrice(
+          line,
+          this.silverPrice,
+          customMarks,
+        );
         if (calculated !== null && calculated !== line.rawPrice) {
           line.rawPrice = calculated;
           changed = true;
@@ -112,11 +158,15 @@ export const useSalesCartStore = defineStore("sales-cart", {
     },
     add(sku: ProductSku): CartMutationResult {
       this.initialize();
+      const customMarks =
+        sku.pricingType === "Đồ cân"
+          ? this.roundingMarks?.weighted
+          : this.roundingMarks?.piece;
       const existing = this.lines.find((line) => line.skuId === sku.id);
       if (existing) {
         Object.assign(
           existing,
-          lineFromSku(sku, existing.quantity, this.silverPrice),
+          lineFromSku(sku, existing.quantity, this.silverPrice, customMarks),
         );
         this.markVerified(sku.id);
         existing.quantity += 1;
@@ -128,7 +178,7 @@ export const useSalesCartStore = defineStore("sales-cart", {
           rawPrice: existing.rawPrice,
         };
       }
-      const newLine = lineFromSku(sku, 1, this.silverPrice);
+      const newLine = lineFromSku(sku, 1, this.silverPrice, customMarks);
       this.lines.push(newLine);
       this.markVerified(sku.id);
       this.persist();
@@ -142,9 +192,13 @@ export const useSalesCartStore = defineStore("sales-cart", {
     refreshSku(sku: ProductSku): void {
       const existing = this.lines.find((line) => line.skuId === sku.id);
       if (!existing) return;
+      const customMarks =
+        sku.pricingType === "Đồ cân"
+          ? this.roundingMarks?.weighted
+          : this.roundingMarks?.piece;
       Object.assign(
         existing,
-        lineFromSku(sku, existing.quantity, this.silverPrice),
+        lineFromSku(sku, existing.quantity, this.silverPrice, customMarks),
       );
       this.markVerified(sku.id);
       this.persist();
