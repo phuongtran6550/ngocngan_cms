@@ -206,10 +206,321 @@
         </article>
       </div>
 
-      <!-- Main Layout: 2 Columns -->
+      <!-- Main Layout: 2 Columns (Left: Large Bill & Customer | Right: Sold Products & Timeline) -->
       <div class="row g-4">
-        <!-- Main Column: Products & Timeline (Col-12 Col-xl-8) -->
-        <div class="col-12 col-xl-8">
+        <!-- Left Column: Large Bill Image & Customer Profile (Col-12 Col-lg-5 Col-xl-5) -->
+        <div class="col-12 col-lg-5 col-xl-5">
+          <!-- Card: Large Order Bill & Receipt Photo Viewer -->
+          <article class="card border border-translucent shadow-sm receipt-card mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="sidebar-card-icon text-info">
+                  <AppIcon name="image" />
+                </div>
+                <div>
+                  <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Hóa đơn & Chứng từ gốc</h2>
+                  <p class="fs-10 text-body-tertiary mb-0 mt-0.5">Ảnh chụp đối chiếu khi tạo đơn hàng</p>
+                </div>
+              </div>
+
+              <!-- Bill Tools (Zoom, Rotate, Fullscreen, Open in Tab) -->
+              <div class="d-flex align-items-center gap-1.5 ms-auto">
+                <span v-if="gallery.length" class="badge badge-phoenix badge-phoenix-info fs-10 me-1">
+                  {{ gallery.length }} ảnh
+                </span>
+
+                <!-- Zoom Toggle Button -->
+                <button
+                  type="button"
+                  class="btn btn-xs btn-phoenix-secondary d-flex align-items-center gap-1"
+                  :class="{ 'btn-primary text-white': isZoomed }"
+                  :title="isZoomed ? 'Thu nhỏ về vừa khung' : 'Phóng to 1.8x để soi nét chữ'"
+                  @click="toggleZoom"
+                >
+                  <AppIcon name="search" />
+                  <span class="d-none d-sm-inline">{{ isZoomed ? '1x' : '1.8x' }}</span>
+                </button>
+
+                <!-- Rotate Image Button -->
+                <button
+                  type="button"
+                  class="btn btn-xs btn-phoenix-secondary d-flex align-items-center gap-1"
+                  title="Xoay ảnh 90 độ"
+                  @click="rotateImage"
+                >
+                  <AppIcon name="refresh" />
+                  <span v-if="rotation" class="fs-10 fw-bold">{{ rotation }}°</span>
+                </button>
+
+                <!-- Open in New Tab Button -->
+                <button
+                  type="button"
+                  class="btn btn-xs btn-phoenix-secondary d-flex align-items-center gap-1"
+                  title="Mở ảnh gốc 100% trong tab mới để xem siêu nét"
+                  @click="openOriginalImage"
+                >
+                  <AppIcon name="external-link" />
+                </button>
+
+                <!-- Lightbox Fullscreen Button -->
+                <button
+                  type="button"
+                  class="btn btn-xs btn-primary d-flex align-items-center gap-1"
+                  title="Phóng to toàn màn hình"
+                  @click="preview = assetUrl(activeImage)"
+                >
+                  <AppIcon name="eye" />
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body p-3 p-sm-4">
+              <!-- Main Active Image Viewer (Large & Prominent) -->
+              <div
+                v-if="activeImage"
+                class="receipt-frame-container"
+                :class="{ 'is-zoomed': isZoomed }"
+              >
+                <div
+                  class="receipt-image-stage"
+                  @click="handleImageStageClick"
+                >
+                  <img
+                    :src="assetUrl(activeImage)"
+                    :alt="`Ảnh chứng từ đơn ${order.orderCode}`"
+                    class="receipt-frame-img"
+                    :style="imageTransformStyle"
+                    loading="eager"
+                  />
+                </div>
+
+                <!-- Hover Overlay Badge (when not zoomed) -->
+                <div v-if="!isZoomed" class="receipt-frame-overlay" @click="preview = assetUrl(activeImage)">
+                  <div class="receipt-overlay-pill">
+                    <AppIcon name="eye" class="me-1.5" />
+                    <span>Bấm xem phóng to toàn màn hình</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fallback if no images -->
+              <div v-else class="receipt-fallback p-5 text-center rounded-3 border border-dashed border-translucent">
+                <AppIcon name="image" class="text-body-tertiary fs-4 mb-2" />
+                <p class="fs-8 text-body-emphasis fw-semibold mb-1">Chưa có ảnh hóa đơn kèm theo</p>
+                <p class="fs-9 text-body-tertiary mb-0">Đơn hàng này được tạo trực tiếp mà không tải lên ảnh chứng từ.</p>
+              </div>
+
+              <!-- Bottom Bar Info & Gallery Strip -->
+              <div v-if="activeImage" class="d-flex align-items-center justify-content-between gap-2 mt-2 pt-1 text-body-tertiary fs-10">
+                <div class="d-flex align-items-center gap-1 text-truncate">
+                  <AppIcon name="help-circle" />
+                  <span>Dùng thanh công cụ bên trên để xoay ảnh, phóng to hoặc mở tab mới.</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-link p-0 fs-10 text-primary text-decoration-none text-nowrap"
+                  @click="openOriginalImage"
+                >
+                  Mở ảnh gốc
+                </button>
+              </div>
+
+              <!-- Thumbnails Gallery Strip if Multiple Photos -->
+              <div v-if="gallery.length > 1" class="receipt-thumbs-strip mt-3 pt-2 border-top border-translucent">
+                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Ảnh chứng từ khác ({{ gallery.length }} ảnh):</div>
+                <div class="d-flex gap-2 overflow-x-auto pb-1">
+                  <button
+                    v-for="(photo, index) in gallery"
+                    :key="`${photo}-${index}`"
+                    type="button"
+                    class="receipt-thumb-item"
+                    :class="{ 'is-active': photo === activeImage }"
+                    :title="`Xem ảnh chứng từ số ${index + 1}`"
+                    @click="selectPhoto(photo)"
+                  >
+                    <img :src="assetUrl(photo)" :alt="`Ảnh ${index + 1}`" />
+                    <span class="receipt-thumb-badge">{{ index + 1 }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Raw OCR Text Expander if available -->
+              <details v-if="order.ocr.rawText" class="mt-3 pt-2 border-top border-translucent">
+                <summary class="fs-10 fw-semibold text-body-secondary cursor-pointer">
+                  <span>Chi tiết văn bản nhận diện OCR từ ảnh</span>
+                </summary>
+                <pre class="ocr-raw-text mt-2 mb-0 p-2.5 rounded-2 bg-body-highlight border border-translucent fs-10 font-monospace">{{ order.ocr.rawText }}</pre>
+              </details>
+            </div>
+          </article>
+
+          <!-- Card: Customer Profile (Directly underneath Bill for easy comparison) -->
+          <article class="card border border-translucent shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <div class="sidebar-card-icon text-success">
+                  <AppIcon name="user" />
+                </div>
+                <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Hồ sơ khách hàng</h2>
+              </div>
+              <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
+            </div>
+
+            <div class="card-body p-3 p-sm-4">
+              <div class="customer-profile-block mb-3">
+                <div class="customer-avatar">
+                  {{ customerInitials }}
+                </div>
+                <div class="customer-meta min-w-0">
+                  <h3 class="fs-8 fw-bold text-body-emphasis mb-0.5 text-truncate" :title="order.name || 'Chưa bổ sung tên'">
+                    {{ order.name || 'Chưa bổ sung tên' }}
+                  </h3>
+                  <div v-if="order.phone" class="d-flex align-items-center gap-2 flex-wrap">
+                    <a :href="`tel:${order.phone}`" class="text-decoration-none text-body-secondary font-monospace fs-9 hover-primary" title="Gọi điện">
+                      <AppIcon name="phone" class="fs-10 me-1" />
+                      <span>{{ order.phone }}</span>
+                    </a>
+                    <RouterLink
+                      :to="`/customers/${order.phone}`"
+                      class="badge badge-phoenix badge-phoenix-primary fs-10 text-decoration-none"
+                      title="Xem toàn bộ hồ sơ và lịch sử mua sắm của khách"
+                    >
+                      <span>Hồ sơ khách</span>
+                      <AppIcon name="external-link" class="ms-1" style="width: 10px; height: 10px;" />
+                    </RouterLink>
+                  </div>
+                  <div v-else class="text-body-tertiary fs-9">
+                    Chưa có số điện thoại
+                  </div>
+                </div>
+              </div>
+
+              <!-- Customer OCR Review Action Banner -->
+              <div
+                v-if="order.customerInfoStatus !== 'complete'"
+                class="customer-review-prompt p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-25"
+              >
+                <div class="d-flex align-items-start gap-2 mb-2">
+                  <AppIcon name="alert-circle" class="text-warning flex-shrink-0 mt-0.5" />
+                  <div class="fs-9 text-body-emphasis fw-medium">
+                    {{ customerStatusDescription }}
+                  </div>
+                </div>
+
+                <div v-if="order.ocr.candidateName || order.ocr.candidatePhone" class="ocr-candidate-box p-2.5 rounded-2 bg-body mb-3 border border-translucent">
+                  <div class="d-flex justify-content-between gap-2 fs-9 mb-1">
+                    <span class="text-body-tertiary">Tên OCR:</span>
+                    <strong class="text-body-emphasis">{{ order.ocr.candidateName || "—" }}</strong>
+                  </div>
+                  <div class="d-flex justify-content-between gap-2 fs-9">
+                    <span class="text-body-tertiary">SĐT OCR:</span>
+                    <strong class="text-body-emphasis font-monospace">{{ order.ocr.candidatePhone || "—" }}</strong>
+                  </div>
+                </div>
+
+                <button
+                  v-if="auth.can('orders.update')"
+                  type="button"
+                  class="btn btn-sm btn-primary w-100 d-flex align-items-center justify-content-center gap-1.5"
+                  @click="reviewOpen = true"
+                >
+                  <AppIcon name="user-check" />
+                  <span>Đối chiếu & xác nhận ngay</span>
+                </button>
+              </div>
+
+              <!-- Customer Verified Details -->
+              <div
+                v-else-if="order.ocr.review.mode"
+                class="ocr-verified-box p-2.5 rounded-2 bg-body-highlight border border-translucent fs-9"
+              >
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Hình thức xác thực</span>
+                  <strong>{{ order.ocr.review.mode === 'ocr' ? 'Kiểm duyệt gợi ý' : 'Nhập thủ công' }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Độ chuẩn tên</span>
+                  <strong>{{ outcomeLabel(order.ocr.review.nameOutcome) }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Độ chuẩn SĐT</span>
+                  <strong>{{ outcomeLabel(order.ocr.review.phoneOutcome) }}</strong>
+                </div>
+                <div v-if="order.ocr.extractionVersion" class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Phiên bản đọc ảnh</span>
+                  <strong>{{ order.ocr.extractionVersion }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1">
+                  <span class="text-body-tertiary">Thời gian xử lý</span>
+                  <strong>{{ dateTime(order.ocr.review.reviewedAt || order.ocr.processedAt) }}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card: Transaction Meta Details -->
+          <article class="card border border-translucent shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center gap-2">
+              <div class="sidebar-card-icon text-secondary">
+                <AppIcon name="table" />
+              </div>
+              <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Thông tin giao dịch</h2>
+            </div>
+            <div class="card-body p-3 p-sm-4">
+              <DetailDefinitionList :fields="detailFields" />
+
+              <!-- Mobile Quick Actions -->
+              <div v-if="hasOrderActions" class="d-md-none border-top border-translucent mt-3 pt-3">
+                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Thao tác đơn hàng</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button
+                    v-if="canReturn"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-warning d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('return')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Đổi trả</span>
+                  </button>
+                  <button
+                    v-if="canCancel"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-danger d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('cancel')"
+                  >
+                    <AppIcon name="close" />
+                    <span>Hủy đơn</span>
+                  </button>
+                  <button
+                    v-if="canRestore"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-success d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('restore')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Khôi phục</span>
+                  </button>
+                  <button
+                    v-if="canDelete"
+                    type="button"
+                    class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
+                    :disabled="saving"
+                    @click="triggerAction('delete')"
+                  >
+                    <AppIcon name="trash-2" />
+                    <span>Xóa</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Right Column: Sold Products & Order Timeline (Col-12 Col-lg-7 Col-xl-7) -->
+        <div class="col-12 col-lg-7 col-xl-7">
           <!-- Card: Sold Products List -->
           <article class="card sold-products-card overflow-hidden border border-translucent shadow-sm mb-4">
             <div class="card-header bg-body-tertiary bg-opacity-25 border-bottom py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -510,240 +821,6 @@
             </div>
           </article>
         </div>
-
-        <!-- Sidebar Column: Customer, Bill Photo, Meta Details (Col-12 Col-xl-4) -->
-        <div class="col-12 col-xl-4">
-          <!-- Card: Customer Profile -->
-          <article class="card border border-translucent shadow-sm mb-4">
-            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center justify-content-between">
-              <div class="d-flex align-items-center gap-2">
-                <div class="sidebar-card-icon text-success">
-                  <AppIcon name="user" />
-                </div>
-                <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Khách hàng</h2>
-              </div>
-              <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
-            </div>
-
-            <div class="card-body p-3 p-sm-4">
-              <div class="customer-profile-block mb-3">
-                <div class="customer-avatar">
-                  {{ customerInitials }}
-                </div>
-                <div class="customer-meta min-w-0">
-                  <h3 class="fs-8 fw-bold text-body-emphasis mb-0.5 text-truncate" :title="order.name || 'Chưa bổ sung tên'">
-                    {{ order.name || 'Chưa bổ sung tên' }}
-                  </h3>
-                  <div v-if="order.phone" class="d-flex align-items-center gap-2 flex-wrap">
-                    <a :href="`tel:${order.phone}`" class="text-decoration-none text-body-secondary font-monospace fs-9 hover-primary" title="Gọi điện">
-                      <AppIcon name="phone" class="fs-10 me-1" />
-                      <span>{{ order.phone }}</span>
-                    </a>
-                    <RouterLink
-                      :to="`/customers/${order.phone}`"
-                      class="badge badge-phoenix badge-phoenix-primary fs-10 text-decoration-none"
-                      title="Xem toàn bộ hồ sơ và lịch sử mua sắm của khách"
-                    >
-                      <span>Hồ sơ khách</span>
-                      <AppIcon name="external-link" class="ms-1" style="width: 10px; height: 10px;" />
-                    </RouterLink>
-                  </div>
-                  <div v-else class="text-body-tertiary fs-9">
-                    Chưa có số điện thoại
-                  </div>
-                </div>
-              </div>
-
-              <!-- Customer OCR Review Action Banner -->
-              <div
-                v-if="order.customerInfoStatus !== 'complete'"
-                class="customer-review-prompt p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-25"
-              >
-                <div class="d-flex align-items-start gap-2 mb-2">
-                  <AppIcon name="alert-circle" class="text-warning flex-shrink-0 mt-0.5" />
-                  <div class="fs-9 text-body-emphasis fw-medium">
-                    {{ customerStatusDescription }}
-                  </div>
-                </div>
-
-                <div v-if="order.ocr.candidateName || order.ocr.candidatePhone" class="ocr-candidate-box p-2.5 rounded-2 bg-body mb-3 border border-translucent">
-                  <div class="d-flex justify-content-between gap-2 fs-9 mb-1">
-                    <span class="text-body-tertiary">Tên OCR:</span>
-                    <strong class="text-body-emphasis">{{ order.ocr.candidateName || "—" }}</strong>
-                  </div>
-                  <div class="d-flex justify-content-between gap-2 fs-9">
-                    <span class="text-body-tertiary">SĐT OCR:</span>
-                    <strong class="text-body-emphasis font-monospace">{{ order.ocr.candidatePhone || "—" }}</strong>
-                  </div>
-                </div>
-
-                <button
-                  v-if="auth.can('orders.update')"
-                  type="button"
-                  class="btn btn-sm btn-primary w-100 d-flex align-items-center justify-content-center gap-1.5"
-                  @click="reviewOpen = true"
-                >
-                  <AppIcon name="user-check" />
-                  <span>Đối chiếu & xác nhận ngay</span>
-                </button>
-              </div>
-
-              <!-- Customer Verified Details -->
-              <div
-                v-else-if="order.ocr.review.mode"
-                class="ocr-verified-box p-2.5 rounded-2 bg-body-highlight border border-translucent fs-9"
-              >
-                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
-                  <span class="text-body-tertiary">Hình thức xác thực</span>
-                  <strong>{{ order.ocr.review.mode === 'ocr' ? 'Kiểm duyệt gợi ý' : 'Nhập thủ công' }}</strong>
-                </div>
-                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
-                  <span class="text-body-tertiary">Độ chuẩn tên</span>
-                  <strong>{{ outcomeLabel(order.ocr.review.nameOutcome) }}</strong>
-                </div>
-                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
-                  <span class="text-body-tertiary">Độ chuẩn SĐT</span>
-                  <strong>{{ outcomeLabel(order.ocr.review.phoneOutcome) }}</strong>
-                </div>
-                <div v-if="order.ocr.extractionVersion" class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
-                  <span class="text-body-tertiary">Phiên bản đọc ảnh</span>
-                  <strong>{{ order.ocr.extractionVersion }}</strong>
-                </div>
-                <div class="d-flex justify-content-between gap-2 py-1">
-                  <span class="text-body-tertiary">Thời gian xử lý</span>
-                  <strong>{{ dateTime(order.ocr.review.reviewedAt || order.ocr.processedAt) }}</strong>
-                </div>
-              </div>
-            </div>
-          </article>
-
-          <!-- Card: Order Bill & Receipt Photos -->
-          <article class="card border border-translucent shadow-sm mb-4">
-            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center justify-content-between">
-              <div class="d-flex align-items-center gap-2">
-                <div class="sidebar-card-icon text-info">
-                  <AppIcon name="image" />
-                </div>
-                <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Ảnh hóa đơn / Chứng từ</h2>
-              </div>
-              <span v-if="gallery.length" class="badge badge-phoenix badge-phoenix-info fs-10">
-                {{ gallery.length }} ảnh
-              </span>
-            </div>
-
-            <div class="card-body p-3 p-sm-4">
-              <!-- Main Active Image -->
-              <div v-if="activeImage" class="receipt-frame-container mb-2">
-                <button
-                  type="button"
-                  class="receipt-frame-btn"
-                  :title="`Xem ảnh phóng to của đơn ${order.orderCode}`"
-                  @click="preview = assetUrl(activeImage)"
-                >
-                  <img
-                    :src="assetUrl(activeImage)"
-                    :alt="`Ảnh chứng từ đơn ${order.orderCode}`"
-                    class="receipt-frame-img"
-                    loading="lazy"
-                  />
-                  <div class="receipt-frame-overlay">
-                    <AppIcon name="eye" class="fs-8 me-1.5" />
-                    <span>Xem phóng to</span>
-                  </div>
-                </button>
-              </div>
-
-              <!-- Fallback if no images -->
-              <div v-else class="receipt-fallback p-4 text-center rounded-3 border border-dashed border-translucent">
-                <AppIcon name="image" class="text-body-tertiary fs-6 mb-2" />
-                <p class="fs-9 text-body-tertiary mb-0">Đơn hàng không có ảnh chứng từ kèm theo</p>
-              </div>
-
-              <!-- Thumbnails Gallery Strip if Multiple Photos -->
-              <div v-if="gallery.length > 1" class="receipt-thumbs-strip mt-2">
-                <button
-                  v-for="(photo, index) in gallery"
-                  :key="`${photo}-${index}`"
-                  type="button"
-                  class="receipt-thumb-item"
-                  :class="{ 'is-active': photo === activeImage }"
-                  :title="`Xem ảnh ${index + 1}`"
-                  @click="selectedImage = photo"
-                >
-                  <img :src="assetUrl(photo)" :alt="`Ảnh ${index + 1}`" />
-                </button>
-              </div>
-
-              <!-- Raw OCR Text Expander if available -->
-              <details v-if="order.ocr.rawText" class="mt-3">
-                <summary class="fs-10 fw-semibold text-body-secondary cursor-pointer">
-                  <span>Chi tiết văn bản nhận diện OCR</span>
-                </summary>
-                <pre class="ocr-raw-text mt-2 mb-0 p-2.5 rounded-2 bg-body-highlight border border-translucent fs-10 font-monospace">{{ order.ocr.rawText }}</pre>
-              </details>
-            </div>
-          </article>
-
-          <!-- Card: Transaction Meta Details -->
-          <article class="card border border-translucent shadow-sm mb-4">
-            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center gap-2">
-              <div class="sidebar-card-icon text-secondary">
-                <AppIcon name="table" />
-              </div>
-              <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Thông tin giao dịch</h2>
-            </div>
-            <div class="card-body p-3 p-sm-4">
-              <DetailDefinitionList :fields="detailFields" />
-
-              <!-- Mobile Quick Actions -->
-              <div v-if="hasOrderActions" class="d-md-none border-top border-translucent mt-3 pt-3">
-                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Thao tác đơn hàng</div>
-                <div class="d-flex flex-wrap gap-2">
-                  <button
-                    v-if="canReturn"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-warning d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('return')"
-                  >
-                    <AppIcon name="refresh" />
-                    <span>Đổi trả</span>
-                  </button>
-                  <button
-                    v-if="canCancel"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-danger d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('cancel')"
-                  >
-                    <AppIcon name="close" />
-                    <span>Hủy đơn</span>
-                  </button>
-                  <button
-                    v-if="canRestore"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-success d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('restore')"
-                  >
-                    <AppIcon name="refresh" />
-                    <span>Khôi phục</span>
-                  </button>
-                  <button
-                    v-if="canDelete"
-                    type="button"
-                    class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
-                    :disabled="saving"
-                    @click="triggerAction('delete')"
-                  >
-                    <AppIcon name="trash-2" />
-                    <span>Xóa</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </article>
-        </div>
       </div>
     </template>
 
@@ -817,6 +894,8 @@ export default defineComponent({
       dropdown: null as DropdownBehavior | null,
       selectedImage: "",
       copiedCode: false,
+      rotation: 0,
+      isZoomed: false,
     };
   },
   computed: {
@@ -841,6 +920,19 @@ export default defineComponent({
     activeImage(): string {
       if (this.selectedImage) return this.selectedImage;
       return this.gallery[0] || this.order?.thumbnail || "";
+    },
+    imageTransformStyle(): Record<string, string> {
+      const transforms: string[] = [];
+      if (this.rotation) {
+        transforms.push(`rotate(${this.rotation}deg)`);
+      }
+      if (this.isZoomed) {
+        transforms.push("scale(1.85)");
+      }
+      return {
+        transform: transforms.length ? transforms.join(" ") : "none",
+        transformOrigin: "center center",
+      };
     },
     customerInitials(): string {
       if (!this.order?.name) return "KH";
@@ -937,6 +1029,29 @@ export default defineComponent({
       if (value === "entered") return "Người dùng nhập mới";
       return "—";
     },
+    rotateImage(): void {
+      this.rotation = (this.rotation + 90) % 360;
+    },
+    toggleZoom(): void {
+      this.isZoomed = !this.isZoomed;
+    },
+    selectPhoto(photo: string): void {
+      this.selectedImage = photo;
+      this.rotation = 0;
+      this.isZoomed = false;
+    },
+    openOriginalImage(): void {
+      if (this.activeImage) {
+        window.open(assetUrl(this.activeImage), "_blank");
+      }
+    },
+    handleImageStageClick(): void {
+      if (this.isZoomed) {
+        this.isZoomed = false;
+      } else {
+        this.preview = assetUrl(this.activeImage);
+      }
+    },
     async copyOrderCode(): Promise<void> {
       if (!this.order?.orderCode) return;
       try {
@@ -962,6 +1077,8 @@ export default defineComponent({
       try {
         this.order = await orderService.detail(String(this.$route.params.id));
         this.selectedImage = "";
+        this.rotation = 0;
+        this.isZoomed = false;
       } catch (error) {
         this.error = apiError(error).message;
       } finally {
@@ -1490,74 +1607,99 @@ export default defineComponent({
   flex-direction: column;
 }
 
-/* Receipt & Photo Card */
+/* Large Receipt Photo Viewer */
+.receipt-card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
 .receipt-frame-container {
   width: 100%;
-  max-height: 20rem;
+  min-height: 28rem;
+  max-height: 48rem;
   border-radius: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--phoenix-border-color-translucent);
-  background: var(--phoenix-body-highlight-bg);
+  background: #1e2430;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
 }
 
-.receipt-frame-btn {
+.receipt-frame-container.is-zoomed {
+  overflow: auto;
+  cursor: grab;
+}
+
+.receipt-image-stage {
   width: 100%;
   height: 100%;
-  padding: 0;
-  border: none;
-  background: transparent;
-  position: relative;
-  display: block;
+  min-height: 28rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
   cursor: pointer;
 }
 
 .receipt-frame-img {
-  width: 100%;
-  max-height: 20rem;
+  max-width: 100%;
+  max-height: 46rem;
+  width: auto;
+  height: auto;
   object-fit: contain;
   display: block;
-  transition: transform 0.25s ease;
-}
-
-.receipt-frame-btn:hover .receipt-frame-img {
-  transform: scale(1.02);
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+  image-rendering: -webkit-optimize-contrast;
+  border-radius: 0.35rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .receipt-frame-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 600;
   opacity: 0;
   transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
-.receipt-frame-btn:hover .receipt-frame-overlay {
+.receipt-frame-container:hover .receipt-frame-overlay {
   opacity: 1;
 }
 
-.receipt-thumbs-strip {
+.receipt-overlay-pill {
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 0.825rem;
+  font-weight: 600;
   display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  padding-bottom: 0.25rem;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.receipt-thumbs-strip {
+  margin-top: 0.75rem;
 }
 
 .receipt-thumb-item {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4rem;
+  height: 4rem;
   flex: 0 0 auto;
   padding: 0.125rem;
   border-radius: 0.5rem;
-  border: 1px solid var(--phoenix-border-color-translucent);
+  border: 1.5px solid var(--phoenix-border-color-translucent);
   background: var(--phoenix-body-bg);
   overflow: hidden;
   cursor: pointer;
+  position: relative;
   transition: all 0.15s ease;
 }
 
@@ -1570,7 +1712,19 @@ export default defineComponent({
 
 .receipt-thumb-item.is-active {
   border-color: var(--phoenix-primary);
-  box-shadow: 0 0 0 2px rgba(var(--phoenix-primary-rgb), 0.2);
+  box-shadow: 0 0 0 2px rgba(var(--phoenix-primary-rgb), 0.3);
+}
+
+.receipt-thumb-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem;
 }
 
 .ocr-raw-text {
@@ -1587,9 +1741,20 @@ export default defineComponent({
   }
 }
 
+@media (max-width: 991.98px) {
+  .receipt-frame-container {
+    min-height: 22rem;
+    max-height: 36rem;
+  }
+}
+
 @media (max-width: 575.98px) {
   .order-kpi-grid {
     grid-template-columns: 1fr;
+  }
+  .receipt-frame-container {
+    min-height: 18rem;
+    max-height: 28rem;
   }
   .sold-product-item {
     grid-template-columns: 3.5rem minmax(0, 1fr);
