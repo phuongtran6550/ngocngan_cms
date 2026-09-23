@@ -36,16 +36,26 @@
         />
         <div class="sales-cart-copy">
           <div class="mb-2">
-            <h3 class="fs-9 mb-1">{{ line.productName }}</h3>
-            <code class="fs-10">{{ line.skuCode || line.barcode }}</code>
+            <h3 v-if="line.productName" class="fs-9 fw-bold text-body-emphasis mb-1">
+              {{ line.productName }}
+            </h3>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="badge badge-phoenix badge-phoenix-primary font-monospace fs-9 fw-bold px-2 py-0.5">
+                <AppIcon name="scan-line" class="me-1 fs-10" />{{ line.skuCode || line.barcode }}
+              </span>
+            </div>
           </div>
 
-          <div class="fs-10 text-body-tertiary mb-2">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-              <span>{{ money(line.unitPrice) }} / món · Tồn {{ line.stock }}</span>
+          <div class="mb-2">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2 fs-9">
+              <span class="text-body-secondary">
+                <strong class="text-body-emphasis fs-9">{{ money(line.unitPrice) }}</strong> / món
+                <span class="text-body-quaternary mx-1">·</span>
+                Tồn: <strong :class="line.stock <= 0 ? 'text-danger' : 'text-body-highlight'">{{ line.stock }}</strong>
+              </span>
               <span
                 v-if="line.pricingType"
-                class="badge badge-phoenix fs-11"
+                class="badge badge-phoenix fs-10 px-2 py-0.5"
                 :class="
                   line.pricingType === 'Đồ cân'
                     ? 'badge-phoenix-info'
@@ -59,34 +69,40 @@
             </div>
 
             <!-- Bảng thành tiền rút gọn: 1. Thành tiền (Đã làm tròn), 2. Tiền xi, 3. Tổng thành tiền -->
-            <div class="sales-cart-pricing-summary mt-2 pt-1 border-top border-translucent">
+            <div class="sales-cart-pricing-summary p-2.5 rounded-2 bg-body-highlight border border-translucent">
               <div class="d-flex justify-content-between align-items-center py-1">
-                <span>Thành tiền (Đã làm tròn) :</span>
-                <strong class="text-warning-emphasis">
+                <span class="text-body-secondary fs-9">Thành tiền (Đã làm tròn) :</span>
+                <span class="fw-semibold text-body-highlight fs-9">
                   {{ money(getLineRoundedBasePrice(line) * line.quantity) }}
                   <small
                     v-if="line.quantity > 1"
-                    class="text-body-tertiary fw-normal fs-11 ms-1"
+                    class="text-body-tertiary fw-normal fs-10 ms-1"
                   >
                     ({{ money(getLineRoundedBasePrice(line)) }} × {{ line.quantity }})
                   </small>
-                </strong>
+                </span>
               </div>
               <div class="d-flex justify-content-between align-items-center py-1">
-                <span>Tiền xi :</span>
-                <strong class="text-warning-emphasis">
-                  {{ money((Number(line.platingCost) || 0) * line.quantity) }}
+                <span class="text-body-secondary fs-9">Tiền xi :</span>
+                <span
+                  v-if="(Number(line.platingCost) || 0) > 0"
+                  class="fw-semibold text-info-emphasis fs-9"
+                >
+                  +{{ money((Number(line.platingCost) || 0) * line.quantity) }}
                   <small
-                    v-if="line.quantity > 1 && (Number(line.platingCost) || 0) > 0"
-                    class="text-body-tertiary fw-normal fs-11 ms-1"
+                    v-if="line.quantity > 1"
+                    class="text-body-tertiary fw-normal fs-10 ms-1"
                   >
                     ({{ money(Number(line.platingCost) || 0) }} × {{ line.quantity }})
                   </small>
-                </strong>
+                </span>
+                <span v-else class="text-body-tertiary fs-9 fw-medium">
+                  0 đ
+                </span>
               </div>
-              <div class="d-flex justify-content-between align-items-center py-1 border-top border-dashed">
-                <span class="fw-semibold text-body-highlight">Tổng thành tiền :</span>
-                <strong class="text-warning-emphasis fw-bold">
+              <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent">
+                <span class="fw-bold text-body-emphasis fs-8">Tổng thành tiền :</span>
+                <strong class="text-primary fw-bolder fs-7 font-monospace">
                   {{ money(line.unitPrice * line.quantity) }}
                 </strong>
               </div>
@@ -170,10 +186,6 @@
             <span v-if="cart.totalPlatingCost > 0">
               Tổng tiền xi: <strong class="text-body-highlight">{{ money(cart.totalPlatingCost) }}</strong>
             </span>
-          </div>
-          <div v-if="cart.rawTotal !== cart.total" class="fs-10 text-body-secondary">
-            <span>Tổng tạm tính (chưa làm tròn): </span>
-            <strong class="fs-9 text-warning-emphasis">{{ money(cart.rawTotal) }}</strong>
           </div>
         </div>
       </div>

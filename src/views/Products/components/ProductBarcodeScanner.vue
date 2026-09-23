@@ -153,12 +153,6 @@
                     </div>
                     <div class="text-end">
                       <strong class="text-nowrap d-block fs-8 text-primary">{{ formatMoney(lastProduct.sku.price) }}</strong>
-                      <small
-                        v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null && lastProduct.rawPrice !== lastProduct.sku.price"
-                        class="text-body-tertiary text-nowrap d-block fs-11"
-                      >
-                        Tạm tính: {{ formatMoney(lastProduct.rawPrice) }}
-                      </small>
                     </div>
                   </div>
                   <div class="d-flex flex-wrap align-items-center gap-2 mt-1 fs-10 text-body-tertiary">
@@ -223,15 +217,6 @@
                       <span>Tiền công :</span>
                       <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost) }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                      <span>Tạm tính (chưa làm tròn):</span>
-                      <strong class="text-warning-emphasis fw-bold">
-                        {{ formatMoney(lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice) }} / món
-                        <span v-if="lastProduct.sku.price !== (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice)" class="text-body-tertiary fw-normal">
-                          ({{ lastProduct.sku.price > (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice) ? '+' : '' }}{{ formatMoney(lastProduct.sku.price - (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice)) }})
-                        </span>
-                      </strong>
-                    </div>
                     <div v-if="getPieceBreakdown(lastProduct.sku)!.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
                       <div>
                         <div>Điều chỉnh thủ công</div>
@@ -252,10 +237,6 @@
                     <div v-if="lastProduct.sku.laborCost && lastProduct.sku.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
                       <span>Tiền công :</span>
                       <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost) }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                      <span>Tạm tính (chưa làm tròn):</span>
-                      <strong class="text-warning-emphasis fw-bold">{{ formatMoney(lastProduct.rawPrice ?? lastProduct.sku.price) }} / món</strong>
                     </div>
                   </template>
 
@@ -293,15 +274,6 @@
                       <span>Tiền Xi :</span>
                       <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center mt-1">
-                      <span>Tạm tính (chưa làm tròn):</span>
-                      <strong class="text-warning-emphasis fw-bold">
-                        {{ formatMoney(lastProduct.rawPrice ?? (getWeightedBreakdown(lastProduct.sku)?.basePrice ?? lastProduct.sku.price)) }} / món
-                        <span v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null && lastProduct.sku.price !== lastProduct.rawPrice" class="text-body-tertiary fw-normal">
-                          ({{ lastProduct.sku.price > lastProduct.rawPrice ? '+' : '' }}{{ formatMoney(lastProduct.sku.price - lastProduct.rawPrice) }})
-                        </span>
-                      </strong>
-                    </div>
                     <div v-if="getWeightedBreakdown(lastProduct.sku)?.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
                       <div>
                         <div>Điều chỉnh thủ công</div>
@@ -324,10 +296,6 @@
                     <div v-if="lastProduct.sku.platingCost && lastProduct.sku.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
                       <span>Tiền xi :</span>
                       <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
-                    </div>
-                    <div v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null" class="d-flex justify-content-between align-items-center mt-1">
-                      <span>Tạm tính (chưa làm tròn):</span>
-                      <strong class="text-warning-emphasis fw-bold">{{ formatMoney(lastProduct.rawPrice) }} / món</strong>
                     </div>
                   </template>
                 </div>
@@ -681,9 +649,6 @@ const scanToasts = computed(() => {
       ? [
           `${props.continuous ? "Đã thêm" : "Đã tìm thấy"} ${result.sku.name}`,
           `Giá: ${formatMoney(result.sku.price)}`,
-          result.rawPrice !== undefined && result.rawPrice !== null
-            ? `Tạm tính: ${formatMoney(result.rawPrice)}`
-            : null,
           result.total !== undefined
             ? `Tổng đơn hiện tại: ${formatMoney(result.total)}`
             : null,

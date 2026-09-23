@@ -458,8 +458,7 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
     ),
     "utf8",
   );
-  assert.match(salesCartSource, /Tổng tạm tính \(chưa làm tròn\):/);
-  assert.match(salesCartSource, /cart\.rawTotal/);
+  assert.doesNotMatch(salesCartSource, /Tổng tạm tính \(chưa làm tròn\):/);
 
   const scannerSource = readFileSync(
     new URL(
@@ -468,8 +467,7 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
     ),
     "utf8",
   );
-  assert.match(scannerSource, /Tạm tính \(chưa làm tròn\)/);
-  assert.match(scannerSource, /lastProduct\.rawPrice/);
+  assert.doesNotMatch(scannerSource, /Tạm tính \(chưa làm tròn\)/);
 });
 
 test("SalesCart and cart store support SKU cost breakdown and totals", async () => {

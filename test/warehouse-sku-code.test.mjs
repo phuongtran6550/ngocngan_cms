@@ -119,3 +119,46 @@ test("suggestSkuCodes handles automatic SKU code generation for piece goods", ()
   assert.equal(results[0].code, "VN7-DC");
   assert.equal(results[1].code, "VN7-DC-02");
 });
+
+test("buildSkuCode does not keep duplicate group text at the back (e.g. VB8-BVHT8L instead of VB8-BVHT8LB8)", () => {
+  const categoryGroups = [
+    { name: "B8", fromPrice: 100000, toPrice: 200000 },
+  ];
+
+  // Case 1: Tên sản phẩm có đuôi B8 -> VB8-BVHT8L
+  const code1 = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Bông Vàng Hột Tim 8L B8",
+    material: "Xi vàng",
+    categoryGroups,
+    price: 150000,
+    weight: 0,
+    size: "",
+  });
+  assert.equal(code1, "VB8-BVHT8L");
+
+  // Case 2: Tên sản phẩm có đuôi Nhóm 8, group là B8 -> VB8-BVHT8L
+  const code2 = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Bông Vàng Hột Tim 8L Nhóm 8",
+    material: "Xi vàng",
+    categoryGroups,
+    price: 150000,
+    weight: 0,
+    size: "",
+  });
+  assert.equal(code2, "VB8-BVHT8L");
+
+  // Case 3: Tên sản phẩm có size 8L ở trường size thay vì trường name -> VB8-BVHT8L
+  const code3 = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Bông Vàng Hột Tim B8",
+    material: "Xi vàng",
+    categoryGroups,
+    price: 150000,
+    weight: 0,
+    size: "8L",
+  });
+  assert.equal(code3, "VB8-BVHT8L");
+});
+

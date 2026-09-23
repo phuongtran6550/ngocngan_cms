@@ -67,19 +67,68 @@ export function getNNumber(name?: string): string {
 
 export function getAbbreviatedName(
   name?: string,
-  _isPiece?: boolean,
+  isPiece?: boolean,
   fallback?: string,
+  groupCode?: string,
+  categoryGroups?: CategoryGroup[],
 ): string {
   const normName = ascii(name).trim();
   if (normName) {
-    // Trong tên chỉ loại bỏ: XV, VK, XK, N1, N2, N3, N4, N5, N6, N7, N8, N9
     let text = normName;
-    for (let i = 0; i < 3; i++) {
+
+    // Trong tên loại bỏ: XV, VK, XK (tiền tố chất liệu)
+    text = text.replace(
+      /(?:^|[^A-Z0-9])(?:XV|VK|XK)(?=[^A-Z0-9]|$)/gi,
+      " ",
+    );
+
+    // Loại bỏ tiền tố nhóm: "NHOM 1", "NHOM 8", "NHOM B8", etc.
+    text = text.replace(
+      /(?:^|[^A-Z0-9])NHOM\s*[A-Z0-9]+(?=[^A-Z0-9]|$)/gi,
+      " ",
+    );
+
+    // Nếu có mã nhóm cụ thể (ví dụ: B8, N7...), loại bỏ khỏi tên
+    if (groupCode) {
+      const escapedGroup = groupCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const spacedGroup = escapedGroup.replace(/^([A-Z]+)(\d+)$/, "$1\\s*$2");
       text = text.replace(
-        /(?:^|[^A-Z0-9])(?:XV|VK|XK|N\s*[1-9]|N\s*\d+)(?=[^A-Z0-9]|XV|VK|XK|N\s*[1-9]|$)/gi,
+        new RegExp(`(?:^|[^A-Z0-9])(?:${spacedGroup})(?=[^A-Z0-9]|$)`, "gi"),
         " ",
       );
     }
+
+    // Loại bỏ các mã nhóm trong categoryGroups nếu có
+    if (Array.isArray(categoryGroups)) {
+      for (const group of categoryGroups) {
+        const rawName = ascii(group?.name).trim();
+        const formatted = formatGroupName(group?.name);
+        for (const token of [rawName, formatted]) {
+          if (token && token.length >= 2) {
+            const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const spaced = escaped.replace(/^([A-Z]+)(\d+)$/, "$1\\s*$2");
+            text = text.replace(
+              new RegExp(`(?:^|[^A-Z0-9])(?:${spaced})(?=[^A-Z0-9]|$)`, "gi"),
+              " ",
+            );
+          }
+        }
+      }
+    }
+
+    // Với đồ món: loại bỏ các ký hiệu mã nhóm dạng chữ + số (ví dụ: B8, N7, B1..B9, N1..N9)
+    if (isPiece) {
+      text = text.replace(
+        /(?:^|[^A-Z0-9])(?:[A-Z]\s*\d+)(?=[^A-Z0-9]|$)/gi,
+        " ",
+      );
+    } else {
+      text = text.replace(
+        /(?:^|[^A-Z0-9])(?:N\s*[1-9]|N\s*\d+)(?=[^A-Z0-9]|$)/gi,
+        " ",
+      );
+    }
+
     text = text.trim();
 
     // Còn lại giữ nguyên viết tắt, nếu là số thì viết toàn bộ số đó ra
@@ -174,7 +223,10 @@ export function matchCategoryGroup(
 export function formatGroupName(name?: string): string {
   if (!name) return "";
   const norm = ascii(name).trim();
-  const stripped = norm.replace(/^NHOM\s*/i, "N").replace(/[^A-Z0-9]/g, "");
+  if (/^NHOM\s*(\d+|[A-Z])$/i.test(norm)) {
+    return norm.replace(/^NHOM\s*/i, "N").replace(/[^A-Z0-9]/g, "");
+  }
+  const stripped = norm.replace(/^NHOM\s*/i, "").replace(/[^A-Z0-9]/g, "");
   if (/^\d+$/.test(stripped)) {
     return `N${stripped}`;
   }
@@ -205,12 +257,30 @@ export function buildSkuCode(source: SkuCodeSource): string {
     source.name,
     isPiece,
     source.category || source.pattern,
+    groupPart,
+    source.categoryGroups,
   );
 
   const sizePart = formatSkuSize(source.size);
   const weightPart = isPiece ? "" : formatSkuWeight(source.weight);
 
-  const restPart = `${nameAbbr}${sizePart}${weightPart}`;
+  let restPart = `${nameAbbr}${sizePart}${weightPart}`;
+
+  // Đồ món: đảm bảo không bị lặp lại mã nhóm ở cuối restPart (ví dụ: VB8-BVHT8L thay vì VB8-BVHT8LB8)
+  if (isPiece) {
+    if (groupPart && restPart.endsWith(groupPart)) {
+      restPart = restPart.slice(0, -groupPart.length);
+    }
+    if (Array.isArray(source.categoryGroups)) {
+      for (const group of source.categoryGroups) {
+        const code = formatGroupName(group.name);
+        if (code && restPart.endsWith(code)) {
+          restPart = restPart.slice(0, -code.length);
+          break;
+        }
+      }
+    }
+  }
 
   if (!firstPart && !restPart) {
     return "";
