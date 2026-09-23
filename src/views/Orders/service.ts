@@ -150,7 +150,7 @@ export const orderService = {
       "/orders/checkout-images",
       thumbnailBody(file),
       {
-        headers: writeHeaders(),
+        headers: writeHeaders("multipart/form-data"),
         signal,
         timeout: 120_000,
         onUploadProgress: uploadProgress(onProgress),

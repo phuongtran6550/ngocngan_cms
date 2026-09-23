@@ -135,6 +135,9 @@ request.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.set("Authorization", `Bearer ${accessToken}`);
   }
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    delete config.headers["Content-Type"];
+  }
   return config;
 });
 
