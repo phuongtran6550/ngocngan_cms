@@ -1,15 +1,61 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div
+      v-if="open"
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+    >
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header"><h2 id="confirm-title" class="modal-title fs-7">{{ title }}</h2><button type="button" class="btn-close" aria-label="Đóng" @click="$emit('cancel')" /></div>
+          <div class="modal-header">
+            <h2 id="confirm-title" class="modal-title fs-7">{{ title }}</h2>
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Đóng"
+              :disabled="loading"
+              @click="handleCancel"
+            />
+          </div>
           <div class="modal-body">{{ message }}</div>
-          <div class="modal-footer"><button type="button" class="btn btn-phoenix-secondary" @click="$emit('cancel')">Hủy</button><button type="button" :class="['btn', `btn-${confirmVariant}`]" @click="$emit('confirm')">{{ confirmLabel }}</button></div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-phoenix-secondary"
+              :disabled="loading"
+              @click="handleCancel"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              :class="['btn', `btn-${confirmVariant}`]"
+              :disabled="loading"
+              @click="handleConfirm"
+            >
+              <span
+                v-if="loading"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              />
+              {{ confirmLabel }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-    <button v-if="open" type="button" class="modal-backdrop fade show border-0 p-0" aria-label="Đóng" @click="$emit('cancel')" />
+    <button
+      v-if="open"
+      type="button"
+      class="modal-backdrop fade show border-0 p-0"
+      aria-label="Đóng"
+      :disabled="loading"
+      @click="handleCancel"
+    />
   </Teleport>
 </template>
 
@@ -25,10 +71,11 @@ export default defineComponent({
     message: { type: String, default: "Bạn có chắc chắn muốn tiếp tục?" },
     confirmLabel: { type: String, default: "Xác nhận" },
     confirmVariant: { type: String, default: "danger" },
+    loading: { type: Boolean, default: false },
   },
   emits: ["cancel", "confirm"],
   data() {
-    return { overlay: createOverlayBehavior(() => this.$emit("cancel")) };
+    return { overlay: createOverlayBehavior(() => this.handleCancel()) };
   },
   watch: {
     open: {
@@ -40,6 +87,16 @@ export default defineComponent({
   },
   beforeUnmount() {
     this.overlay.dispose();
+  },
+  methods: {
+    handleCancel(): void {
+      if (this.loading) return;
+      this.$emit("cancel");
+    },
+    handleConfirm(): void {
+      if (this.loading) return;
+      this.$emit("confirm");
+    },
   },
 });
 </script>

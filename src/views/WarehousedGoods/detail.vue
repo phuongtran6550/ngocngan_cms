@@ -186,21 +186,37 @@
               type="button"
               class="btn btn-sm btn-phoenix-primary"
               data-testid="print-all-stock-labels"
-              :disabled="printingAll || Boolean(printingSkuId) || Boolean(printSku) || !displaySkus.some(sku => sku.stock > 0)"
+              :disabled="
+                printingAll ||
+                Boolean(printingSkuId) ||
+                Boolean(printSku) ||
+                !displaySkus.some((sku) => sku.stock > 0)
+              "
               :aria-busy="printingAll"
               @click="printAllStockLabels"
             >
-              <span v-if="printingAll" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
+              <span
+                v-if="printingAll"
+                class="spinner-border spinner-border-sm me-1"
+                aria-hidden="true"
+              />
               <AppIcon v-else name="tag" class="me-1" />
               {{ printingAll ? "Đang gửi tem…" : "In tất cả theo tồn kho" }}
             </button>
             <button
-              v-if="auth.can(permissions.warehouseUpdate) && selectedSkuIds.length > 0"
+              v-if="
+                auth.can(permissions.warehouseUpdate) &&
+                selectedSkuIds.length > 0
+              "
               type="button"
               class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
               data-testid="bulk-delete-skus-btn"
-              :disabled="isBulkDeleteDisabled"
-              :title="isBulkDeleteDisabled ? 'Sản phẩm phải có ít nhất 1 SKU. Không thể xóa tất cả SKU.' : `Xóa ${selectedSkuIds.length} SKU đã chọn`"
+              :disabled="isBulkDeleteDisabled || bulkDeleteSkuSubmitting"
+              :title="
+                isBulkDeleteDisabled
+                  ? 'Sản phẩm phải có ít nhất 1 SKU. Không thể xóa tất cả SKU.'
+                  : `Xóa ${selectedSkuIds.length} SKU đã chọn`
+              "
               @click="requestBulkDeleteSkus"
             >
               <AppIcon name="trash-2" class="fs-10" />
@@ -267,7 +283,9 @@
                   scope="col"
                   class="sku-select-column"
                 >
-                  <div class="form-check d-inline-flex m-0 align-items-center justify-content-center">
+                  <div
+                    class="form-check d-inline-flex m-0 align-items-center justify-content-center"
+                  >
                     <input
                       ref="allSkusCheckbox"
                       class="form-check-input cursor-pointer"
@@ -312,7 +330,11 @@
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('weight')">
+                <th
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('weight')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -324,11 +346,18 @@
                     <AppIcon
                       :name="skuSortIcon('weight')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'weight' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'weight',
+                      }"
                     />
                   </button>
                 </th>
-                <th v-if="!isWeighted" scope="col" class="sku-numeric" :aria-sort="skuAriaSort('importPrice')">
+                <th
+                  v-if="!isWeighted"
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('importPrice')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -340,11 +369,17 @@
                     <AppIcon
                       :name="skuSortIcon('importPrice')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'importPrice' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'importPrice',
+                      }"
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('laborCost')">
+                <th
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('laborCost')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -356,11 +391,17 @@
                     <AppIcon
                       :name="skuSortIcon('laborCost')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'laborCost' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'laborCost',
+                      }"
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('platingCost')">
+                <th
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('platingCost')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -372,11 +413,17 @@
                     <AppIcon
                       :name="skuSortIcon('platingCost')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'platingCost' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'platingCost',
+                      }"
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('price')">
+                <th
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('price')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -388,11 +435,17 @@
                     <AppIcon
                       :name="skuSortIcon('price')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'price' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'price',
+                      }"
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric" :aria-sort="skuAriaSort('stock')">
+                <th
+                  scope="col"
+                  class="sku-numeric"
+                  :aria-sort="skuAriaSort('stock')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-end"
@@ -404,11 +457,17 @@
                     <AppIcon
                       :name="skuSortIcon('stock')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'stock' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'stock',
+                      }"
                     />
                   </button>
                 </th>
-                <th scope="col" class="sku-numeric text-center" :aria-sort="skuAriaSort('printCount')">
+                <th
+                  scope="col"
+                  class="sku-numeric text-center"
+                  :aria-sort="skuAriaSort('printCount')"
+                >
                   <button
                     type="button"
                     class="sku-th-btn sku-th-btn-center"
@@ -420,7 +479,9 @@
                     <AppIcon
                       :name="skuSortIcon('printCount')"
                       class="sku-sort-icon"
-                      :class="{ 'sku-sort-icon-active': skuSortKey === 'printCount' }"
+                      :class="{
+                        'sku-sort-icon-active': skuSortKey === 'printCount',
+                      }"
                     />
                   </button>
                 </th>
@@ -443,7 +504,9 @@
                   v-if="auth.can(permissions.warehouseUpdate)"
                   class="sku-select-column text-center align-middle"
                 >
-                  <div class="form-check d-inline-flex m-0 align-items-center justify-content-center">
+                  <div
+                    class="form-check d-inline-flex m-0 align-items-center justify-content-center"
+                  >
                     <input
                       class="form-check-input cursor-pointer"
                       type="checkbox"
@@ -462,7 +525,9 @@
                   >
                     <code class="sku-code-cell">{{ sku.code || "—" }}</code>
                   </RouterLink>
-                  <code v-else class="sku-code-cell">{{ sku.code || "—" }}</code>
+                  <code v-else class="sku-code-cell">{{
+                    sku.code || "—"
+                  }}</code>
                   <span class="sku-code-sub">
                     SKU {{ String(index + 1).padStart(2, "0") }} ·
                     {{ item.pricingType || "—" }}
@@ -557,10 +622,18 @@
                       v-if="auth.can(permissions.warehouseUpdate)"
                       type="button"
                       class="sku-delete-action"
-                      :class="{ 'opacity-50': displaySkus.length <= 1 }"
+                      :class="{
+                        'opacity-50':
+                          displaySkus.length <= 1 || deleteSkuSubmitting,
+                      }"
+                      :disabled="deleteSkuSubmitting"
                       :data-testid="`delete-sku-${index}`"
                       :aria-label="`Xóa SKU ${sku.code}`"
-                      :title="displaySkus.length <= 1 ? 'Sản phẩm phải có ít nhất 1 SKU' : `Xóa SKU ${sku.code}`"
+                      :title="
+                        displaySkus.length <= 1
+                          ? 'Sản phẩm phải có ít nhất 1 SKU'
+                          : `Xóa SKU ${sku.code}`
+                      "
                       @click="requestDeleteSku(sku)"
                     >
                       <AppIcon name="trash-2" />
@@ -580,7 +653,10 @@
             class="mobile-sku-sort-bar d-flex align-items-center justify-content-between gap-2 p-2 rounded bg-body-tertiary border border-translucent"
           >
             <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
-              <label for="mobile-sku-sort-select" class="fs-10 fw-bold text-body-tertiary text-nowrap mb-0">
+              <label
+                for="mobile-sku-sort-select"
+                class="fs-10 fw-bold text-body-tertiary text-nowrap mb-0"
+              >
                 Sắp xếp:
               </label>
               <select
@@ -605,11 +681,17 @@
               v-if="skuSortKey"
               type="button"
               class="btn btn-sm btn-phoenix-secondary px-2 py-1 fs-10 d-inline-flex align-items-center gap-1 flex-shrink-0"
-              :aria-label="skuSortDirection === 'asc' ? 'Đang xếp tăng dần, bấm để giảm dần' : 'Đang xếp giảm dần, bấm để tăng dần'"
+              :aria-label="
+                skuSortDirection === 'asc'
+                  ? 'Đang xếp tăng dần, bấm để giảm dần'
+                  : 'Đang xếp giảm dần, bấm để tăng dần'
+              "
               @click="toggleSkuSortDirection"
             >
               <AppIcon
-                :name="skuSortDirection === 'asc' ? 'chevron-up' : 'chevron-down'"
+                :name="
+                  skuSortDirection === 'asc' ? 'chevron-up' : 'chevron-down'
+                "
                 class="fs-10"
               />
               <span>{{ skuSortDirection === "asc" ? "Tăng" : "Giảm" }}</span>
@@ -706,10 +788,18 @@
                     v-if="auth.can(permissions.warehouseUpdate)"
                     type="button"
                     class="sku-delete-action"
-                    :class="{ 'opacity-50': displaySkus.length <= 1 }"
+                    :class="{
+                      'opacity-50':
+                        displaySkus.length <= 1 || deleteSkuSubmitting,
+                    }"
+                    :disabled="deleteSkuSubmitting"
                     :data-testid="`mobile-delete-sku-${index}`"
                     :aria-label="`Xóa SKU ${sku.code}`"
-                    :title="displaySkus.length <= 1 ? 'Sản phẩm phải có ít nhất 1 SKU' : `Xóa SKU ${sku.code}`"
+                    :title="
+                      displaySkus.length <= 1
+                        ? 'Sản phẩm phải có ít nhất 1 SKU'
+                        : `Xóa SKU ${sku.code}`
+                    "
                     @click="requestDeleteSku(sku)"
                   >
                     <AppIcon name="trash-2" />
@@ -784,22 +874,32 @@
         <div
           v-if="skuToastMessage"
           class="position-fixed top-0 end-0 p-3"
-          style="z-index: 100000;"
+          style="z-index: 100000"
           role="status"
           aria-live="polite"
         >
           <div
             class="toast show shadow-lg border-0"
-            :class="skuToastType === 'success' ? 'bg-success text-white' : 'bg-danger text-white'"
-            style="min-width: 320px; max-width: 480px;"
+            :class="
+              skuToastType === 'success'
+                ? 'bg-success text-white'
+                : 'bg-danger text-white'
+            "
+            style="min-width: 320px; max-width: 480px"
           >
-            <div class="d-flex align-items-center justify-content-between p-3 gap-3">
+            <div
+              class="d-flex align-items-center justify-content-between p-3 gap-3"
+            >
               <div class="d-flex align-items-center gap-2 min-w-0">
                 <AppIcon
-                  :name="skuToastType === 'success' ? 'check-circle' : 'alert-circle'"
+                  :name="
+                    skuToastType === 'success' ? 'check-circle' : 'alert-circle'
+                  "
                   class="fs-7 flex-shrink-0"
                 />
-                <span class="fs-9 fw-medium text-break">{{ skuToastMessage }}</span>
+                <span class="fs-9 fw-medium text-break">{{
+                  skuToastMessage
+                }}</span>
               </div>
               <button
                 type="button"
@@ -842,6 +942,7 @@
 
     <ConfirmDialog
       :open="deleteSkuOpen"
+      :loading="deleteSkuSubmitting"
       title="Xóa SKU"
       :message="deleteSkuMessage"
       confirm-label="Xóa SKU"
@@ -851,6 +952,7 @@
 
     <ConfirmDialog
       :open="bulkDeleteSkuOpen"
+      :loading="bulkDeleteSkuSubmitting"
       title="Xóa SKU đã chọn"
       :message="bulkDeleteSkuMessage"
       confirm-label="Xóa SKU"
@@ -884,9 +986,7 @@ import ResourceImageCard from "@/components/media/ResourceImageCard.vue";
 import LoadingSkeleton from "@/components/placeholder/LoadingSkeleton.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import { apiError, assetUrl } from "@/request";
-import {
-  labelPrintFailureMessage,
-} from "@/views/PrintDevices/presentation";
+import { labelPrintFailureMessage } from "@/views/PrintDevices/presentation";
 import PrintLabelDialog from "@/views/WarehousedGoods/components/PrintLabelDialog.vue";
 import WarehouseSkuModal from "@/views/WarehousedGoods/components/WarehouseSkuModal.vue";
 import { isInventoryBarcode } from "@/views/WarehousedGoods/inventory-barcode";
@@ -980,7 +1080,8 @@ export default defineComponent({
     silverPrice(): number | null {
       return this.store.options.silverPrice;
     },
-    roundingMarks(): { piece: number[]; weighted: number[] } | null | undefined {
+    roundingMarks():
+      { piece: number[]; weighted: number[] } | null | undefined {
       return this.store.options.roundingMarks;
     },
     displaySkus(): WarehouseSku[] {
@@ -1009,7 +1110,9 @@ export default defineComponent({
             sensitivity: "base",
           });
           if (cmp !== 0) return direction * cmp;
-          return (a.code || "").localeCompare(b.code || "", "vi", { numeric: true });
+          return (a.code || "").localeCompare(b.code || "", "vi", {
+            numeric: true,
+          });
         }
 
         // 2. Cột số: weight, laborCost, platingCost, importPrice, price, stock, printCount
@@ -1030,7 +1133,9 @@ export default defineComponent({
           return direction * (numA - numB);
         }
 
-        return (a.code || "").localeCompare(b.code || "", "vi", { numeric: true });
+        return (a.code || "").localeCompare(b.code || "", "vi", {
+          numeric: true,
+        });
       });
     },
     existingSkuCodes(): string[] {
@@ -1047,13 +1152,17 @@ export default defineComponent({
     },
     deleteSkuMessage(): string {
       if (!this.deletingSku) return "";
-      const sizeText = this.deletingSku.size ? `Ni ${this.deletingSku.size}, ` : "";
+      const sizeText = this.deletingSku.size
+        ? `Ni ${this.deletingSku.size}, `
+        : "";
       return `Bạn có chắc chắn muốn xóa SKU "${this.deletingSku.code}" (${sizeText}${this.deletingSku.weight} chỉ)? Thao tác này sẽ cập nhật lại kho hàng.`;
     },
     isAllSkusSelected(): boolean {
       return (
         this.displaySkus.length > 0 &&
-        this.displaySkus.every((s) => this.selectedSkuIds.includes(s.id || s.code))
+        this.displaySkus.every((s) =>
+          this.selectedSkuIds.includes(s.id || s.code),
+        )
       );
     },
     isSkuIndeterminate(): boolean {
@@ -1211,7 +1320,8 @@ export default defineComponent({
       }
     },
     async printAllStockLabels(): Promise<void> {
-      if (!this.item || this.printingAll || this.printingSkuId || this.printSku) return;
+      if (!this.item || this.printingAll || this.printingSkuId || this.printSku)
+        return;
       this.printingAll = true;
       this.printAllStopped = false;
       this.printError = "";
@@ -1222,8 +1332,13 @@ export default defineComponent({
       try {
         const product = await warehouseService.detail(this.item.id);
         if (this.printAllStopped) return;
-        const skus = product.skus.filter(sku => sku.stock > 0);
-        const invalid = skus.find(sku => !Number.isSafeInteger(sku.stock) || !sku.id || !isInventoryBarcode(sku.barcode));
+        const skus = product.skus.filter((sku) => sku.stock > 0);
+        const invalid = skus.find(
+          (sku) =>
+            !Number.isSafeInteger(sku.stock) ||
+            !sku.id ||
+            !isInventoryBarcode(sku.barcode),
+        );
         if (invalid) {
           this.printError = `SKU ${invalid.code} có tồn kho hoặc barcode không hợp lệ. Chưa gửi lệnh in.`;
           await this.focusPrintError();
@@ -1240,11 +1355,17 @@ export default defineComponent({
           remaining = sku.stock;
           while (remaining > 0) {
             // Space submissions below the API limit of 30 print requests per minute.
-            if (accepted) await new Promise(resolve => setTimeout(resolve, 2100));
+            if (accepted)
+              await new Promise((resolve) => setTimeout(resolve, 2100));
             if (this.printAllStopped) return;
             const quantity = Math.min(100, remaining);
-            const result = await warehouseService.printLabel(product.id, sku.id, quantity);
-            if (!result.queued || result.quantity !== quantity) throw new Error("Máy chủ chưa xác nhận đủ số tem");
+            const result = await warehouseService.printLabel(
+              product.id,
+              sku.id,
+              quantity,
+            );
+            if (!result.queued || result.quantity !== quantity)
+              throw new Error("Máy chủ chưa xác nhận đủ số tem");
             accepted += quantity;
             remaining -= quantity;
             sku.printCount = (sku.printCount || 0) + 1;
@@ -1254,7 +1375,10 @@ export default defineComponent({
         this.printSuccess = `Đã gửi ${accepted} tem của ${skus.length} SKU theo tồn kho vào hàng đợi in.`;
       } catch (error) {
         if (this.printAllStopped) return;
-        const message = labelPrintFailureMessage(apiError(error).code, currentCode);
+        const message = labelPrintFailureMessage(
+          apiError(error).code,
+          currentCode,
+        );
         this.printError = currentCode
           ? `${message} Đã xác nhận ${accepted} tem trước đó. Dừng tại SKU ${currentCode}, còn ${remaining} tem chưa xác nhận. Kiểm tra hàng đợi trước khi in lại để tránh trùng tem.`
           : "Chưa tải được tồn kho mới nhất. Chưa gửi lệnh in, vui lòng thử lại.";
@@ -1304,7 +1428,10 @@ export default defineComponent({
       this.editingSku = null;
       this.skuModalError = "";
     },
-    showSkuFeedback(message: string, type: "success" | "danger" = "success"): void {
+    showSkuFeedback(
+      message: string,
+      type: "success" | "danger" = "success",
+    ): void {
       this.skuToastMessage = message;
       this.skuToastType = type;
       if (type === "success") {
@@ -1373,7 +1500,8 @@ export default defineComponent({
     },
     requestDeleteSku(sku: WarehouseSku): void {
       if (this.displaySkus.length <= 1) {
-        const msg = "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa SKU cuối cùng.";
+        const msg =
+          "Sản phẩm phải có ít nhất 1 SKU. Không thể xóa SKU cuối cùng.";
         this.error = msg;
         this.showSkuFeedback(msg, "danger");
         return;
@@ -1499,7 +1627,8 @@ export default defineComponent({
     },
     toggleSkuSort(key: keyof WarehouseSku): void {
       if (this.skuSortKey === key) {
-        this.skuSortDirection = this.skuSortDirection === "asc" ? "desc" : "asc";
+        this.skuSortDirection =
+          this.skuSortDirection === "asc" ? "desc" : "asc";
       } else {
         this.skuSortKey = key;
         this.skuSortDirection = "asc";
@@ -1777,7 +1906,9 @@ export default defineComponent({
   height: 0.8125rem;
   opacity: 0.35;
   flex-shrink: 0;
-  transition: opacity 0.15s ease-in-out, color 0.15s ease-in-out;
+  transition:
+    opacity 0.15s ease-in-out,
+    color 0.15s ease-in-out;
 }
 
 .sku-th-btn:hover .sku-sort-icon {
@@ -1995,7 +2126,9 @@ a:hover .sku-code-cell {
 
 .sku-toast-fade-enter-active,
 .sku-toast-fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .sku-toast-fade-enter-from,
