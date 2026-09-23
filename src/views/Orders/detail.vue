@@ -1,29 +1,66 @@
 <template>
-  <section>
+  <div class="order-detail-page">
     <LoadingSkeleton v-if="loading" />
-    <div v-else-if="pageError && !order" class="alert alert-subtle-danger" role="alert">{{ pageError }}</div>
+    <div v-else-if="pageError && !order" class="alert alert-subtle-danger" role="alert">
+      {{ pageError }}
+    </div>
+
     <template v-else-if="order">
-      <PageHeader :title="order.orderCode" :description="`${order.name || 'Khách chưa bổ sung'} · ${dateTime(order.createdAt)}`">
+      <!-- Breadcrumbs & Page Header -->
+      <PageHeader
+        :title="order.orderCode"
+        :breadcrumbs="breadcrumbs"
+        :description="`Đơn bán hàng lúc ${dateTime(order.createdAt)} · Nhân viên: ${order.createdBy?.name || 'Chưa cập nhật'}`"
+      >
         <template #actions>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
             <OrderStatusBadge :status="order.status" />
           </div>
+
           <div class="d-flex align-items-center gap-2 flex-nowrap ms-auto">
-            <RouterLink class="btn btn-sm btn-phoenix-secondary" to="/orders" title="Danh sách đơn hàng">
+            <!-- Copy Order Code Quick Button -->
+            <button
+              type="button"
+              class="btn btn-sm btn-phoenix-secondary d-flex align-items-center gap-1.5"
+              :title="copiedCode ? 'Đã sao chép mã đơn' : 'Sao chép mã đơn'"
+              @click="copyOrderCode"
+            >
+              <AppIcon :name="copiedCode ? 'check' : 'copy'" />
+              <span class="d-none d-sm-inline">{{ copiedCode ? 'Đã chép' : 'Chép mã' }}</span>
+            </button>
+
+            <!-- Print Order -->
+            <button
+              type="button"
+              class="btn btn-sm btn-phoenix-secondary d-flex align-items-center gap-1.5 print-hide"
+              title="In đơn hàng"
+              @click="printOrder"
+            >
+              <AppIcon name="printer" />
+              <span class="d-none d-sm-inline">In đơn</span>
+            </button>
+
+            <!-- Back to Orders List -->
+            <RouterLink class="btn btn-sm btn-phoenix-secondary print-hide" to="/orders" title="Danh sách đơn hàng">
               <AppIcon name="arrow-left" class="me-sm-1" />
               <span class="d-none d-sm-inline">Danh sách</span>
             </RouterLink>
+
+            <!-- Review / Supplement Customer Info CTA -->
             <button
               v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'"
               type="button"
-              class="btn btn-sm btn-primary text-nowrap"
+              class="btn btn-sm btn-primary text-nowrap d-flex align-items-center gap-1.5 print-hide"
               @click="reviewOpen = true"
             >
-              <span class="d-none d-sm-inline">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt' : 'Bổ sung khách hàng' }}</span>
+              <AppIcon name="user-check" />
+              <span class="d-none d-sm-inline">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt OCR' : 'Bổ sung khách' }}</span>
               <span class="d-sm-none">{{ order.customerInfoStatus === 'review_required' ? 'Duyệt' : 'Bổ sung' }}</span>
             </button>
-            <div v-if="hasOrderActions" ref="actionMenu" class="dropdown">
+
+            <!-- Order Actions Dropdown Menu -->
+            <div v-if="hasOrderActions" ref="actionMenu" class="dropdown print-hide">
               <button
                 type="button"
                 class="btn btn-sm btn-phoenix-secondary dropdown-toggle d-flex align-items-center gap-1"
@@ -38,7 +75,7 @@
                 v-if="actionMenuOpen"
                 class="dropdown-menu dropdown-menu-end py-2 shadow-sm show"
                 role="menu"
-                style="z-index: 1050; min-width: 11rem;"
+                style="z-index: 1050; min-width: 11.5rem;"
               >
                 <button
                   v-if="canReturn"
@@ -48,7 +85,7 @@
                   @click="triggerAction('return')"
                 >
                   <AppIcon name="refresh" class="text-warning" />
-                  <span>Đổi trả</span>
+                  <span>Đổi trả hàng</span>
                 </button>
                 <button
                   v-if="canCancel"
@@ -87,97 +124,94 @@
         </template>
       </PageHeader>
 
-      <div v-if="$route.query.created === '1'" class="alert alert-subtle-success" role="status">Đơn hàng đã được ghi nhận và tồn kho đã được trừ.</div>
-      <div v-if="message" class="alert alert-subtle-success" role="status">{{ message }}</div>
-      <div v-if="pageError" class="alert alert-subtle-danger" role="alert">{{ pageError }}</div>
-
-      <div class="order-kpis mb-4">
-        <article><span>Thành tiền</span><strong>{{ money(order.price) }}</strong></article>
-        <article><span>Số sản phẩm</span><strong>{{ itemQuantity }} món</strong></article>
-        <article><span>Khách hàng</span><strong>{{ order.name || "Chưa bổ sung" }}</strong><small>{{ order.phone || "Chưa có số điện thoại" }}</small></article>
-        <article><span>Người bán</span><strong>{{ order.createdBy?.name || "—" }}</strong><small>{{ dateTime(order.createdAt) }}</small></article>
+      <!-- Feedback Alerts -->
+      <div v-if="$route.query.created === '1'" class="alert alert-subtle-success d-flex align-items-center gap-2 mb-4" role="status">
+        <AppIcon name="check-circle" class="text-success fs-8 flex-shrink-0" />
+        <span>Đơn hàng đã được ghi nhận và toàn bộ sản phẩm SKU đã được trừ tồn kho thành công.</span>
+      </div>
+      <div v-if="message" class="alert alert-subtle-success d-flex align-items-center gap-2 mb-4" role="status">
+        <AppIcon name="check-circle" class="text-success fs-8 flex-shrink-0" />
+        <span>{{ message }}</span>
+      </div>
+      <div v-if="pageError" class="alert alert-subtle-danger d-flex align-items-center gap-2 mb-4" role="alert">
+        <AppIcon name="alert-circle" class="text-danger fs-8 flex-shrink-0" />
+        <span>{{ pageError }}</span>
       </div>
 
+      <!-- Hero KPI Banner -->
+      <div class="order-kpi-grid mb-4">
+        <!-- Metric 1: Total Price -->
+        <article class="order-kpi-card is-highlight">
+          <div class="kpi-icon-badge text-primary">
+            <AppIcon name="gem" />
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Tổng thanh toán</span>
+            <strong class="kpi-value text-primary font-monospace">{{ money(order.price) }}</strong>
+            <small class="kpi-sub">
+              {{ order.status === 'completed' ? 'Giao dịch hoàn tất' : order.status === 'returned' ? 'Đã đổi trả hàng' : 'Đã hủy đơn' }}
+            </small>
+          </div>
+        </article>
+
+        <!-- Metric 2: Quantity -->
+        <article class="order-kpi-card">
+          <div class="kpi-icon-badge text-info">
+            <AppIcon name="shopping-cart" />
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Hàng xuất kho</span>
+            <strong class="kpi-value">{{ itemQuantity }} món</strong>
+            <small class="kpi-sub">{{ order.items.length }} dòng SKU mặt hàng</small>
+          </div>
+        </article>
+
+        <!-- Metric 3: Customer -->
+        <article class="order-kpi-card">
+          <div class="kpi-icon-badge text-success">
+            <AppIcon name="user" />
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Khách hàng</span>
+            <strong class="kpi-value text-truncate" :title="order.name || 'Khách vãng lai'">
+              {{ order.name || 'Khách vãng lai' }}
+            </strong>
+            <small class="kpi-sub">
+              <RouterLink
+                v-if="order.phone"
+                :to="`/customers/${order.phone}`"
+                class="text-decoration-none text-body-secondary hover-primary font-monospace"
+                title="Xem lịch sử mua hàng"
+              >
+                {{ order.phone }}
+                <AppIcon name="external-link" class="kpi-mini-icon ms-0.5" />
+              </RouterLink>
+              <span v-else class="text-body-tertiary">Chưa lưu số điện thoại</span>
+            </small>
+          </div>
+        </article>
+
+        <!-- Metric 4: Staff & Timestamp -->
+        <article class="order-kpi-card">
+          <div class="kpi-icon-badge text-secondary">
+            <AppIcon name="user-check" />
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Nhân sự lập phiếu</span>
+            <strong class="kpi-value text-truncate" :title="order.createdBy?.name || 'Nhân viên bán lẻ'">
+              {{ order.createdBy?.name || 'Nhân viên bán lẻ' }}
+            </strong>
+            <small class="kpi-sub">{{ dateTime(order.createdAt) }}</small>
+          </div>
+        </article>
+      </div>
+
+      <!-- Main Layout: 2 Columns -->
       <div class="row g-4">
-        <div class="col-12 col-lg-5">
-          <ResourceImageCard :src="assetUrl(order.thumbnail)" :alt="`Ảnh ${order.orderCode}`" @preview="preview = assetUrl(order.thumbnail)" />
-          <article v-if="order.customerInfoStatus !== 'complete'" class="card mt-4 border-warning-subtle">
-            <div class="card-body">
-              <h2 class="fs-8">Trạng thái bổ sung khách hàng</h2>
-              <p class="text-body-tertiary fs-9">{{ customerStatusDescription }}</p>
-              <div v-if="order.ocr.candidateName || order.ocr.candidatePhone" class="ocr-summary">
-                <div><span>Tên OCR</span><strong>{{ order.ocr.candidateName || "—" }}</strong></div>
-                <div><span>Số OCR</span><strong>{{ order.ocr.candidatePhone || "—" }}</strong></div>
-              </div>
-              <button v-if="auth.can('orders.update')" type="button" class="btn btn-primary w-100 mt-3" @click="reviewOpen = true">Mở màn hình đối chiếu</button>
-            </div>
-          </article>
-          <article v-else-if="order.ocr.review.mode" class="card mt-4">
-            <div class="card-body">
-              <h2 class="fs-8">Kết quả bổ sung khách hàng</h2>
-              <div class="ocr-summary">
-                <div><span>Hình thức</span><strong>{{ order.ocr.review.mode === "ocr" ? "Kiểm duyệt gợi ý" : "Nhập thủ công" }}</strong></div>
-                <div><span>Kết quả tên</span><strong>{{ outcomeLabel(order.ocr.review.nameOutcome) }}</strong></div>
-                <div><span>Kết quả SĐT</span><strong>{{ outcomeLabel(order.ocr.review.phoneOutcome) }}</strong></div>
-                <div v-if="order.ocr.extractionVersion"><span>Phiên bản đọc ảnh</span><strong>{{ order.ocr.extractionVersion }}</strong></div>
-                <div><span>Thời gian xử lý</span><strong>{{ dateTime(order.ocr.review.reviewedAt || order.ocr.processedAt) }}</strong></div>
-              </div>
-            </div>
-          </article>
-        </div>
-        <div class="col-12 col-lg-7">
-          <article class="card mb-4">
-            <div class="card-header bg-transparent border-bottom"><h2 class="fs-7 mb-0">Thông tin giao dịch</h2></div>
-            <div class="card-body">
-              <DetailDefinitionList :fields="detailFields" />
-              <div v-if="hasOrderActions" class="d-md-none border-top border-translucent mt-3 pt-3">
-                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Thao tác đơn hàng</div>
-                <div class="d-flex flex-wrap gap-2">
-                  <button
-                    v-if="canReturn"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-warning d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('return')"
-                  >
-                    <AppIcon name="refresh" />
-                    <span>Đổi trả</span>
-                  </button>
-                  <button
-                    v-if="canCancel"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-danger d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('cancel')"
-                  >
-                    <AppIcon name="close" />
-                    <span>Hủy đơn</span>
-                  </button>
-                  <button
-                    v-if="canRestore"
-                    type="button"
-                    class="btn btn-sm btn-phoenix-success d-flex align-items-center gap-1"
-                    :disabled="saving"
-                    @click="triggerAction('restore')"
-                  >
-                    <AppIcon name="refresh" />
-                    <span>Khôi phục đơn</span>
-                  </button>
-                  <button
-                    v-if="canDelete"
-                    type="button"
-                    class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
-                    :disabled="saving"
-                    @click="triggerAction('delete')"
-                  >
-                    <AppIcon name="trash-2" />
-                    <span>Xóa vĩnh viễn</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </article>
-          <article class="card sold-products-card overflow-hidden border border-translucent shadow-sm">
+        <!-- Main Column: Products & Timeline (Col-12 Col-xl-8) -->
+        <div class="col-12 col-xl-8">
+          <!-- Card: Sold Products List -->
+          <article class="card sold-products-card overflow-hidden border border-translucent shadow-sm mb-4">
             <div class="card-header bg-body-tertiary bg-opacity-25 border-bottom py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
               <div class="d-flex align-items-center gap-2">
                 <div class="sold-header-icon">
@@ -195,19 +229,27 @@
                 <span class="badge badge-phoenix badge-phoenix-info fs-10 px-2.5 py-1">
                   Tổng {{ itemQuantity }} món
                 </span>
+                <span
+                  class="badge badge-phoenix fs-10 px-2.5 py-1"
+                  :class="order.status === 'completed' ? 'badge-phoenix-success' : 'badge-phoenix-warning'"
+                >
+                  {{ order.status === 'completed' ? 'Đã xuất kho' : 'Đã hoàn tồn' }}
+                </span>
               </div>
             </div>
 
+            <!-- Empty State -->
             <div v-if="!order.items.length" class="card-body text-center py-5 px-3">
               <div class="sold-empty-icon mx-auto mb-3">
                 <AppIcon name="archive" />
               </div>
               <h3 class="fs-8 fw-semibold text-body-emphasis mb-1">Chưa lưu chi tiết SKU</h3>
               <p class="fs-9 text-body-tertiary mb-0 mx-auto" style="max-width: 320px;">
-                Đơn hàng này được tạo từ hệ thống cũ hoặc chưa lưu thông tin từng dòng SKU.
+                Đơn hàng này được tạo từ hệ thống cũ hoặc chưa lưu thông tin từng dòng SKU xuất kho.
               </p>
             </div>
 
+            <!-- Items List -->
             <div v-else class="sold-products-list p-3 p-sm-4">
               <article
                 v-for="(item, index) in order.items"
@@ -289,7 +331,7 @@
                       <strong>{{ item.weight }}g</strong>
                     </span>
                     <span v-if="item.size" class="sold-tag sold-tag-size">
-                      <span class="sold-tag-label me-1">Size:</span>
+                      <span class="sold-tag-label me-1">Ni:</span>
                       <strong>{{ item.size }}</strong>
                     </span>
                     <span v-if="item.pattern" class="sold-tag sold-tag-pattern">
@@ -315,15 +357,389 @@
               </article>
             </div>
 
-            <!-- Card Summary Footer -->
-            <div v-if="order.items.length" class="card-footer bg-body-tertiary bg-opacity-25 border-top py-3 px-3 px-sm-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
-              <div class="d-flex align-items-center gap-2 text-body-secondary fs-9">
-                <AppIcon name="shopping-cart" class="text-body-tertiary" />
-                <span>Tổng cộng <strong class="text-body-emphasis">{{ itemQuantity }}</strong> món hàng ({{ order.items.length }} SKU)</span>
+            <!-- Card Summary Footer & Price Breakdown -->
+            <div v-if="order.items.length" class="order-summary-footer bg-body-tertiary bg-opacity-25 border-top p-3 p-sm-4">
+              <div class="row g-3 align-items-center justify-content-between">
+                <div class="col-12 col-md-6">
+                  <div class="d-flex align-items-center gap-2 text-body-secondary fs-9 mb-1">
+                    <AppIcon name="shopping-cart" class="text-body-tertiary" />
+                    <span>Quy mô đơn: <strong class="text-body-emphasis">{{ itemQuantity }}</strong> món hàng ({{ order.items.length }} dòng SKU)</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 text-body-secondary fs-9">
+                    <AppIcon name="check-circle" class="text-success" />
+                    <span>Phương thức: <strong class="text-body-emphasis">Bán tại quầy (Xuất kho trực tiếp)</strong></span>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-5 col-xl-5">
+                  <div class="order-price-breakdown">
+                    <div class="breakdown-row text-body-tertiary fs-9">
+                      <span>Tạm tính tiền hàng:</span>
+                      <span class="font-monospace text-body-emphasis">{{ money(calculatedSubtotal) }}</span>
+                    </div>
+                    <div v-if="priceDifference !== 0" class="breakdown-row text-body-tertiary fs-9">
+                      <span>Điều chỉnh đơn:</span>
+                      <span class="font-monospace" :class="priceDifference > 0 ? 'text-success' : 'text-danger'">
+                        {{ priceDifference > 0 ? '+' : '' }}{{ money(priceDifference) }}
+                      </span>
+                    </div>
+                    <div class="breakdown-total d-flex align-items-baseline justify-content-between pt-2 border-top">
+                      <span class="fw-bold text-body-emphasis fs-8">Tổng thanh toán:</span>
+                      <span class="fs-6 fw-bolder text-primary font-monospace">{{ money(order.price) }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="d-flex align-items-baseline gap-2 ms-auto">
-                <span class="text-body-tertiary fs-9">Thành tiền:</span>
-                <span class="fs-7 fw-bolder text-primary font-monospace">{{ money(order.price) }}</span>
+            </div>
+          </article>
+
+          <!-- Card: Order Timeline & History -->
+          <article class="card border border-translucent shadow-sm overflow-hidden mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center gap-2">
+              <div class="timeline-header-icon text-primary">
+                <AppIcon name="history" />
+              </div>
+              <h2 class="fs-8 fs-sm-7 fw-bold mb-0 text-body-emphasis">Tiến trình đơn hàng</h2>
+            </div>
+            <div class="card-body p-3 p-sm-4">
+              <ol class="order-timeline-list mb-0">
+                <!-- Step 1: Created -->
+                <li class="timeline-step is-complete">
+                  <div class="timeline-marker">
+                    <AppIcon name="check" />
+                  </div>
+                  <div class="timeline-content">
+                    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-1 mb-1">
+                      <strong class="timeline-title">Đơn hàng được khởi tạo & xuất kho</strong>
+                      <time class="timeline-time">{{ dateTime(order.createdAt) }}</time>
+                    </div>
+                    <p class="timeline-desc text-body-secondary mb-0">
+                      Tạo bởi <strong>{{ order.createdBy?.name || 'Nhân viên bán lẻ' }}</strong>. Hệ thống đã tự động xuất kho và trừ tồn cho {{ itemQuantity }} sản phẩm.
+                    </p>
+                  </div>
+                </li>
+
+                <!-- Step 2: Customer Info & OCR Verification -->
+                <li
+                  class="timeline-step"
+                  :class="order.customerInfoStatus === 'complete' ? 'is-complete' : 'is-pending'"
+                >
+                  <div class="timeline-marker">
+                    <AppIcon :name="order.customerInfoStatus === 'complete' ? 'check' : 'user'" />
+                  </div>
+                  <div class="timeline-content">
+                    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-1 mb-1">
+                      <strong class="timeline-title">Thông tin khách hàng & OCR</strong>
+                      <time v-if="order.ocr.review.reviewedAt || order.ocr.processedAt" class="timeline-time">
+                        {{ dateTime(order.ocr.review.reviewedAt || order.ocr.processedAt) }}
+                      </time>
+                    </div>
+                    <div v-if="order.customerInfoStatus === 'complete'" class="timeline-desc text-body-secondary mb-0">
+                      Đã xác thực thông tin khách hàng: <strong>{{ order.name || '—' }}</strong> ({{ order.phone || 'Chưa có SĐT' }}).
+                      <span v-if="order.ocr.review.mode" class="badge badge-phoenix badge-phoenix-success ms-1 fs-10">
+                        {{ order.ocr.review.mode === 'ocr' ? 'Kiểm duyệt gợi ý OCR' : 'Nhập thủ công' }}
+                      </span>
+                    </div>
+                    <div v-else-if="order.customerInfoStatus === 'review_required'" class="timeline-desc text-warning mb-0">
+                      Google Vision đã phân tích ảnh hóa đơn. Cần người dùng đối chiếu và xác nhận thông tin khách hàng.
+                    </div>
+                    <div v-else-if="order.customerInfoStatus === 'ocr_processing'" class="timeline-desc text-info mb-0">
+                      Hệ thống đang chạy đọc ảnh nền. Bạn có thể bổ sung thủ công bất kỳ lúc nào.
+                    </div>
+                    <div v-else class="timeline-desc text-body-tertiary mb-0">
+                      Chưa có thông tin nhận diện tự động từ ảnh. Cần bổ sung tên và số điện thoại khách hàng.
+                    </div>
+                  </div>
+                </li>
+
+                <!-- Step 3: Order Status (Completed / Returned / Cancelled) -->
+                <li
+                  v-if="order.status === 'returned'"
+                  class="timeline-step is-warning"
+                >
+                  <div class="timeline-marker">
+                    <AppIcon name="refresh" />
+                  </div>
+                  <div class="timeline-content">
+                    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-1 mb-1">
+                      <strong class="timeline-title text-warning">Đã đổi trả hàng & hoàn tồn kho</strong>
+                      <time class="timeline-time">{{ dateTime(order.returnedAt) }}</time>
+                    </div>
+                    <p class="timeline-desc text-body-secondary mb-0">
+                      Đơn hàng đã được chuyển sang trạng thái Đổi trả. Toàn bộ {{ itemQuantity }} sản phẩm đã được hoàn lại vào kho hàng.
+                    </p>
+                  </div>
+                </li>
+
+                <li
+                  v-else-if="order.status === 'cancelled'"
+                  class="timeline-step is-danger"
+                >
+                  <div class="timeline-marker">
+                    <AppIcon name="close" />
+                  </div>
+                  <div class="timeline-content">
+                    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-1 mb-1">
+                      <strong class="timeline-title text-danger">Đã hủy đơn hàng & hoàn tồn kho</strong>
+                      <time class="timeline-time">{{ dateTime(order.cancelledAt) }}</time>
+                    </div>
+                    <p class="timeline-desc text-body-secondary mb-0">
+                      Đơn hàng đã bị hủy. Toàn bộ {{ itemQuantity }} sản phẩm đã được hoàn lại vào kho hàng.
+                    </p>
+                  </div>
+                </li>
+
+                <li
+                  v-else
+                  class="timeline-step is-complete"
+                >
+                  <div class="timeline-marker">
+                    <AppIcon name="check-circle" />
+                  </div>
+                  <div class="timeline-content">
+                    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-1 mb-1">
+                      <strong class="timeline-title text-success">Giao dịch thành công</strong>
+                      <time class="timeline-time">{{ dateTime(order.createdAt) }}</time>
+                    </div>
+                    <p class="timeline-desc text-body-secondary mb-0">
+                      Đơn hàng đang ở trạng thái Hoàn tất, chứng từ và dữ liệu hàng hóa đã được ghi nhận trên hệ thống.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </article>
+        </div>
+
+        <!-- Sidebar Column: Customer, Bill Photo, Meta Details (Col-12 Col-xl-4) -->
+        <div class="col-12 col-xl-4">
+          <!-- Card: Customer Profile -->
+          <article class="card border border-translucent shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <div class="sidebar-card-icon text-success">
+                  <AppIcon name="user" />
+                </div>
+                <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Khách hàng</h2>
+              </div>
+              <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
+            </div>
+
+            <div class="card-body p-3 p-sm-4">
+              <div class="customer-profile-block mb-3">
+                <div class="customer-avatar">
+                  {{ customerInitials }}
+                </div>
+                <div class="customer-meta min-w-0">
+                  <h3 class="fs-8 fw-bold text-body-emphasis mb-0.5 text-truncate" :title="order.name || 'Chưa bổ sung tên'">
+                    {{ order.name || 'Chưa bổ sung tên' }}
+                  </h3>
+                  <div v-if="order.phone" class="d-flex align-items-center gap-2 flex-wrap">
+                    <a :href="`tel:${order.phone}`" class="text-decoration-none text-body-secondary font-monospace fs-9 hover-primary" title="Gọi điện">
+                      <AppIcon name="phone" class="fs-10 me-1" />
+                      <span>{{ order.phone }}</span>
+                    </a>
+                    <RouterLink
+                      :to="`/customers/${order.phone}`"
+                      class="badge badge-phoenix badge-phoenix-primary fs-10 text-decoration-none"
+                      title="Xem toàn bộ hồ sơ và lịch sử mua sắm của khách"
+                    >
+                      <span>Hồ sơ khách</span>
+                      <AppIcon name="external-link" class="ms-1" style="width: 10px; height: 10px;" />
+                    </RouterLink>
+                  </div>
+                  <div v-else class="text-body-tertiary fs-9">
+                    Chưa có số điện thoại
+                  </div>
+                </div>
+              </div>
+
+              <!-- Customer OCR Review Action Banner -->
+              <div
+                v-if="order.customerInfoStatus !== 'complete'"
+                class="customer-review-prompt p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-25"
+              >
+                <div class="d-flex align-items-start gap-2 mb-2">
+                  <AppIcon name="alert-circle" class="text-warning flex-shrink-0 mt-0.5" />
+                  <div class="fs-9 text-body-emphasis fw-medium">
+                    {{ customerStatusDescription }}
+                  </div>
+                </div>
+
+                <div v-if="order.ocr.candidateName || order.ocr.candidatePhone" class="ocr-candidate-box p-2.5 rounded-2 bg-body mb-3 border border-translucent">
+                  <div class="d-flex justify-content-between gap-2 fs-9 mb-1">
+                    <span class="text-body-tertiary">Tên OCR:</span>
+                    <strong class="text-body-emphasis">{{ order.ocr.candidateName || "—" }}</strong>
+                  </div>
+                  <div class="d-flex justify-content-between gap-2 fs-9">
+                    <span class="text-body-tertiary">SĐT OCR:</span>
+                    <strong class="text-body-emphasis font-monospace">{{ order.ocr.candidatePhone || "—" }}</strong>
+                  </div>
+                </div>
+
+                <button
+                  v-if="auth.can('orders.update')"
+                  type="button"
+                  class="btn btn-sm btn-primary w-100 d-flex align-items-center justify-content-center gap-1.5"
+                  @click="reviewOpen = true"
+                >
+                  <AppIcon name="user-check" />
+                  <span>Đối chiếu & xác nhận ngay</span>
+                </button>
+              </div>
+
+              <!-- Customer Verified Details -->
+              <div
+                v-else-if="order.ocr.review.mode"
+                class="ocr-verified-box p-2.5 rounded-2 bg-body-highlight border border-translucent fs-9"
+              >
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Hình thức xác thực</span>
+                  <strong>{{ order.ocr.review.mode === 'ocr' ? 'Kiểm duyệt gợi ý' : 'Nhập thủ công' }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Độ chuẩn tên</span>
+                  <strong>{{ outcomeLabel(order.ocr.review.nameOutcome) }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Độ chuẩn SĐT</span>
+                  <strong>{{ outcomeLabel(order.ocr.review.phoneOutcome) }}</strong>
+                </div>
+                <div v-if="order.ocr.extractionVersion" class="d-flex justify-content-between gap-2 py-1 border-bottom border-translucent">
+                  <span class="text-body-tertiary">Phiên bản đọc ảnh</span>
+                  <strong>{{ order.ocr.extractionVersion }}</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-2 py-1">
+                  <span class="text-body-tertiary">Thời gian xử lý</span>
+                  <strong>{{ dateTime(order.ocr.review.reviewedAt || order.ocr.processedAt) }}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Card: Order Bill & Receipt Photos -->
+          <article class="card border border-translucent shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <div class="sidebar-card-icon text-info">
+                  <AppIcon name="image" />
+                </div>
+                <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Ảnh hóa đơn / Chứng từ</h2>
+              </div>
+              <span v-if="gallery.length" class="badge badge-phoenix badge-phoenix-info fs-10">
+                {{ gallery.length }} ảnh
+              </span>
+            </div>
+
+            <div class="card-body p-3 p-sm-4">
+              <!-- Main Active Image -->
+              <div v-if="activeImage" class="receipt-frame-container mb-2">
+                <button
+                  type="button"
+                  class="receipt-frame-btn"
+                  :title="`Xem ảnh phóng to của đơn ${order.orderCode}`"
+                  @click="preview = assetUrl(activeImage)"
+                >
+                  <img
+                    :src="assetUrl(activeImage)"
+                    :alt="`Ảnh chứng từ đơn ${order.orderCode}`"
+                    class="receipt-frame-img"
+                    loading="lazy"
+                  />
+                  <div class="receipt-frame-overlay">
+                    <AppIcon name="eye" class="fs-8 me-1.5" />
+                    <span>Xem phóng to</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Fallback if no images -->
+              <div v-else class="receipt-fallback p-4 text-center rounded-3 border border-dashed border-translucent">
+                <AppIcon name="image" class="text-body-tertiary fs-6 mb-2" />
+                <p class="fs-9 text-body-tertiary mb-0">Đơn hàng không có ảnh chứng từ kèm theo</p>
+              </div>
+
+              <!-- Thumbnails Gallery Strip if Multiple Photos -->
+              <div v-if="gallery.length > 1" class="receipt-thumbs-strip mt-2">
+                <button
+                  v-for="(photo, index) in gallery"
+                  :key="`${photo}-${index}`"
+                  type="button"
+                  class="receipt-thumb-item"
+                  :class="{ 'is-active': photo === activeImage }"
+                  :title="`Xem ảnh ${index + 1}`"
+                  @click="selectedImage = photo"
+                >
+                  <img :src="assetUrl(photo)" :alt="`Ảnh ${index + 1}`" />
+                </button>
+              </div>
+
+              <!-- Raw OCR Text Expander if available -->
+              <details v-if="order.ocr.rawText" class="mt-3">
+                <summary class="fs-10 fw-semibold text-body-secondary cursor-pointer">
+                  <span>Chi tiết văn bản nhận diện OCR</span>
+                </summary>
+                <pre class="ocr-raw-text mt-2 mb-0 p-2.5 rounded-2 bg-body-highlight border border-translucent fs-10 font-monospace">{{ order.ocr.rawText }}</pre>
+              </details>
+            </div>
+          </article>
+
+          <!-- Card: Transaction Meta Details -->
+          <article class="card border border-translucent shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex align-items-center gap-2">
+              <div class="sidebar-card-icon text-secondary">
+                <AppIcon name="table" />
+              </div>
+              <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Thông tin giao dịch</h2>
+            </div>
+            <div class="card-body p-3 p-sm-4">
+              <DetailDefinitionList :fields="detailFields" />
+
+              <!-- Mobile Quick Actions -->
+              <div v-if="hasOrderActions" class="d-md-none border-top border-translucent mt-3 pt-3">
+                <div class="text-body-tertiary fs-10 fw-semibold mb-2">Thao tác đơn hàng</div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button
+                    v-if="canReturn"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-warning d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('return')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Đổi trả</span>
+                  </button>
+                  <button
+                    v-if="canCancel"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-danger d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('cancel')"
+                  >
+                    <AppIcon name="close" />
+                    <span>Hủy đơn</span>
+                  </button>
+                  <button
+                    v-if="canRestore"
+                    type="button"
+                    class="btn btn-sm btn-phoenix-success d-flex align-items-center gap-1"
+                    :disabled="saving"
+                    @click="triggerAction('restore')"
+                  >
+                    <AppIcon name="refresh" />
+                    <span>Khôi phục</span>
+                  </button>
+                  <button
+                    v-if="canDelete"
+                    type="button"
+                    class="btn btn-sm btn-danger d-flex align-items-center gap-1 ms-auto"
+                    :disabled="saving"
+                    @click="triggerAction('delete')"
+                  >
+                    <AppIcon name="trash-2" />
+                    <span>Xóa</span>
+                  </button>
+                </div>
               </div>
             </div>
           </article>
@@ -331,22 +747,32 @@
       </div>
     </template>
 
+    <!-- Modals & Drawers -->
     <DrawerPanel :open="reviewOpen" title="Đối chiếu thông tin khách hàng" wide @close="reviewOpen = false">
       <OrderCustomerReview v-if="order" :order="order" :submitting="saving" :error="error" @submit="saveCustomer" />
     </DrawerPanel>
-    <ConfirmDialog :open="Boolean(confirmAction)" :title="actionConfirmation.title" :message="actionConfirmation.message" :confirm-label="actionConfirmation.label" :confirm-variant="actionConfirmation.variant || 'danger'" @cancel="confirmAction = ''" @confirm="runAction" />
+
+    <ConfirmDialog
+      :open="Boolean(confirmAction)"
+      :title="actionConfirmation.title"
+      :message="actionConfirmation.message"
+      :confirm-label="actionConfirmation.label"
+      :confirm-variant="actionConfirmation.variant || 'danger'"
+      @cancel="confirmAction = ''"
+      @confirm="runAction"
+    />
+
     <ImagePreview :src="preview" :alt="order?.orderCode || 'Ảnh đơn hàng'" @close="preview = ''" />
-  </section>
+  </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import DetailDefinitionList from "@/components/app/DetailDefinitionList.vue";
-import PageHeader from "@/components/app/PageHeader.vue";
+import PageHeader, { type PageBreadcrumb } from "@/components/app/PageHeader.vue";
 import LoadingSkeleton from "@/components/placeholder/LoadingSkeleton.vue";
 import ImagePreview from "@/components/media/ImagePreview.vue";
-import ResourceImageCard from "@/components/media/ResourceImageCard.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
 import {
@@ -376,7 +802,6 @@ export default defineComponent({
     OrderCustomerReview,
     OrderStatusBadge,
     PageHeader,
-    ResourceImageCard,
   },
   data() {
     return {
@@ -390,10 +815,39 @@ export default defineComponent({
       confirmAction: "" as "" | "return" | "cancel" | "delete" | "restore",
       actionMenuOpen: false,
       dropdown: null as DropdownBehavior | null,
+      selectedImage: "",
+      copiedCode: false,
     };
   },
   computed: {
     auth() { return authenStore(); },
+    breadcrumbs(): PageBreadcrumb[] {
+      return [
+        { label: "Đơn hàng", to: "/orders" },
+        { label: this.order?.orderCode || "Chi tiết đơn" },
+      ];
+    },
+    gallery(): string[] {
+      if (!this.order) return [];
+      const list: string[] = [];
+      if (this.order.thumbnail) list.push(this.order.thumbnail);
+      if (Array.isArray(this.order.images)) {
+        for (const img of this.order.images) {
+          if (img && !list.includes(img)) list.push(img);
+        }
+      }
+      return list;
+    },
+    activeImage(): string {
+      if (this.selectedImage) return this.selectedImage;
+      return this.gallery[0] || this.order?.thumbnail || "";
+    },
+    customerInitials(): string {
+      if (!this.order?.name) return "KH";
+      const parts = this.order.name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    },
     canReturn(): boolean {
       return Boolean(this.auth.can("orders.update") && this.order?.status === "completed");
     },
@@ -429,7 +883,17 @@ export default defineComponent({
         : { title: "Hủy đơn hàng", message: "Đơn chuyển sang đã hủy và toàn bộ SKU được hoàn lại tồn kho.", label: "Hủy và hoàn tồn" };
     },
     pageError(): string { return this.error; },
-    itemQuantity(): number { return this.order?.items.reduce((sum, item) => sum + item.quantity, 0) || 0; },
+    itemQuantity(): number {
+      return this.order?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+    },
+    calculatedSubtotal(): number {
+      if (!this.order?.items) return 0;
+      return this.order.items.reduce((sum, item) => sum + (item.lineTotal || (item.unitPrice * item.quantity)), 0);
+    },
+    priceDifference(): number {
+      if (!this.order) return 0;
+      return this.order.price - this.calculatedSubtotal;
+    },
     customerStatusDescription(): string {
       if (!this.order) return "";
       if (this.order.customerInfoStatus === "ocr_processing") return "Google Vision đang đọc ảnh nền. Bạn vẫn có thể nhập thủ công ngay lập tức.";
@@ -439,11 +903,12 @@ export default defineComponent({
     detailFields(): Array<{ label: string; value: string }> {
       if (!this.order) return [];
       return [
-        { label: "Mã đơn", value: this.order.orderCode },
+        { label: "Mã đơn hàng", value: this.order.orderCode },
         { label: "Khách hàng", value: this.order.name || "—" },
         { label: "Số điện thoại", value: this.order.phone || "—" },
-        { label: "Thành tiền", value: this.money(this.order.price) },
-        { label: "Trạng thái giao dịch", value: this.order.status === "completed" ? "Hoàn tất" : this.order.status === "returned" ? "Đã đổi trả" : "Đã hủy" },
+        { label: "Hình thức bán", value: "Bán tại quầy (Trực tiếp)" },
+        { label: "Trạng thái đơn", value: this.order.status === "completed" ? "Hoàn tất" : this.order.status === "returned" ? "Đã đổi trả" : "Đã hủy" },
+        { label: "Ngày tạo đơn", value: this.dateTime(this.order.createdAt) },
         { label: "Ngày đổi trả", value: this.dateTime(this.order.returnedAt) },
         { label: "Ngày hủy", value: this.dateTime(this.order.cancelledAt) },
       ];
@@ -472,52 +937,177 @@ export default defineComponent({
       if (value === "entered") return "Người dùng nhập mới";
       return "—";
     },
+    async copyOrderCode(): Promise<void> {
+      if (!this.order?.orderCode) return;
+      try {
+        await navigator.clipboard.writeText(this.order.orderCode);
+        this.copiedCode = true;
+        setTimeout(() => {
+          this.copiedCode = false;
+        }, 2000);
+      } catch {
+        // Fallback gracefully if clipboard unavailable
+      }
+    },
+    printOrder(): void {
+      window.print();
+    },
     triggerAction(action: "return" | "cancel" | "delete" | "restore"): void {
       this.actionMenuOpen = false;
       this.confirmAction = action;
     },
-    async load(): Promise<void> { this.loading = true; this.error = ""; try { this.order = await orderService.detail(String(this.$route.params.id)); } catch (error) { this.error = apiError(error).message; } finally { this.loading = false; } },
+    async load(): Promise<void> {
+      this.loading = true;
+      this.error = "";
+      try {
+        this.order = await orderService.detail(String(this.$route.params.id));
+        this.selectedImage = "";
+      } catch (error) {
+        this.error = apiError(error).message;
+      } finally {
+        this.loading = false;
+      }
+    },
     async saveCustomer(value: { name: string; phone: string; review: boolean }): Promise<void> {
-      if (!this.order) return; this.saving = true; this.error = "";
-      try { this.order = await (value.review ? orderService.reviewCustomerInfo(this.order.id, value.name, value.phone) : orderService.completeCustomerInfo(this.order.id, value.name, value.phone)); this.reviewOpen = false; this.message = "Đã xác nhận thông tin khách hàng"; }
-      catch (error) { this.error = apiError(error).message; }
-      finally { this.saving = false; }
+      if (!this.order) return;
+      this.saving = true;
+      this.error = "";
+      try {
+        this.order = await (value.review
+          ? orderService.reviewCustomerInfo(this.order.id, value.name, value.phone)
+          : orderService.completeCustomerInfo(this.order.id, value.name, value.phone));
+        this.reviewOpen = false;
+        this.message = "Đã xác nhận thông tin khách hàng";
+      } catch (error) {
+        this.error = apiError(error).message;
+      } finally {
+        this.saving = false;
+      }
     },
     async runAction(): Promise<void> {
       if (!this.order || !this.confirmAction || this.saving) return;
       const action = this.confirmAction;
       if (action === "delete" && !this.auth.isAdmin) return;
-      this.confirmAction = ""; this.error = ""; this.message = ""; this.saving = true;
+      this.confirmAction = "";
+      this.error = "";
+      this.message = "";
+      this.saving = true;
       try {
         if (action === "delete") {
           await orderService.permanentDelete(this.order.id);
           useOrderStore().message = "Đã xóa vĩnh viễn đơn hàng";
           await this.$router.push("/orders");
         } else if (action === "return") {
-          this.order = await orderService.markReturned(this.order.id); this.message = "Đã đổi trả và hoàn tồn kho";
+          this.order = await orderService.markReturned(this.order.id);
+          this.message = "Đã đổi trả và hoàn tồn kho";
         } else if (action === "restore") {
-          this.order = await orderService.restore(this.order.id); this.message = "Đã khôi phục đơn và cập nhật tồn kho";
+          this.order = await orderService.restore(this.order.id);
+          this.message = "Đã khôi phục đơn và cập nhật tồn kho";
         } else {
-          await orderService.remove(this.order.id); await this.load(); this.message = "Đã hủy đơn và hoàn tồn kho";
+          await orderService.remove(this.order.id);
+          await this.load();
+          this.message = "Đã hủy đơn và hoàn tồn kho";
         }
+      } catch (error) {
+        this.error = apiError(error).message;
+      } finally {
+        this.saving = false;
       }
-      catch (error) { this.error = apiError(error).message; }
-      finally { this.saving = false; }
     },
   },
 });
 </script>
 
 <style scoped>
-.order-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-.order-kpis article { display: grid; gap: .25rem; padding: 1rem; border: 1px solid var(--phoenix-border-color-translucent); border-radius: .85rem; background: var(--phoenix-body-emphasis-bg); }
-.order-kpis span, .order-kpis small { color: var(--phoenix-secondary-color); font-size: .75rem; }
-.order-kpis strong { font-size: 1.05rem; }
-.ocr-summary { display: grid; gap: .6rem; }
-.ocr-summary div { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: .5rem; border-bottom: 1px dashed var(--phoenix-border-color-translucent); }
+.order-detail-page {
+  min-width: 0;
+}
+
+/* KPI Banner Strip */
+.order-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.order-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  border-radius: 0.85rem;
+  background: var(--phoenix-body-emphasis-bg);
+  transition: all 0.2s ease;
+}
+
+.order-kpi-card:hover {
+  border-color: rgba(var(--phoenix-primary-rgb), 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.order-kpi-card.is-highlight {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--phoenix-primary-rgb), 0.04) 0%,
+    var(--phoenix-body-emphasis-bg) 100%
+  );
+  border-color: rgba(var(--phoenix-primary-rgb), 0.2);
+}
+
+.kpi-icon-badge {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: var(--phoenix-body-highlight-bg);
+  flex-shrink: 0;
+  font-size: 1.2rem;
+}
+
+.kpi-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--phoenix-secondary-color);
+}
+
+.kpi-value {
+  font-size: 1.15rem;
+  line-height: 1.2;
+  color: var(--phoenix-emphasis-color);
+}
+
+.kpi-sub {
+  font-size: 0.75rem;
+  color: var(--phoenix-secondary-color);
+}
+
+.kpi-mini-icon {
+  width: 11px;
+  height: 11px;
+  vertical-align: -1px;
+  opacity: 0.7;
+}
+
+.hover-primary:hover {
+  color: var(--phoenix-primary) !important;
+}
 
 /* Sold Products Card & Items */
-.sold-header-icon {
+.sold-header-icon,
+.timeline-header-icon,
+.sidebar-card-icon {
   width: 2.25rem;
   height: 2.25rem;
   display: flex;
@@ -527,6 +1117,18 @@ export default defineComponent({
   background: rgba(var(--phoenix-primary-rgb), 0.1);
   color: var(--phoenix-primary);
   flex-shrink: 0;
+}
+
+.sidebar-card-icon.text-success {
+  background: rgba(var(--phoenix-success-rgb, 37, 184, 100), 0.1);
+}
+
+.sidebar-card-icon.text-info {
+  background: rgba(var(--phoenix-info-rgb, 0, 151, 219), 0.1);
+}
+
+.sidebar-card-icon.text-secondary {
+  background: rgba(var(--phoenix-secondary-rgb, 108, 117, 125), 0.1);
 }
 
 .sold-empty-icon {
@@ -651,6 +1253,10 @@ export default defineComponent({
   opacity: 1;
 }
 
+.sold-product-sku-wrap {
+  flex-shrink: 0;
+}
+
 .sold-sku-code {
   display: inline-flex;
   align-items: center;
@@ -750,12 +1356,241 @@ export default defineComponent({
   letter-spacing: -0.01em;
 }
 
-@media (max-width: 991.98px) {
-  .order-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Order Summary Footer */
+.order-price-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Order Timeline */
+.order-timeline-list {
+  list-style: none;
+  padding-left: 0;
+  position: relative;
+}
+
+.order-timeline-list::before {
+  content: "";
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  left: 1rem;
+  width: 2px;
+  background: var(--phoenix-border-color-translucent);
+}
+
+.timeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+
+.timeline-step:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-marker {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--phoenix-body-bg);
+  border: 2px solid var(--phoenix-border-color-translucent);
+  color: var(--phoenix-secondary-color);
+  font-size: 0.8rem;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.timeline-step.is-complete .timeline-marker {
+  background: var(--phoenix-success);
+  border-color: var(--phoenix-success);
+  color: #fff;
+}
+
+.timeline-step.is-pending .timeline-marker {
+  background: var(--phoenix-warning);
+  border-color: var(--phoenix-warning);
+  color: #fff;
+}
+
+.timeline-step.is-warning .timeline-marker {
+  background: var(--phoenix-warning);
+  border-color: var(--phoenix-warning);
+  color: #fff;
+}
+
+.timeline-step.is-danger .timeline-marker {
+  background: var(--phoenix-danger);
+  border-color: var(--phoenix-danger);
+  color: #fff;
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-title {
+  font-size: 0.875rem;
+  color: var(--phoenix-emphasis-color);
+}
+
+.timeline-time {
+  font-size: 0.75rem;
+  color: var(--phoenix-secondary-color);
+}
+
+.timeline-desc {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Customer Profile Card */
+.customer-profile-block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.customer-avatar {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--phoenix-primary-rgb), 0.15) 0%,
+    rgba(var(--phoenix-primary-rgb), 0.3) 100%
+  );
+  color: var(--phoenix-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  border: 2px solid var(--phoenix-body-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.customer-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Receipt & Photo Card */
+.receipt-frame-container {
+  width: 100%;
+  max-height: 20rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  background: var(--phoenix-body-highlight-bg);
+}
+
+.receipt-frame-btn {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.receipt-frame-img {
+  width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.receipt-frame-btn:hover .receipt-frame-img {
+  transform: scale(1.02);
+}
+
+.receipt-frame-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.receipt-frame-btn:hover .receipt-frame-overlay {
+  opacity: 1;
+}
+
+.receipt-thumbs-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.receipt-thumb-item {
+  width: 3.5rem;
+  height: 3.5rem;
+  flex: 0 0 auto;
+  padding: 0.125rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  background: var(--phoenix-body-bg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.receipt-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.35rem;
+}
+
+.receipt-thumb-item.is-active {
+  border-color: var(--phoenix-primary);
+  box-shadow: 0 0 0 2px rgba(var(--phoenix-primary-rgb), 0.2);
+}
+
+.ocr-raw-text {
+  max-height: 12rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1199.98px) {
+  .order-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 575.98px) {
-  .order-kpis { grid-template-columns: 1fr; }
+  .order-kpi-grid {
+    grid-template-columns: 1fr;
+  }
   .sold-product-item {
     grid-template-columns: 3.5rem minmax(0, 1fr);
     gap: 0.75rem;
@@ -772,6 +1607,34 @@ export default defineComponent({
     padding-top: 0.65rem;
     border-top: 1px dashed var(--phoenix-border-color-translucent);
     margin-top: 0.25rem;
+  }
+}
+
+/* Print Stylesheet */
+@media print {
+  .print-hide,
+  .dropdown,
+  .btn,
+  .breadcrumb,
+  nav,
+  .navbar,
+  .sidebar,
+  .cms-navbar {
+    display: none !important;
+  }
+
+  .order-detail-page {
+    padding: 0 !important;
+  }
+
+  .card {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .order-kpi-card {
+    border: 1px solid #ddd !important;
   }
 }
 </style>
