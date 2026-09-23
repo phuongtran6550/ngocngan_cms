@@ -35,22 +35,9 @@
           class="sales-cart-thumb"
         />
         <div class="sales-cart-copy">
-          <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-            <div>
-              <h3 class="fs-9 mb-1">{{ line.productName }}</h3>
-              <code class="fs-10">{{ line.skuCode || line.barcode }}</code>
-            </div>
-            <div class="text-end">
-              <strong class="text-nowrap d-block fs-9">{{
-                money(line.unitPrice * line.quantity)
-              }}</strong>
-              <small
-                v-if="line.rawPrice !== undefined && line.rawPrice !== null && line.rawPrice !== line.unitPrice"
-                class="text-body-tertiary text-nowrap d-block fs-10"
-              >
-                Tạm tính (chưa làm tròn): {{ money(line.rawPrice * line.quantity) }}
-              </small>
-            </div>
+          <div class="mb-2">
+            <h3 class="fs-9 mb-1">{{ line.productName }}</h3>
+            <code class="fs-10">{{ line.skuCode || line.barcode }}</code>
           </div>
 
           <div class="fs-10 text-body-tertiary mb-2">

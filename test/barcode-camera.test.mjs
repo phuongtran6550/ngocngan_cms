@@ -458,8 +458,8 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
     ),
     "utf8",
   );
-  assert.match(salesCartSource, /Tạm tính \(chưa làm tròn\):/);
-  assert.match(salesCartSource, /line\.rawPrice/);
+  assert.match(salesCartSource, /Tổng tạm tính \(chưa làm tròn\):/);
+  assert.match(salesCartSource, /cart\.rawTotal/);
 
   const scannerSource = readFileSync(
     new URL(
