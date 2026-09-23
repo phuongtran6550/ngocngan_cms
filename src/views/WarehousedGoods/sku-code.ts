@@ -1,5 +1,6 @@
 import type { CategoryGroup } from "@/views/Categories/types";
 import type { WarehouseSkuFormModel } from "@/views/WarehousedGoods/types";
+import { calculatePiecePrice } from "@/views/WarehousedGoods/pricing";
 
 export interface SkuCodeSource {
   pricingType?: string;
@@ -11,6 +12,9 @@ export interface SkuCodeSource {
   weight: number;
   size: string;
   price?: number;
+  platingCost?: number;
+  laborCost?: number;
+  importPrice?: number | null;
 }
 
 export function ascii(value: unknown): string {
@@ -240,12 +244,28 @@ export function buildSkuCode(source: SkuCodeSource): string {
 
   const matPrefix = getMaterialPrefix(source.name, source.material);
 
-  // Đồ món: lấy mã nhóm theo khoảng giá danh mục và ghép trước dấu "-" (ví dụ: VN7-...)
+  // Đồ món: lấy mã nhóm theo khoảng giá danh mục dựa trên giá chưa cộng tiền xi và ghép trước dấu "-" (ví dụ: VN7-...)
   const groupPart = isPiece
     ? (() => {
+        const plating = Math.max(0, Number(source.platingCost) || 0);
+        let matchPrice = 0;
+        if (
+          source.price !== undefined &&
+          source.price !== null &&
+          Number(source.price) > 0
+        ) {
+          matchPrice = Math.max(0, Number(source.price) - plating);
+        } else if (Number(source.importPrice) > 0) {
+          matchPrice = calculatePiecePrice(
+            Number(source.importPrice),
+            0,
+            Number(source.laborCost) || 0,
+          ).price;
+        }
+
         const matchedGroup = matchCategoryGroup(
           source.categoryGroups,
-          source.price,
+          matchPrice,
         );
         return matchedGroup ? formatGroupName(matchedGroup.name) : "";
       })()
@@ -306,7 +326,15 @@ function availableCode(base: string, used: Set<string>): string {
 
 export function suggestSkuCodes(
   skus: WarehouseSkuFormModel[],
-  context: Omit<SkuCodeSource, "weight" | "size" | "price">,
+  context: Omit<
+    SkuCodeSource,
+    | "weight"
+    | "size"
+    | "price"
+    | "platingCost"
+    | "laborCost"
+    | "importPrice"
+  >,
 ): WarehouseSkuFormModel[] {
   const used = new Set(
     skus
@@ -322,6 +350,9 @@ export function suggestSkuCodes(
       weight: sku.weight,
       size: sku.size,
       price: sku.price,
+      platingCost: sku.platingCost,
+      laborCost: sku.laborCost,
+      importPrice: sku.importPrice,
     });
     if (!base) return { ...sku, code: "", codeSource: "" };
     const codeSource = availableCode(base, used);

@@ -47,7 +47,7 @@
               Cấu hình nhóm giá (Ghép mã SKU đồ món)
             </h6>
             <div class="fs-10 text-body-tertiary">
-              Sản phẩm đồ món sẽ dựa trên giá bán để tự động gán mã nhóm vào mã SKU
+              Sản phẩm đồ món sẽ dựa trên giá bán (chưa cộng tiền xi) để tự động gán mã nhóm vào mã SKU
             </div>
           </div>
           <button

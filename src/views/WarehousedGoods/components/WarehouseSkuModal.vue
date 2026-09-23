@@ -613,10 +613,10 @@ export default defineComponent({
           this.fieldErrors = {};
           this.draft = copySku(this.sku);
           await this.fetchCategoryGroups();
+          this.recalculatePrice();
           if (!this.isEdit && this.draft.codeMode === "auto") {
             this.applySuggestedCode();
           }
-          this.recalculatePrice();
         }
       },
     },
@@ -698,10 +698,12 @@ export default defineComponent({
       this.clearFieldError("price");
       this.draft.manualPrice = (event.target as HTMLInputElement).checked;
       this.recalculatePrice();
+      if (this.draft.codeMode === "auto") this.applySuggestedCode();
     },
     updatePrice(value: number | null): void {
       this.clearFieldError("price");
       this.draft.price = value ?? 0;
+      if (this.draft.codeMode === "auto") this.applySuggestedCode();
     },
     updateCode(e: Event): void {
       this.clearFieldError("code");
@@ -761,11 +763,13 @@ export default defineComponent({
       this.clearFieldError("laborCost");
       this.draft.laborCost = val ?? 0;
       this.recalculatePrice();
+      if (this.draft.codeMode === "auto") this.applySuggestedCode();
     },
     updatePlatingCost(val: number | null): void {
       this.clearFieldError("platingCost");
       this.draft.platingCost = val ?? 0;
       this.recalculatePrice();
+      if (this.draft.codeMode === "auto") this.applySuggestedCode();
     },
     updatePieceImportPrice(val: number | null): void {
       this.clearFieldError("importPrice");

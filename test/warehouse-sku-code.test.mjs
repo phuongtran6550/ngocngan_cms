@@ -16,7 +16,10 @@ function load(file, deps = {}) {
   return module.exports;
 }
 
-const skuCodeModule = load("views/WarehousedGoods/sku-code.ts");
+const pricingModule = load("views/WarehousedGoods/pricing.ts");
+const skuCodeModule = load("views/WarehousedGoods/sku-code.ts", {
+  "@/views/WarehousedGoods/pricing": pricingModule,
+});
 const { buildSkuCode, suggestSkuCodes, formatGroupName } = skuCodeModule;
 
 test("formatGroupName normalizes group names to N<digit>", () => {
@@ -161,4 +164,92 @@ test("buildSkuCode does not keep duplicate group text at the back (e.g. VB8-BVHT
   });
   assert.equal(code3, "VB8-BVHT8L");
 });
+
+test("buildSkuCode calculates category group based on price before plating cost (giá chưa cộng tiền xi)", () => {
+  const categoryGroups = [
+    { name: "Nhóm 7", fromPrice: 100000, toPrice: 200000 },
+    { name: "Nhóm 8", fromPrice: 200001, toPrice: 300000 },
+  ];
+
+  // Selling price is 230,000 including 40,000 plating cost.
+  // Net price before plating cost is 190,000 -> Nhóm 7 (VN7), NOT Nhóm 8 (VN8).
+  const codeWithPlating = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Dây chuyền bi",
+    material: "Xi vàng",
+    categoryGroups,
+    price: 230000,
+    platingCost: 40000,
+    weight: 0,
+    size: "",
+  });
+  assert.equal(codeWithPlating, "VN7-DCB");
+
+  // With labor cost: price 240,000, plating 50,000, labor 10,000 -> net price 190,000 -> Nhóm 7
+  const codeWithLabor = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Dây chuyền bi",
+    material: "Xi vàng",
+    categoryGroups,
+    price: 240000,
+    platingCost: 50000,
+    laborCost: 10000,
+    weight: 0,
+    size: "",
+  });
+  assert.equal(codeWithLabor, "VN7-DCB");
+
+  // Fallback when only importPrice is provided: importPrice 90,000 -> roundedBasePrice 180,000 -> Nhóm 7
+  const codeFromImportPrice = buildSkuCode({
+    pricingType: "Đồ món",
+    name: "Dây chuyền bi",
+    material: "Xi vàng",
+    categoryGroups,
+    importPrice: 90000,
+    weight: 0,
+    size: "",
+  });
+  assert.equal(codeFromImportPrice, "VN7-DCB");
+});
+
+test("suggestSkuCodes handles automatic SKU code generation using price before plating cost", () => {
+  const categoryGroups = [
+    { name: "Nhóm 7", fromPrice: 100000, toPrice: 200000 },
+    { name: "Nhóm 8", fromPrice: 200001, toPrice: 300000 },
+  ];
+
+  const skus = [
+    {
+      code: "",
+      codeMode: "auto",
+      codeSource: "",
+      weight: 0,
+      size: "",
+      price: 230000,
+      platingCost: 40000,
+    },
+    {
+      code: "",
+      codeMode: "auto",
+      codeSource: "",
+      weight: 0,
+      size: "",
+      price: 230000,
+      platingCost: 40000,
+    },
+  ];
+
+  const context = {
+    pricingType: "Đồ món",
+    name: "Dây chuyền",
+    material: "Xi vàng",
+    categoryGroups,
+  };
+
+  const results = suggestSkuCodes(skus, context);
+  // Net price is 190,000 -> Nhóm 7
+  assert.equal(results[0].code, "VN7-DC");
+  assert.equal(results[1].code, "VN7-DC-02");
+});
+
 
