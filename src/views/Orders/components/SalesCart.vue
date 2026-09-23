@@ -311,7 +311,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import { assetUrl } from "@/request";
 import { formatMoney } from "@/utils/resource-display";
@@ -333,7 +333,6 @@ const emit = defineEmits<{
 const cart = useSalesCartStore();
 
 const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 });
-const expandedCostSkuIds = ref<Record<string, boolean>>({});
 
 onMounted(() => {
   void cart.loadSilverPrice();
@@ -348,14 +347,6 @@ function formatWeight(value: unknown): string {
   return Number.isFinite(parsed) && parsed > 0
     ? `${decimal.format(parsed)} chỉ`
     : "—";
-}
-
-function isCostExpanded(skuId: string): boolean {
-  return Boolean(expandedCostSkuIds.value[skuId]);
-}
-
-function toggleCost(skuId: string): void {
-  expandedCostSkuIds.value[skuId] = !expandedCostSkuIds.value[skuId];
 }
 
 interface WeightedBreakdown {
