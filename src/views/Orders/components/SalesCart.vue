@@ -66,42 +66,54 @@
               >
                 {{ line.pricingType }}
               </span>
+              <span
+                class="badge badge-phoenix fs-10 px-2 py-0.5"
+                :class="
+                  isManualPrice(line)
+                    ? 'badge-phoenix-warning'
+                    : 'badge-phoenix-success'
+                "
+              >
+                {{ isManualPrice(line) ? "Giá nhập thủ công" : "Giá tự động" }}
+              </span>
             </div>
 
             <!-- Bảng thành tiền rút gọn: 1. Thành tiền (Đã làm tròn), 2. Tiền xi, 3. Tổng thành tiền -->
-            <div class="sales-cart-pricing-summary p-2.5 rounded-2 bg-body-highlight border border-translucent">
+            <div class="sales-cart-pricing-summary mt-2 pt-1 border-top border-translucent">
               <div class="d-flex justify-content-between align-items-center py-1">
-                <span class="text-body-secondary fs-9">Thành tiền (Đã làm tròn) :</span>
-                <span class="fw-semibold text-body-highlight fs-9">
+                <span class="text-body-secondary fs-8">
+                  {{ isManualPrice(line) ? "Thành tiền (Giá nhập thủ công) :" : "Thành tiền (Đã làm tròn) :" }}
+                </span>
+                <span class="fw-semibold text-body-highlight fs-8">
                   {{ money(getLineRoundedBasePrice(line) * line.quantity) }}
                   <small
                     v-if="line.quantity > 1"
-                    class="text-body-tertiary fw-normal fs-10 ms-1"
+                    class="text-body-tertiary fw-normal fs-9 ms-1"
                   >
                     ({{ money(getLineRoundedBasePrice(line)) }} × {{ line.quantity }})
                   </small>
                 </span>
               </div>
               <div class="d-flex justify-content-between align-items-center py-1">
-                <span class="text-body-secondary fs-9">Tiền xi :</span>
+                <span class="text-body-secondary fs-8">Tiền xi :</span>
                 <span
                   v-if="(Number(line.platingCost) || 0) > 0"
-                  class="fw-semibold text-info-emphasis fs-9"
+                  class="fw-semibold text-info-emphasis fs-8"
                 >
                   +{{ money((Number(line.platingCost) || 0) * line.quantity) }}
                   <small
                     v-if="line.quantity > 1"
-                    class="text-body-tertiary fw-normal fs-10 ms-1"
+                    class="text-body-tertiary fw-normal fs-9 ms-1"
                   >
                     ({{ money(Number(line.platingCost) || 0) }} × {{ line.quantity }})
                   </small>
                 </span>
-                <span v-else class="text-body-tertiary fs-9 fw-medium">
+                <span v-else class="text-body-tertiary fs-8 fw-medium">
                   0 đ
                 </span>
               </div>
               <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent">
-                <span class="fw-bold text-body-emphasis fs-8">Tổng thành tiền :</span>
+                <span class="fw-bold text-body-emphasis fs-7">Tổng thành tiền :</span>
                 <strong class="text-primary fw-bolder fs-7 font-monospace">
                   {{ money(line.unitPrice * line.quantity) }}
                 </strong>
@@ -339,6 +351,18 @@ function getLineRoundedBasePrice(line: OrderCartLine): number {
     }
   }
   return Math.max(0, line.unitPrice - (Number(line.platingCost) || 0));
+}
+
+function isManualPrice(line: OrderCartLine): boolean {
+  if (line.manualPrice) return true;
+  if (line.pricingType === "Đồ món") {
+    const piece = getPieceBreakdown(line);
+    if (piece?.hasManualAdjustment) return true;
+  } else if (line.pricingType === "Đồ cân") {
+    const weighted = getWeightedBreakdown(line);
+    if (weighted?.hasManualAdjustment) return true;
+  }
+  return false;
 }
 
 function isRefreshing(skuId: string): boolean {
