@@ -27,7 +27,7 @@
           :mode="currentSearchMode"
           size="sm"
           rounded
-          input-class="search-input ps-4"
+          input-class="search-input"
           placeholder="Tìm nhanh trong trang hiện tại..."
           search-icon-position="left"
           @search="submitSearch"
@@ -215,13 +215,13 @@ export default defineComponent({
     margin-inline: 0.25rem;
   }
 
-  .app-current-page-search .search-input {
+  .app-current-page-search :deep(.search-input) {
     padding-right: 0.75rem;
-    padding-left: 2rem;
+    padding-left: 2.25rem !important;
     font-size: 0.75rem;
   }
 
-  .app-current-page-search .search-box-icon {
+  .app-current-page-search :deep(.search-box-icon) {
     left: 0.7rem;
   }
 }

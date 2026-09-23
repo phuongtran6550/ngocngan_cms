@@ -59,7 +59,6 @@
               v-model="draftQuery"
               mode="products"
               placeholder="Nhập tên, mã SKU, barcode..."
-              input-class="ps-4"
               @search="onSuggestSearch"
             />
             <button type="submit" class="btn btn-primary flex-shrink-0">

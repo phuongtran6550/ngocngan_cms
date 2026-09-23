@@ -81,7 +81,6 @@
               v-model="store.query"
               mode="warehoused-goods"
               placeholder="Nhập tên, mã sản phẩm..."
-              input-class="ps-4"
               @search="search"
             />
             <button type="submit" class="btn btn-primary flex-shrink-0">

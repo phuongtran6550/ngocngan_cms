@@ -10,11 +10,13 @@
         ref="inputRef"
         :value="modelValue"
         type="search"
-        class="form-control"
+        class="form-control search-suggest-input"
         :class="[
-          inputClass,
+          hasLeftIcon ? 'has-left-icon' : '',
+          hasRightIcon ? 'has-right-icon' : '',
           size === 'sm' ? 'form-control-sm' : '',
           rounded ? 'rounded-pill' : '',
+          inputClass,
         ]"
         :placeholder="placeholder"
         :disabled="disabled"
@@ -38,7 +40,7 @@
       <AppIcon
         v-else-if="showSearchIcon"
         name="search"
-        class="search-icon text-body-tertiary position-absolute pointer-events-none"
+        class="search-icon search-box-icon text-body-tertiary position-absolute pointer-events-none"
         :class="searchIconClass"
       />
     </div>
@@ -236,6 +238,9 @@ const activeDescendantId = computed(() => {
   }
   return undefined;
 });
+
+const hasLeftIcon = computed(() => props.showSearchIcon && props.searchIconPosition === "left");
+const hasRightIcon = computed(() => loading.value || (props.showSearchIcon && props.searchIconPosition === "right"));
 
 const searchIconClass = computed(() => {
   if (props.searchIconPosition === "right") {
@@ -462,5 +467,26 @@ onBeforeUnmount(() => {
 
 .pointer-events-none {
   pointer-events: none;
+}
+
+.search-suggest-input.has-left-icon {
+  padding-left: 2.5rem !important;
+}
+
+.search-suggest-input.has-left-icon.rounded-pill {
+  padding-left: 2.75rem !important;
+}
+
+.search-suggest-input.has-right-icon {
+  padding-right: 2.5rem !important;
+}
+
+.search-suggest-input.has-right-icon.rounded-pill {
+  padding-right: 2.75rem !important;
+}
+
+.search-icon {
+  width: 1rem;
+  height: 1rem;
 }
 </style>
