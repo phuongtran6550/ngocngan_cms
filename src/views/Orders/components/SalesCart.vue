@@ -53,7 +53,23 @@
             </div>
           </div>
           <div class="fs-10 text-body-tertiary mb-2">
-            <div>{{ money(line.unitPrice) }} / món · Tồn {{ line.stock }}</div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <span>{{ money(line.unitPrice) }} / món · Tồn {{ line.stock }}</span>
+              <span
+                v-if="line.pricingType"
+                class="badge badge-phoenix fs-11"
+                :class="
+                  line.pricingType === 'Đồ cân'
+                    ? 'badge-phoenix-info'
+                    : line.pricingType === 'Đồ món'
+                      ? 'badge-phoenix-warning'
+                      : 'badge-phoenix-secondary'
+                "
+              >
+                {{ line.pricingType }}
+              </span>
+            </div>
+
             <div
               v-if="line.rawPrice !== undefined && line.rawPrice !== null"
               class="d-flex flex-wrap align-items-center gap-1 mt-1"
@@ -64,60 +80,41 @@
                 ({{ line.unitPrice > line.rawPrice ? '+' : '' }}{{ money(line.unitPrice - line.rawPrice) }})
               </span>
             </div>
-          </div>
 
-          <!-- Chi phí SKU -->
-          <div class="sales-cart-cost-card my-2 p-2 rounded-2 border border-translucent bg-body-tertiary">
-            <div class="d-flex align-items-center justify-content-between gap-2">
-              <div class="d-flex align-items-center gap-2">
-                <span class="fs-10 fw-bold text-uppercase text-body-secondary">Chi phí SKU</span>
-                <span
-                  class="badge badge-phoenix"
-                  :class="
-                    line.pricingType === 'Đồ cân'
-                      ? 'badge-phoenix-info'
-                      : line.pricingType === 'Đồ món'
-                        ? 'badge-phoenix-warning'
-                        : 'badge-phoenix-secondary'
-                  "
-                >
-                  {{ line.pricingType || "Chưa phân loại" }}
-                </span>
-              </div>
-              <button
-                type="button"
-                class="btn btn-sm btn-link p-0 text-decoration-none fs-10 d-inline-flex align-items-center gap-1 text-body-secondary"
-                :aria-expanded="isCostExpanded(line.skuId)"
-                @click="toggleCost(line.skuId)"
-              >
-                <span>{{ isCostExpanded(line.skuId) ? "Thu gọn" : "Chi tiết" }}</span>
-                <AppIcon :name="isCostExpanded(line.skuId) ? 'chevron-up' : 'chevron-down'" />
-              </button>
-            </div>
-
-            <!-- Dòng tóm tắt nhanh chi phí -->
-            <div class="d-flex flex-wrap align-items-center gap-x-3 gap-y-1 mt-1 fs-10 text-body-secondary">
+            <!-- Chi phí SKU hiển thị trực tiếp trong phần này -->
+            <div class="d-flex flex-wrap align-items-center gap-x-2 gap-y-1 mt-1">
+              <span class="fw-semibold text-body-secondary">Chi phí SKU:</span>
               <template v-if="line.pricingType === 'Đồ cân'">
-                <span v-if="line.weight">Trọng lượng: <strong class="text-body-highlight">{{ formatWeight(line.weight) }}</strong></span>
+                <span v-if="line.weight">TL: <strong class="text-body-highlight">{{ formatWeight(line.weight) }}</strong></span>
                 <span v-if="cart.silverPrice">Giá bạc: <strong class="text-body-highlight">{{ money(cart.silverPrice) }}/chỉ</strong></span>
-                <span v-if="line.laborCost && line.laborCost > 0">Tiền công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
-                <span v-if="line.platingCost && line.platingCost > 0">Tiền xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
+                <span v-if="line.laborCost && line.laborCost > 0">Công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
+                <span v-if="line.platingCost && line.platingCost > 0">Xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
               </template>
               <template v-else-if="line.pricingType === 'Đồ món'">
                 <span v-if="line.importPrice !== null && line.importPrice !== undefined && line.importPrice > 0">Giá nhập: <strong class="text-body-highlight">{{ money(line.importPrice) }}</strong></span>
                 <span v-if="getPieceBreakdown(line)">Hệ số: <strong class="text-body-highlight">x{{ getPieceBreakdown(line)?.multiplier }}</strong></span>
-                <span v-if="line.laborCost && line.laborCost > 0">Tiền công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
-                <span v-if="line.platingCost && line.platingCost > 0">Tiền xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
+                <span v-if="line.laborCost && line.laborCost > 0">Công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
+                <span v-if="line.platingCost && line.platingCost > 0">Xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
               </template>
               <template v-else>
                 <span v-if="line.importPrice !== null && line.importPrice !== undefined && line.importPrice > 0">Giá nhập: <strong class="text-body-highlight">{{ money(line.importPrice) }}</strong></span>
-                <span v-if="line.laborCost && line.laborCost > 0">Tiền công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
-                <span v-if="line.platingCost && line.platingCost > 0">Tiền xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
+                <span v-if="line.laborCost && line.laborCost > 0">Công: <strong class="text-body-highlight">{{ money(line.laborCost) }}</strong></span>
+                <span v-if="line.platingCost && line.platingCost > 0">Xi: <strong class="text-body-highlight">{{ money(line.platingCost) }}</strong></span>
               </template>
+              <button
+                type="button"
+                class="btn btn-sm btn-link p-0 text-decoration-none fs-11 text-body-tertiary ms-1"
+                @click="toggleCost(line.skuId)"
+              >
+                {{ isCostExpanded(line.skuId) ? "[Thu gọn]" : "[Chi tiết]" }}
+              </button>
             </div>
 
-            <!-- Bảng phân rã chi tiết (Mở rộng / Thu gọn) -->
-            <div v-if="isCostExpanded(line.skuId)" class="sales-cart-cost-details mt-2 pt-2 border-top border-translucent">
+            <!-- Bảng phân rã chi tiết khi mở rộng -->
+            <div
+              v-if="isCostExpanded(line.skuId)"
+              class="sales-cart-cost-inline-details mt-2 p-2 rounded-2 bg-body-tertiary border border-translucent"
+            >
               <!-- Đồ cân -->
               <template v-if="line.pricingType === 'Đồ cân'">
                 <dl class="sku-mini-definition-list mb-0">
