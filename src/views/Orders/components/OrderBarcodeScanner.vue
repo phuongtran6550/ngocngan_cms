@@ -5,11 +5,14 @@
     title="Quét liên tục vào giỏ hàng"
     description="Quét từng tem. Mỗi mã hợp lệ được thêm ngay và camera tiếp tục chờ sản phẩm kế tiếp."
     :resolver="add"
+    :silver-price="cart.silverPrice"
+    :rounding-marks="cart.roundingMarks"
     @close="$emit('close')"
   />
 </template>
 
 <script setup lang="ts">
+import { onMounted } from "vue";
 import ProductBarcodeScanner from "@/views/Products/components/ProductBarcodeScanner.vue";
 import { useSalesCartStore } from "@/views/Orders/cart";
 import type { BarcodeResolutionFeedback, ProductSku } from "@/views/Products/types";
@@ -20,6 +23,10 @@ const emit = defineEmits<{
   feedback: [message: string, ok: boolean];
 }>();
 const cart = useSalesCartStore();
+
+onMounted(() => {
+  void cart.loadSilverPrice();
+});
 
 function add(sku: ProductSku): BarcodeResolutionFeedback {
   const result = cart.add(sku);

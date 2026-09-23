@@ -499,3 +499,32 @@ test("SalesCart and cart store support SKU cost breakdown and totals", async () 
   assert.match(cartSource, /roundingMarks/);
 });
 
+test("ProductBarcodeScanner and OrderBarcodeScanner support SKU cost breakdown display", async () => {
+  const scannerSource = readFileSync(
+    new URL(
+      "../src/views/Products/components/ProductBarcodeScanner.vue",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(scannerSource, /scanner-product-cost-breakdown/);
+  assert.match(scannerSource, /getPieceBreakdown/);
+  assert.match(scannerSource, /getWeightedBreakdown/);
+  assert.match(scannerSource, /Giá nhập/);
+  assert.match(scannerSource, /Giá nhân đôi/);
+  assert.match(scannerSource, /Hệ số tính giá/);
+  assert.match(scannerSource, /Tiền hàng tạm tính/);
+  assert.match(scannerSource, /Tiền hàng sau làm tròn/);
+  assert.match(scannerSource, /modal-dialog-scrollable/);
+
+  const orderScannerSource = readFileSync(
+    new URL(
+      "../src/views/Orders/components/OrderBarcodeScanner.vue",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(orderScannerSource, /:silver-price="cart\.silverPrice"/);
+  assert.match(orderScannerSource, /:rounding-marks="cart\.roundingMarks"/);
+});
+

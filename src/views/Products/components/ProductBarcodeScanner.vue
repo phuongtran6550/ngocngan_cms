@@ -12,7 +12,7 @@
       @pointerdown="enableSound"
       @keydown="enableSound(); trapFocus($event)"
     >
-      <div class="modal-dialog modal-dialog-centered product-scanner-dialog">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable product-scanner-dialog">
         <div class="modal-content overflow-hidden">
           <div class="modal-header align-items-start">
             <div>
@@ -137,32 +137,208 @@
             >
               <template v-if="lastProduct">
                 <div class="scanner-product-heading">
-                  <div class="scanner-product-label">
-                    <AppIcon name="check-circle" aria-hidden="true" />
-                    {{ continuous ? "Sản phẩm vừa thêm" : "Sản phẩm vừa quét" }}
+                  <div class="d-flex align-items-center justify-content-between gap-2">
+                    <div class="scanner-product-label">
+                      <AppIcon name="check-circle" aria-hidden="true" />
+                      {{ continuous ? "Sản phẩm vừa thêm" : "Sản phẩm vừa quét" }}
+                    </div>
+                    <span v-if="lastProduct.quantity" class="badge badge-phoenix badge-phoenix-primary fs-11">
+                      SL trong giỏ: {{ lastProduct.quantity }}
+                    </span>
                   </div>
-                  <strong class="scanner-product-name">{{ lastProduct.sku.name }}</strong>
+                  <div class="d-flex align-items-start justify-content-between gap-2 mt-1">
+                    <div>
+                      <strong class="scanner-product-name d-block">{{ lastProduct.sku.name }}</strong>
+                      <code class="scanner-product-code">{{ lastProduct.sku.skuCode || lastProduct.sku.barcode }}</code>
+                    </div>
+                    <div class="text-end">
+                      <strong class="text-nowrap d-block fs-8 text-primary">{{ formatMoney(lastProduct.sku.price) }}</strong>
+                      <small
+                        v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null && lastProduct.rawPrice !== lastProduct.sku.price"
+                        class="text-body-tertiary text-nowrap d-block fs-11"
+                      >
+                        Tạm tính: {{ formatMoney(lastProduct.rawPrice) }}
+                      </small>
+                    </div>
+                  </div>
+                  <div class="d-flex flex-wrap align-items-center gap-2 mt-1 fs-10 text-body-tertiary">
+                    <span>{{ formatMoney(lastProduct.sku.price) }} / món · Tồn {{ lastProduct.sku.stock }}</span>
+                    <span
+                      v-if="lastProduct.sku.pricingType"
+                      class="badge badge-phoenix fs-11"
+                      :class="
+                        lastProduct.sku.pricingType === 'Đồ cân'
+                          ? 'badge-phoenix-info'
+                          : lastProduct.sku.pricingType === 'Đồ món'
+                            ? 'badge-phoenix-warning'
+                            : 'badge-phoenix-secondary'
+                      "
+                    >
+                      {{ lastProduct.sku.pricingType }}
+                    </span>
+                  </div>
                 </div>
-                <div class="scanner-product-metrics">
-                  <div class="scanner-product-metric">
-                    <span>Giá sản phẩm</span>
-                    <strong>{{ formatMoney(lastProduct.sku.price) }}</strong>
-                  </div>
-                  <div
-                    v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null"
-                    class="scanner-product-metric"
-                  >
-                    <span>Tạm tính (chưa làm tròn)</span>
-                    <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.rawPrice) }}</strong>
-                  </div>
-                  <div v-if="lastProduct.itemQuantity !== undefined" class="scanner-product-metric">
-                    <span>Tổng sản phẩm</span>
-                    <strong>{{ lastProduct.itemQuantity }}</strong>
-                  </div>
+
+                <!-- Chi phí SKU: Các loại tính tiền SKU -->
+                <div class="scanner-product-cost-breakdown px-3 py-2 border-top fs-10 text-body-tertiary">
+                  <!-- Đồ món -->
+                  <template v-if="lastProduct.sku.pricingType === 'Đồ món' && getPieceBreakdown(lastProduct.sku)">
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Giá nhập :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getPieceBreakdown(lastProduct.sku)!.importPrice) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Giá nhân đôi</div>
+                        <small class="text-body-tertiary fs-11">Mức giá trần (100%)</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getPieceBreakdown(lastProduct.sku)!.doublePrice) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Hệ số tính giá :</span>
+                      <div>
+                        <span class="badge badge-phoenix badge-phoenix-primary me-1">x{{ getPieceBreakdown(lastProduct.sku)!.multiplier }}</span>
+                        <span class="text-body-secondary fs-11">{{ getPieceBreakdown(lastProduct.sku)!.discountLabel }}</span>
+                      </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Tiền hàng tạm tính</div>
+                        <small class="text-body-tertiary fs-11">Giá nhập × {{ getPieceBreakdown(lastProduct.sku)!.multiplier }}</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getPieceBreakdown(lastProduct.sku)!.basePrice) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Tiền hàng sau làm tròn</div>
+                        <small class="text-body-tertiary fs-11">Theo bậc giá chuẩn</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getPieceBreakdown(lastProduct.sku)!.roundedBasePrice) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.platingCost && lastProduct.sku.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền xi :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.laborCost && lastProduct.sku.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền công :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tạm tính (chưa làm tròn):</span>
+                      <strong class="text-warning-emphasis fw-bold">
+                        {{ formatMoney(lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice) }} / món
+                        <span v-if="lastProduct.sku.price !== (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice)" class="text-body-tertiary fw-normal">
+                          ({{ lastProduct.sku.price > (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice) ? '+' : '' }}{{ formatMoney(lastProduct.sku.price - (lastProduct.rawPrice ?? getPieceBreakdown(lastProduct.sku)!.calculatedPrice)) }})
+                        </span>
+                      </strong>
+                    </div>
+                    <div v-if="getPieceBreakdown(lastProduct.sku)!.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Điều chỉnh thủ công</div>
+                        <small class="text-body-tertiary fs-11">Chênh lệch so với giá chuẩn</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ getPieceBreakdown(lastProduct.sku)!.manualDiff > 0 ? "+" : "" }}{{ formatMoney(getPieceBreakdown(lastProduct.sku)!.manualDiff) }}</strong>
+                    </div>
+                  </template>
+                  <template v-else-if="lastProduct.sku.pricingType === 'Đồ món'">
+                    <div v-if="lastProduct.sku.importPrice !== null && lastProduct.sku.importPrice !== undefined && lastProduct.sku.importPrice > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Giá nhập :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.importPrice) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.platingCost && lastProduct.sku.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền xi :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.laborCost && lastProduct.sku.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền công :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tạm tính (chưa làm tròn):</span>
+                      <strong class="text-warning-emphasis fw-bold">{{ formatMoney(lastProduct.rawPrice ?? lastProduct.sku.price) }} / món</strong>
+                    </div>
+                  </template>
+
+                  <!-- Đồ cân -->
+                  <template v-else-if="lastProduct.sku.pricingType === 'Đồ cân'">
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Giá Bạc :</span>
+                      <strong class="text-warning-emphasis">{{ activeSilverPrice ? `${formatMoney(activeSilverPrice)} / chỉ` : "Chưa cấu hình" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Trọng lượng :</span>
+                      <strong class="text-warning-emphasis">{{ formatWeight(lastProduct.sku.weight) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền công :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost || 0) }}</strong>
+                    </div>
+                    <div v-if="getWeightedBreakdown(lastProduct.sku)" class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>CT (Trọng lượng * Giá bạc) + Công</div>
+                        <small v-if="activeSilverPrice" class="text-body-tertiary fs-11">
+                          ({{ formatWeight(lastProduct.sku.weight) }} × {{ formatMoney(activeSilverPrice) }}) + {{ formatMoney(lastProduct.sku.laborCost || 0) }}
+                        </small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getWeightedBreakdown(lastProduct.sku)!.basePrice) }}</strong>
+                    </div>
+                    <div v-if="getWeightedBreakdown(lastProduct.sku)" class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Thành tiền (Đã làm tròn)</div>
+                        <small class="text-body-tertiary fs-11">Theo bậc giá chuẩn đồ cân</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ formatMoney(getWeightedBreakdown(lastProduct.sku)!.roundedBasePrice) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.platingCost && lastProduct.sku.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền Xi :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tạm tính (chưa làm tròn):</span>
+                      <strong class="text-warning-emphasis fw-bold">
+                        {{ formatMoney(lastProduct.rawPrice ?? (getWeightedBreakdown(lastProduct.sku)?.basePrice ?? lastProduct.sku.price)) }} / món
+                        <span v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null && lastProduct.sku.price !== lastProduct.rawPrice" class="text-body-tertiary fw-normal">
+                          ({{ lastProduct.sku.price > lastProduct.rawPrice ? '+' : '' }}{{ formatMoney(lastProduct.sku.price - lastProduct.rawPrice) }})
+                        </span>
+                      </strong>
+                    </div>
+                    <div v-if="getWeightedBreakdown(lastProduct.sku)?.hasManualAdjustment" class="d-flex justify-content-between align-items-baseline mt-1">
+                      <div>
+                        <div>Điều chỉnh thủ công</div>
+                        <small class="text-body-tertiary fs-11">Chênh lệch so với giá chuẩn</small>
+                      </div>
+                      <strong class="text-warning-emphasis">{{ getWeightedBreakdown(lastProduct.sku)!.manualDiff > 0 ? "+" : "" }}{{ formatMoney(getWeightedBreakdown(lastProduct.sku)!.manualDiff) }}</strong>
+                    </div>
+                  </template>
+
+                  <!-- Fallback loại khác -->
+                  <template v-else>
+                    <div v-if="lastProduct.sku.importPrice !== null && lastProduct.sku.importPrice !== undefined && lastProduct.sku.importPrice > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Giá nhập :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.importPrice) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.laborCost && lastProduct.sku.laborCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền công :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.laborCost) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.sku.platingCost && lastProduct.sku.platingCost > 0" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tiền xi :</span>
+                      <strong class="text-warning-emphasis">{{ formatMoney(lastProduct.sku.platingCost) }}</strong>
+                    </div>
+                    <div v-if="lastProduct.rawPrice !== undefined && lastProduct.rawPrice !== null" class="d-flex justify-content-between align-items-center mt-1">
+                      <span>Tạm tính (chưa làm tròn):</span>
+                      <strong class="text-warning-emphasis fw-bold">{{ formatMoney(lastProduct.rawPrice) }} / món</strong>
+                    </div>
+                  </template>
                 </div>
-                <div v-if="lastProduct.total !== undefined" class="scanner-product-total">
-                  <span>Tổng đơn hiện tại</span>
-                  <strong>{{ formatMoney(lastProduct.total) }}</strong>
+
+                <!-- Footer tóm tắt giỏ (nếu có itemQuantity hoặc total) -->
+                <div v-if="lastProduct.itemQuantity !== undefined || lastProduct.total !== undefined" class="scanner-product-total">
+                  <span v-if="lastProduct.itemQuantity !== undefined">Tổng sản phẩm: {{ lastProduct.itemQuantity }}</span>
+                  <div v-if="lastProduct.total !== undefined" class="text-end ms-auto">
+                    <small class="text-body-tertiary d-block fs-11">Tổng đơn hiện tại</small>
+                    <strong>{{ formatMoney(lastProduct.total) }}</strong>
+                  </div>
                 </div>
               </template>
               <template v-else>
@@ -302,6 +478,11 @@ import {
   type BarcodeCameraError,
 } from "@/views/Products/scanner/useBarcodeCamera";
 import { preloadBarcodeReader } from "@/views/Products/scanner/zxing-reader";
+import {
+  calculatePiecePrice,
+  calculateWeightedPrice,
+  calculateSkuRawPrice,
+} from "@/views/WarehousedGoods/pricing";
 
 type ScannerState =
   | "idle"
@@ -320,10 +501,14 @@ const props = withDefaults(defineProps<{
   title?: string;
   description?: string;
   resolver?: (sku: ProductSku) => BarcodeResolutionFeedback | void;
+  silverPrice?: number | null;
+  roundingMarks?: { piece?: number[]; weighted?: number[] } | null;
 }>(), {
   continuous: false,
   title: "Quét barcode sản phẩm",
   description: "Đưa tem vào khung. Hệ thống tự nhận khi hình ảnh đủ rõ.",
+  silverPrice: undefined,
+  roundingMarks: undefined,
 });
 const emit = defineEmits<{
   close: [];
@@ -346,7 +531,139 @@ const lastProduct = ref<{
   total?: number;
   itemQuantity?: number;
   rawPrice?: number | null;
+  quantity?: number;
 } | null>(null);
+
+const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 });
+
+function formatWeight(value: unknown): string {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0
+    ? `${decimal.format(parsed)} chỉ`
+    : "—";
+}
+
+const internalSilverPrice = ref<number | null>(null);
+const internalRoundingMarks = ref<{ piece?: number[]; weighted?: number[] } | null>(null);
+
+const activeSilverPrice = computed<number | null>(() => {
+  if (props.silverPrice !== undefined) return props.silverPrice;
+  return internalSilverPrice.value;
+});
+
+const activeRoundingMarks = computed<{ piece?: number[]; weighted?: number[] } | null>(() => {
+  if (props.roundingMarks !== undefined) return props.roundingMarks;
+  return internalRoundingMarks.value;
+});
+
+async function loadPricingOptions(): Promise<void> {
+  if (activeSilverPrice.value !== null && activeSilverPrice.value > 0) return;
+  try {
+    const options = await productService.options();
+    if (typeof options.silverPrice === "number" && options.silverPrice > 0) {
+      internalSilverPrice.value = options.silverPrice;
+    }
+    if (options.roundingMarks) {
+      internalRoundingMarks.value = options.roundingMarks;
+    }
+  } catch {
+    // network error fallback
+  }
+}
+
+interface WeightedBreakdown {
+  silverCost: number;
+  basePrice: number;
+  roundedBasePrice: number;
+  rawPrice: number;
+  calculatedPrice: number;
+  manualDiff: number;
+  hasManualAdjustment: boolean;
+}
+
+interface PieceBreakdown {
+  importPrice: number;
+  doublePrice: number;
+  multiplier: number;
+  discountPercent: number;
+  discountLabel: string;
+  basePrice: number;
+  roundedBasePrice: number;
+  rawPrice: number;
+  calculatedPrice: number;
+  manualDiff: number;
+  hasManualAdjustment: boolean;
+}
+
+function getWeightedBreakdown(sku: ProductSku): WeightedBreakdown | null {
+  const silverPrice = activeSilverPrice.value;
+  const weight = Number(sku.weight);
+  if (
+    sku.pricingType !== "Đồ cân" ||
+    silverPrice === null ||
+    silverPrice <= 0 ||
+    !Number.isFinite(weight) ||
+    weight <= 0
+  ) {
+    return null;
+  }
+
+  const result = calculateWeightedPrice({
+    weight,
+    silverPrice,
+    laborCost: Number(sku.laborCost) || 0,
+    platingCost: Number(sku.platingCost) || 0,
+    customMarks: activeRoundingMarks.value?.weighted,
+  });
+  const manualDiff = sku.price - result.price;
+
+  return {
+    silverCost: result.silverCost,
+    basePrice: result.basePrice,
+    roundedBasePrice: result.roundedBasePrice,
+    rawPrice: result.rawPrice,
+    calculatedPrice: result.price,
+    manualDiff,
+    hasManualAdjustment: manualDiff !== 0,
+  };
+}
+
+function getPieceBreakdown(sku: ProductSku): PieceBreakdown | null {
+  const importPrice = Number(sku.importPrice);
+  if (
+    sku.pricingType !== "Đồ món" ||
+    !Number.isFinite(importPrice) ||
+    importPrice <= 0
+  ) {
+    return null;
+  }
+
+  const preview = calculatePiecePrice(
+    importPrice,
+    Number(sku.platingCost) || 0,
+    Number(sku.laborCost) || 0,
+    activeRoundingMarks.value?.piece,
+  );
+  const doublePrice = importPrice * 2;
+  const discountPercent = Math.round(preview.discountRate * 100);
+  const discountLabel =
+    discountPercent > 0 ? `Giảm ${discountPercent}%` : "Không giảm";
+  const manualDiff = sku.price - preview.price;
+
+  return {
+    importPrice,
+    doublePrice,
+    multiplier: preview.multiplier,
+    discountPercent,
+    discountLabel,
+    basePrice: preview.basePrice,
+    roundedBasePrice: preview.roundedBasePrice,
+    rawPrice: preview.rawPrice,
+    calculatedPrice: preview.price,
+    manualDiff,
+    hasManualAdjustment: manualDiff !== 0,
+  };
+}
 const scanResult = ref<{
   ok: boolean;
   sku?: ProductSku;
@@ -570,13 +887,22 @@ async function lookupBarcode(value: string): Promise<void> {
     if (requestId !== lookupRequestId || !props.open) return;
     const resolution = props.resolver?.(sku);
     const ok = resolution?.ok !== false;
-    const rawPrice = resolution?.rawPrice ?? null;
+    const rawPrice =
+      resolution?.rawPrice ??
+      calculateSkuRawPrice(
+        sku,
+        activeSilverPrice.value,
+        sku.pricingType === "Đồ cân"
+          ? activeRoundingMarks.value?.weighted
+          : activeRoundingMarks.value?.piece,
+      );
     if (ok) {
       lastProduct.value = {
         sku,
         total: resolution?.total,
         itemQuantity: resolution?.itemQuantity,
         rawPrice,
+        quantity: resolution?.quantity,
       };
     }
     showScanResult({
@@ -730,6 +1056,7 @@ watch(
       closeSession();
       return;
     }
+    void loadPricingOptions();
     enableSound();
     previousFocus = document.activeElement as HTMLElement | null;
     await nextTick();
@@ -889,8 +1216,18 @@ onBeforeUnmount(() => {
 }
 .scanner-product-heading {
   display: grid;
-  gap: 0.625rem;
-  padding: 1rem 1rem 0;
+  gap: 0.25rem;
+  padding: 0.875rem 1rem;
+}
+.scanner-product-code {
+  display: inline-block;
+  color: #e63757;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+.scanner-product-cost-breakdown {
+  border-top: 1px dashed var(--phoenix-border-color);
+  background: var(--phoenix-tertiary-bg);
 }
 .scanner-product-label {
   display: flex;
