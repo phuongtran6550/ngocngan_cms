@@ -28,7 +28,7 @@ const deps = {
 };
 const sku = () => types.emptyWarehouseSku({
   id: "sku", code: "V-VTKB561C8", codeMode: "manual", weight: 1.8,
-  laborCost: 130000, price: 530000, stock: 7,
+  laborCost: 130000, price: 550000, stock: 7,
 });
 const item = () => ({ id: "product", name: "Vòng", pricingType: "Đồ cân", skus: [sku()] });
 
@@ -132,10 +132,10 @@ test("create form isolates price modes per SKU and preserves them when editing c
   page.updateSkuMoney(0, "laborCost", 140000);
   page.updateSkuNumber(0, "weight", { target: { value: "2" } });
   assert.equal(page.draft.skus[0].price, 550000);
-  assert.equal(page.draft.skus[1].price, 530000);
+  assert.equal(page.draft.skus[1].price, 550000);
   page.updateManualPrice(0, { target: { checked: false } });
   assert.equal(page.draft.skus[0].price, pricing.calculateWeightedPrice({ ...page.draft.skus[0], silverPrice: 221000 }).price);
-  assert.equal(page.draft.skus[1].price, 530000);
+  assert.equal(page.draft.skus[1].price, 550000);
   page.draft.pricingType = "Đồ món";
   page.updateSkuMoney(0, "importPrice", 100000);
   page.updateManualPrice(0, { target: { checked: true } });
@@ -190,7 +190,7 @@ test("successful SKU saves close the modal after the response; failures keep the
     assert.equal(page.skuModalSubmitting, false);
     assert.equal(page.skuModalOpen, outcome === "failure");
     if (outcome === "failure") {
-      assert.equal(page.item.skus[0].price, 530000);
+      assert.equal(page.item.skus[0].price, sku().price);
       assert.equal(page.skuModalError, "Không lưu được");
     } else {
       assert.equal(page.editingSku, null);

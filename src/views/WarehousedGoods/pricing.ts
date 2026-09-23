@@ -171,16 +171,16 @@ export function calculateWeightedPrice(input: {
   const silverCost = Math.round(
     numeric(input.weight) * numeric(input.silverPrice),
   );
-  const basePrice = silverCost;
-  const roundedBasePrice = roundWeightedSellingPrice(basePrice, input.customMarks);
-  const plating = Math.max(0, numeric(input.platingCost));
   const labor = Math.max(0, numeric(input.laborCost));
-  const price = roundedBasePrice + plating + labor;
+  const plating = Math.max(0, numeric(input.platingCost));
+  const basePrice = silverCost + labor;
+  const roundedBasePrice = roundWeightedSellingPrice(basePrice, input.customMarks);
+  const price = roundedBasePrice + plating;
   return {
     silverCost,
     basePrice,
     roundedBasePrice,
-    rawPrice: basePrice + plating + labor,
+    rawPrice: basePrice + plating,
     price,
   };
 }

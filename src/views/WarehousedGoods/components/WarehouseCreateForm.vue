@@ -660,7 +660,7 @@
                       <dl class="formula-list mb-3">
                         <template v-if="isWeighted">
                           <div>
-                            <dt>Giá bạc hiện tại</dt>
+                            <dt>Giá Bạc</dt>
                             <dd>{{ money(options.silverPrice) }}</dd>
                           </div>
                           <div>
@@ -668,21 +668,28 @@
                             <dd>{{ number(sku.weight) }} chỉ</dd>
                           </div>
                           <div>
-                            <dt>Tiền bạc tạm tính</dt>
-                            <dd>{{ money(weightedPreview(sku).basePrice) }}</dd>
-                          </div>
-                          <div>
-                            <dt>Tiền bạc sau làm tròn</dt>
-                            <dd>{{ money(weightedPreview(sku).roundedBasePrice) }}</dd>
-                          </div>
-                          <div>
-                            <dt>Tiền xi</dt>
-                            <dd>{{ money(sku.platingCost) }}</dd>
-                          </div>
-                          <div>
                             <dt>Tiền công</dt>
                             <dd>{{ money(sku.laborCost) }}</dd>
                           </div>
+                          <hr class="sku-definition-divider my-2" />
+                          <div>
+                            <dt>CT (Trọng lượng * Giá bạc) + Tiền công</dt>
+                            <dd>{{ money(weightedPreview(sku).basePrice) }}</dd>
+                          </div>
+                          <div :class="{ 'formula-subtotal': !sku.platingCost || sku.platingCost <= 0 }">
+                            <dt>Thành tiền (Đã làm tròn)</dt>
+                            <dd>{{ money(weightedPreview(sku).roundedBasePrice) }}</dd>
+                          </div>
+                          <template v-if="sku.platingCost > 0">
+                            <div>
+                              <dt>Tiền Xi</dt>
+                              <dd>{{ money(sku.platingCost) }}</dd>
+                            </div>
+                            <div class="formula-subtotal">
+                              <dt>Thành tiền</dt>
+                              <dd>{{ money(weightedPreview(sku).price) }}</dd>
+                            </div>
+                          </template>
                         </template>
                         <template v-else>
                           <div>
@@ -1845,6 +1852,12 @@ export default defineComponent({
 .formula-list .formula-subtotal {
   padding-top: 0.7rem;
   border-bottom: 0;
+}
+
+.sku-definition-divider {
+  border: 0;
+  border-top: 1px dashed rgba(82, 91, 117, 0.28);
+  margin: 0.45rem 0;
 }
 
 .formula-total {

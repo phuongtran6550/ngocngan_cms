@@ -439,7 +439,7 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
   });
   assert.equal(pieceRaw, 1017300);
 
-  // Weighted item unrounded price: silverCost = 1.6 * 220000 = 352000 (markup 50% -> basePrice 528000) + 200k + 30k = 758000
+  // Weighted item unrounded price: silverCost = 1.6 * 220000 = 352000 + 200k công + 30k xi = 582000
   const weightedRaw = calculateSkuRawPrice(
     {
       pricingType: "Đồ cân",
@@ -449,7 +449,7 @@ test("calculateSkuRawPrice computes unrounded price for weighted and piece SKUs"
     },
     220000,
   );
-  assert.equal(weightedRaw, 758000);
+  assert.equal(weightedRaw, 582000);
 
   const salesCartSource = readFileSync(
     new URL(

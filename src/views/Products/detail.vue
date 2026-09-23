@@ -128,53 +128,81 @@
               <!-- Đồ cân -->
               <template v-if="item.pricingType === 'Đồ cân'">
                 <div>
-                  <dt>Giá bạc hiện tại</dt>
+                  <dt>Giá Bạc</dt>
                   <dd>{{ currentSilverPriceLabel }}</dd>
                 </div>
                 <div>
                   <dt>Trọng lượng</dt>
                   <dd>{{ weightLabel }}</dd>
                 </div>
+                <div>
+                  <dt>Tiền công</dt>
+                  <dd>{{ formatMoney(item.laborCost) }}</dd>
+                </div>
+
+                <hr class="sku-definition-divider" />
+
                 <div v-if="weightedCostBreakdown">
                   <dt>
-                    Tiền bạc
+                    CT (Trọng lượng * Giá bạc) + Tiền công
                     <small
                       v-if="currentSilverPrice"
                       class="sku-definition-hint d-block text-body-tertiary"
                     >
-                      {{ weightLabel }} × {{ formatMoney(currentSilverPrice) }}
+                      ({{ weightLabel }} × {{ formatMoney(currentSilverPrice) }}) + {{ formatMoney(item.laborCost) }}
                     </small>
                   </dt>
-                  <dd>{{ formatMoney(weightedCostBreakdown.silverCost) }}</dd>
+                  <dd>{{ formatMoney(weightedCostBreakdown.basePrice) }}</dd>
                 </div>
-                <div v-if="weightedCostBreakdown">
+
+                <div
+                  v-if="weightedCostBreakdown"
+                  :class="{
+                    'is-emphasis': (!item.platingCost || item.platingCost <= 0) && !weightedCostBreakdown.hasManualAdjustment,
+                  }"
+                >
                   <dt>
-                    Tiền bạc sau làm tròn
+                    Thành tiền (Đã làm tròn)
                     <small class="sku-definition-hint d-block text-body-tertiary">
                       Theo bậc giá chuẩn đồ cân
                     </small>
                   </dt>
                   <dd>{{ formatMoney(weightedCostBreakdown.roundedBasePrice) }}</dd>
                 </div>
-                <div>
-                  <dt>Tiền xi</dt>
-                  <dd>{{ formatMoney(item.platingCost) }}</dd>
-                </div>
-                <div>
-                  <dt>Tiền công</dt>
-                  <dd>{{ formatMoney(item.laborCost) }}</dd>
-                </div>
-                <div v-if="weightedCostBreakdown && weightedCostBreakdown.hasManualAdjustment">
-                  <dt>
-                    Điều chỉnh thủ công
-                    <small class="sku-definition-hint d-block text-body-tertiary">
-                      Chênh lệch so với giá chuẩn
-                    </small>
-                  </dt>
-                  <dd>
-                    {{ weightedCostBreakdown.manualDiff > 0 ? "+" : "" }}{{ formatMoney(weightedCostBreakdown.manualDiff) }}
-                  </dd>
-                </div>
+
+                <!-- Nếu có tiền xi -->
+                <template v-if="item.platingCost > 0">
+                  <div>
+                    <dt>Tiền Xi</dt>
+                    <dd>{{ formatMoney(item.platingCost) }}</dd>
+                  </div>
+                  <div
+                    v-if="!weightedCostBreakdown?.hasManualAdjustment"
+                    class="is-emphasis"
+                  >
+                    <dt>Thành tiền</dt>
+                    <dd>{{ formatMoney(item.price) }}</dd>
+                  </div>
+                </template>
+
+                <!-- Điều chỉnh thủ công nếu có chênh lệch -->
+                <template v-if="weightedCostBreakdown && weightedCostBreakdown.hasManualAdjustment">
+                  <div>
+                    <dt>
+                      Điều chỉnh thủ công
+                      <small class="sku-definition-hint d-block text-body-tertiary">
+                        Chênh lệch so với giá chuẩn
+                      </small>
+                    </dt>
+                    <dd>
+                      {{ weightedCostBreakdown.manualDiff > 0 ? "+" : "" }}{{ formatMoney(weightedCostBreakdown.manualDiff) }}
+                    </dd>
+                  </div>
+                  <div class="is-emphasis">
+                    <dt>Thành tiền</dt>
+                    <dd>{{ formatMoney(item.price) }}</dd>
+                  </div>
+                </template>
               </template>
 
               <!-- Đồ món -->
@@ -291,7 +319,7 @@
                 </div>
               </template>
 
-              <div class="is-emphasis">
+              <div v-if="item.pricingType !== 'Đồ cân'" class="is-emphasis">
                 <dt>Giá bán</dt>
                 <dd>{{ formatMoney(item.price) }}</dd>
               </div>
@@ -301,7 +329,7 @@
               <div class="d-flex align-items-center gap-1 text-body-secondary fs-10 font-sans-serif">
                 <span class="fw-semibold text-body-highlight">Công thức:</span>
                 <span v-if="item.pricingType === 'Đồ cân'">
-                  (Trọng lượng × Giá bạc) + Tiền công + Tiền xi → Làm tròn bậc giá chuẩn
+                  ((Trọng lượng × Giá bạc) + Tiền công) làm tròn + Tiền xi
                 </span>
                 <span v-else-if="item.pricingType === 'Đồ món'">
                   (Giá nhập × Hệ số giá món → Làm tròn bậc) + Tiền xi + Tiền công
@@ -1196,7 +1224,7 @@ onBeforeUnmount(() => {
 
 .sku-definition-list div {
   display: grid;
-  grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(8rem, 1.2fr) minmax(0, 0.8fr);
   gap: 1rem;
   padding-block: 0.75rem;
   border-bottom: 1px solid var(--phoenix-border-color-translucent);
@@ -1206,13 +1234,26 @@ onBeforeUnmount(() => {
   border-bottom: 0;
 }
 
+.sku-definition-list hr.sku-definition-divider {
+  border: 0;
+  border-top: 1px dashed var(--phoenix-border-color);
+  margin: 0.5rem 0;
+  opacity: 0.65;
+}
+
 .sku-definition-list dd {
   text-align: right;
+}
+
+.sku-definition-list .is-emphasis dt {
+  font-weight: 700;
+  color: var(--phoenix-body-color);
 }
 
 .sku-definition-list .is-emphasis dd {
   color: var(--phoenix-success);
   font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .sku-definition-hint {

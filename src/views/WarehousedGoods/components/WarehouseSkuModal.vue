@@ -266,7 +266,7 @@
                       <small class="text-body-tertiary fs-10">
                         {{ draft.manualPrice
                           ? "Giữ nguyên giá đã nhập, kể cả khi giá bạc thay đổi."
-                          : "Tự động tính từ Tiền hàng sau làm tròn + Tiền công + Tiền xi." }}
+                          : "Tự động tính từ ((Giá bạc × Trọng lượng) + Tiền công) sau làm tròn + Tiền xi." }}
                       </small>
                     </div>
                   </template>
@@ -345,7 +345,7 @@
                     <dl class="formula-list mb-3">
                       <template v-if="isWeighted">
                         <div>
-                          <dt>Giá bạc hiện tại</dt>
+                          <dt>Giá Bạc</dt>
                           <dd>{{ formatMoney(silverPrice) }}</dd>
                         </div>
                         <div>
@@ -353,21 +353,28 @@
                           <dd>{{ draft.weight || 0 }} chỉ</dd>
                         </div>
                         <div>
-                          <dt>Tiền bạc tạm tính</dt>
-                          <dd>{{ formatMoney(weightedPreview.basePrice) }}</dd>
-                        </div>
-                        <div>
-                          <dt>Tiền bạc sau làm tròn</dt>
-                          <dd>{{ formatMoney(weightedPreview.roundedBasePrice) }}</dd>
-                        </div>
-                        <div>
-                          <dt>Tiền xi</dt>
-                          <dd>{{ formatMoney(draft.platingCost) }}</dd>
-                        </div>
-                        <div>
                           <dt>Tiền công</dt>
                           <dd>{{ formatMoney(draft.laborCost) }}</dd>
                         </div>
+                        <hr class="sku-definition-divider my-2" />
+                        <div>
+                          <dt>CT (Trọng lượng * Giá bạc) + Tiền công</dt>
+                          <dd>{{ formatMoney(weightedPreview.basePrice) }}</dd>
+                        </div>
+                        <div :class="{ 'formula-subtotal': !draft.platingCost || draft.platingCost <= 0 }">
+                          <dt>Thành tiền (Đã làm tròn)</dt>
+                          <dd>{{ formatMoney(weightedPreview.roundedBasePrice) }}</dd>
+                        </div>
+                        <template v-if="draft.platingCost > 0">
+                          <div>
+                            <dt>Tiền Xi</dt>
+                            <dd>{{ formatMoney(draft.platingCost) }}</dd>
+                          </div>
+                          <div class="formula-subtotal">
+                            <dt>Thành tiền</dt>
+                            <dd>{{ formatMoney(weightedPreview.price) }}</dd>
+                          </div>
+                        </template>
                       </template>
                       <template v-else-if="isPiece">
                         <div>
@@ -932,6 +939,12 @@ export default defineComponent({
 .formula-list .formula-subtotal {
   padding-top: 0.7rem;
   border-bottom: 0;
+}
+
+.sku-definition-divider {
+  border: 0;
+  border-top: 1px dashed rgba(82, 91, 117, 0.28);
+  margin: 0.45rem 0;
 }
 
 .formula-total {
