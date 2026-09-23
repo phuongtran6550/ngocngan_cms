@@ -141,10 +141,20 @@ export const orderService = {
     });
     return orderFromResponse(data);
   },
-  async uploadCheckoutImage(file: File, signal?: AbortSignal): Promise<{ imageId: string }> {
+  async uploadCheckoutImage(
+    file: File,
+    signal?: AbortSignal,
+    onProgress?: ProgressCallback,
+  ): Promise<{ imageId: string }> {
     const { data } = await request.post<{ imageId: string }>(
-      "/orders/checkout-images", thumbnailBody(file),
-      { headers: writeHeaders("multipart/form-data"), signal },
+      "/orders/checkout-images",
+      thumbnailBody(file),
+      {
+        headers: writeHeaders(),
+        signal,
+        timeout: 120_000,
+        onUploadProgress: uploadProgress(onProgress),
+      },
     );
     return data;
   },

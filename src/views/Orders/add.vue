@@ -237,7 +237,9 @@
         />
         {{
           submitting
-            ? "Đang tiếp nhận…"
+            ? uploading
+              ? "Đang tải ảnh và ghi nhận…"
+              : "Đang tiếp nhận…"
             : uploading
               ? "Đang tải ảnh…"
               : attempt
@@ -352,7 +354,7 @@ const canCheckout = computed(
     Boolean(
       attempt.value ||
       (step.value === "customer" &&
-        imageId.value &&
+        (imageId.value || photo.value) &&
         cart.lines.length &&
         !cart.hasStockConflict &&
         !cart.hasUnverifiedStock),
@@ -396,9 +398,12 @@ function revokePhotoPreview(): void {
   photoPreview.value = "";
 }
 
+let activeUploadPromise: Promise<string> | null = null;
+
 function clearPhoto(): void {
   uploadController?.abort();
   uploadController = null;
+  activeUploadPromise = null;
   imageId.value = "";
   uploading.value = false;
   uploadError.value = "";
@@ -430,30 +435,48 @@ function acceptPhoto(file: File, warning = ""): void {
   void uploadPhoto();
 }
 
-async function uploadPhoto(): Promise<void> {
+async function uploadPhoto(): Promise<string> {
   const file = photo.value;
-  if (!file || uploading.value || auth.user?.id !== ownerId) return;
+  if (!file || auth.user?.id !== ownerId) return "";
+  if (activeUploadPromise) return activeUploadPromise;
+  if (imageId.value) return imageId.value;
+
   const controller = new AbortController();
   uploadController = controller;
   uploading.value = true;
   uploadError.value = "";
-  try {
-    const result = await orderService.uploadCheckoutImage(
-      file,
-      controller.signal,
-    );
-    if (
-      uploadController === controller &&
-      !controller.signal.aborted &&
-      auth.user?.id === ownerId
-    )
-      imageId.value = result.imageId;
-  } catch (cause) {
-    if (uploadController === controller && !controller.signal.aborted)
-      uploadError.value = apiError(cause).message;
-  } finally {
-    if (uploadController === controller) uploading.value = false;
-  }
+
+  const uploadTask = (async () => {
+    try {
+      const result = await orderService.uploadCheckoutImage(
+        file,
+        controller.signal,
+      );
+      if (
+        uploadController === controller &&
+        !controller.signal.aborted &&
+        auth.user?.id === ownerId
+      ) {
+        imageId.value = result.imageId;
+        return result.imageId;
+      }
+      return "";
+    } catch (cause) {
+      if (uploadController === controller && !controller.signal.aborted) {
+        uploadError.value = apiError(cause).message;
+      }
+      throw cause;
+    } finally {
+      if (uploadController === controller) {
+        uploading.value = false;
+        uploadController = null;
+      }
+      activeUploadPromise = null;
+    }
+  })();
+
+  activeUploadPromise = uploadTask;
+  return uploadTask;
 }
 
 function retakePhoto(): void {
@@ -486,6 +509,21 @@ async function checkout(): Promise<void> {
     if (!ownerId || auth.user?.id !== ownerId)
       throw new Error("Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại.");
     if (!attempt.value) {
+      if (!imageId.value && photo.value) {
+        try {
+          await uploadPhoto();
+        } catch {
+          error.value =
+            uploadError.value ||
+            "Không thể tải ảnh đơn hàng lên máy chủ. Vui lòng thử lại.";
+          return;
+        }
+      }
+      if (!imageId.value) {
+        throw new Error(
+          "Chưa thể tải ảnh đơn hàng lên máy chủ. Vui lòng thử lại.",
+        );
+      }
       const value: CheckoutAttempt = {
         key: createOrderIdempotencyKey(),
         input: {

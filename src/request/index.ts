@@ -97,12 +97,20 @@ export function normalizeApiError(
         ? errors
         : "";
 
+  let rawMessage =
+    data?.message ||
+    ytplusMessage ||
+    error.message ||
+    "Có lỗi xảy ra, vui lòng thử lại";
+
+  if (error.code === "ECONNABORTED" || /timeout of \d+ms exceeded/i.test(rawMessage)) {
+    rawMessage = "Đường truyền mạng quá chậm hoặc bị gián đoạn. Vui lòng thử lại.";
+  } else if (error.code === "ERR_NETWORK" || rawMessage === "Network Error") {
+    rawMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.";
+  }
+
   return {
-    message:
-      data?.message ||
-      ytplusMessage ||
-      error.message ||
-      "Có lỗi xảy ra, vui lòng thử lại",
+    message: rawMessage,
     code: data?.code || error.code,
     status: response?.status,
     errors: normalizedErrors,

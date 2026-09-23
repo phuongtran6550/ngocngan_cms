@@ -2,8 +2,8 @@ export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_IMAGE_EDGE = 960;
 export const JPEG_QUALITY = 0.72;
 export const ORDER_PHOTO_IMAGE_OPTIMIZATION = Object.freeze({
-  maxEdge: 1600,
-  jpegQuality: 0.84,
+  maxEdge: 1280,
+  jpegQuality: 0.76,
 });
 export const ALLOWED_IMAGE_MIME_TYPES = Object.freeze([
   "image/jpeg",

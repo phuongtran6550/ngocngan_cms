@@ -452,14 +452,14 @@ test("capture during pending focus emits once and clears feedback when stream st
   assert.equal(f.page.focusMessage.value, "");
   f.unmount();
 });
-test("capture JPEG quality0.84; maximum1600; stop camera before emit", async () => {
+test("capture JPEG quality0.76; maximum1280; stop camera before emit", async () => {
   const f = setup();
   await f.start();
   assert.equal(f.page.state.value, "ready");
   const capture = f.page.capturePhoto();
-  assert.ok(Math.max(...f.draws[0].slice(-2)) <= 1600);
+  assert.ok(Math.max(...f.draws[0].slice(-2)) <= 1280);
   assert.equal(f.blobs[0].type, "image/jpeg");
-  assert.equal(f.blobs[0].quality, 0.84);
+  assert.equal(f.blobs[0].quality, 0.76);
   f.blobs[0].cb(new Blob(["photo"], { type: "image/jpeg" }));
   await capture;
   assert.equal(f.stopped, 1);
@@ -634,7 +634,7 @@ test("valid selected image uses existing optimizer and ignores result after unmo
     });
     await new Promise(setImmediate);
     assert.equal(f.stopped, 1);
-    assert.equal(f.blobs[0].quality, 0.84);
+    assert.equal(f.blobs[0].quality, 0.76);
     assert.equal(f.blobs[0].type, "image/jpeg");
     if (stale) f.unmount();
     f.blobs[0].cb(new Blob(["jpeg"], { type: "image/jpeg" }));
