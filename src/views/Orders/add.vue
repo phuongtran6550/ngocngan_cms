@@ -357,7 +357,7 @@ const canCheckout = computed(
 );
 const cartContentSignature = computed(() =>
   cart.lines
-    .map((line) => `${line.skuId}:${line.quantity}`)
+    .map((line) => `${line.skuId}:${line.quantity}:${line.unitPrice}`)
     .sort()
     .join("|"),
 );
@@ -525,7 +525,11 @@ async function checkout(): Promise<void> {
           imageId: imageId.value,
           name: name.value.trim(),
           phone: phone.value.trim(),
-          items: cart.lines.map(({ skuId, quantity }) => ({ skuId, quantity })),
+          items: cart.lines.map(({ skuId, quantity, unitPrice }) => ({
+            skuId,
+            quantity,
+            unitPrice,
+          })),
         },
       };
       // Persist before sending: a lost response must be replayed with the same payload and key.
@@ -540,7 +544,7 @@ async function checkout(): Promise<void> {
     if (disposed || auth.user?.id !== ownerId) return;
     created.value = receipt;
     const sentSignature = current.input.items
-      .map((line) => `${line.skuId}:${line.quantity}`)
+      .map((line) => `${line.skuId}:${line.quantity}:${line.unitPrice ?? ""}`)
       .sort()
       .join("|");
     clearPhoto();

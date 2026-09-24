@@ -156,6 +156,8 @@ export interface OrderCartLine {
   size: string;
   weight: number;
   unitPrice: number;
+  originalUnitPrice?: number;
+  adjustedBy?: string;
   stock: number;
   status: "active" | "inactive";
   quantity: number;
@@ -171,14 +173,14 @@ export interface OrderCheckoutInput {
   image: File;
   name: string;
   phone: string;
-  items: Array<{ skuId: string; quantity: number }>;
+  items: Array<{ skuId: string; quantity: number; unitPrice?: number }>;
 }
 
 export interface CheckoutRequestInput {
   imageId: string;
   name: string;
   phone: string;
-  items: Array<{ skuId: string; quantity: number }>;
+  items: Array<{ skuId: string; quantity: number; unitPrice?: number }>;
 }
 
 export interface CheckoutRequest extends CheckoutRequestInput {

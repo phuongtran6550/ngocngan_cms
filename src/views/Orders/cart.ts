@@ -31,6 +31,7 @@ function lineFromSku(
     size: sku.size,
     weight: sku.weight,
     unitPrice: sku.price,
+    originalUnitPrice: sku.price,
     stock: sku.stock,
     status: sku.status,
     quantity,
@@ -164,10 +165,22 @@ export const useSalesCartStore = defineStore("sales-cart", {
           : this.roundingMarks?.piece;
       const existing = this.lines.find((line) => line.skuId === sku.id);
       if (existing) {
+        const wasAdjusted = Boolean(
+          existing.adjustedBy && existing.originalUnitPrice !== undefined,
+        );
+        const currentUnitPrice = existing.unitPrice;
+        const currentAdjustedBy = existing.adjustedBy;
+        const currentOriginalUnitPrice =
+          existing.originalUnitPrice ?? existing.unitPrice;
         Object.assign(
           existing,
           lineFromSku(sku, existing.quantity, this.silverPrice, customMarks),
         );
+        if (wasAdjusted) {
+          existing.unitPrice = currentUnitPrice;
+          existing.adjustedBy = currentAdjustedBy;
+          existing.originalUnitPrice = currentOriginalUnitPrice;
+        }
         this.markVerified(sku.id);
         existing.quantity += 1;
         this.persist();
@@ -196,10 +209,20 @@ export const useSalesCartStore = defineStore("sales-cart", {
         sku.pricingType === "Đồ cân"
           ? this.roundingMarks?.weighted
           : this.roundingMarks?.piece;
+      const wasAdjusted = Boolean(
+        existing.adjustedBy && existing.originalUnitPrice !== undefined,
+      );
+      const currentUnitPrice = existing.unitPrice;
+      const currentAdjustedBy = existing.adjustedBy;
       Object.assign(
         existing,
         lineFromSku(sku, existing.quantity, this.silverPrice, customMarks),
       );
+      if (wasAdjusted) {
+        existing.unitPrice = currentUnitPrice;
+        existing.adjustedBy = currentAdjustedBy;
+        existing.originalUnitPrice = sku.price;
+      }
       this.markVerified(sku.id);
       this.persist();
     },
@@ -252,6 +275,32 @@ export const useSalesCartStore = defineStore("sales-cart", {
     clear(): void {
       this.lines = [];
       this.unverifiedSkuIds = [];
+      this.persist();
+    },
+    setLinePrice(skuId: string, newTotal: number, adjustedBy?: string): void {
+      const line = this.lines.find((item) => item.skuId === skuId);
+      if (!line) return;
+      if (line.originalUnitPrice === undefined) {
+        line.originalUnitPrice = line.unitPrice;
+      }
+      const qty = Math.max(1, line.quantity);
+      const newUnitPrice = Math.max(0, Math.round(newTotal / qty));
+      if (newUnitPrice === line.originalUnitPrice) {
+        this.resetLinePrice(skuId);
+        return;
+      }
+      line.unitPrice = newUnitPrice;
+      line.adjustedBy = adjustedBy || "Thu ngân";
+      this.persist();
+    },
+    resetLinePrice(skuId: string): void {
+      const line = this.lines.find((item) => item.skuId === skuId);
+      if (!line) return;
+      if (line.originalUnitPrice !== undefined) {
+        line.unitPrice = line.originalUnitPrice;
+      }
+      delete line.originalUnitPrice;
+      delete line.adjustedBy;
       this.persist();
     },
   },

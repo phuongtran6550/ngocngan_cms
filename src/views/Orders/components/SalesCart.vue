@@ -6,7 +6,7 @@
       <div>
         <h2 class="fs-7 mb-1">Giỏ hàng</h2>
         <p class="fs-10 text-body-tertiary mb-0">
-          Giá bán lấy trực tiếp từ kho và không thể chỉnh sửa.
+          Giá bán lấy từ kho. Thu ngân có thể nhập điều chỉnh tổng thành tiền khi khách trả giá.
         </p>
       </div>
       <div class="d-flex align-items-center gap-3">
@@ -112,11 +112,48 @@
                   0 đ
                 </span>
               </div>
-              <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent">
-                <span class="fw-bold text-body-emphasis fs-7">Tổng thành tiền :</span>
-                <strong class="text-primary fw-bolder fs-7 font-monospace">
-                  {{ money(line.unitPrice * line.quantity) }}
-                </strong>
+              <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent flex-wrap gap-2">
+                <div>
+                  <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                    <span class="fw-bold text-body-emphasis fs-7">Tổng thành tiền :</span>
+                  </div>
+                  <div v-if="isLineAdjusted(line)" class="d-flex align-items-center gap-2 mt-0.5">
+                    <small class="text-body-tertiary fs-10 text-decoration-line-through">
+                      Giá gốc: {{ money((line.originalUnitPrice ?? line.unitPrice) * line.quantity) }}
+                    </small>
+                    <button
+                      type="button"
+                      class="btn btn-link btn-sm p-0 fs-10 text-primary text-decoration-none"
+                      @click="resetLinePrice(line)"
+                    >
+                      Khôi phục giá gốc
+                    </button>
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                  <div class="input-group input-group-sm sales-cart-price-input-group">
+                    <input
+                      :id="`cart-price-${line.skuId}`"
+                      type="text"
+                      inputmode="numeric"
+                      class="form-control form-control-sm text-end font-monospace fw-bold text-primary fs-7"
+                      :value="formatInputNumber(getLineDisplayTotal(line))"
+                      placeholder="0"
+                      @focus="onPriceFocus"
+                      @input="onPriceInput(line, $event)"
+                      @blur="onPriceBlur(line, $event)"
+                      @keydown.enter="($event.target as HTMLInputElement).blur()"
+                    />
+                    <span class="input-group-text px-2 text-primary fw-bold">₫</span>
+                  </div>
+                  <span
+                    v-if="isLineAdjusted(line)"
+                    class="text-warning-emphasis fw-semibold fs-8 font-monospace text-nowrap"
+                  >
+                    ({{ line.adjustedBy || auth.displayName }} điều chỉnh)
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -209,7 +246,8 @@
 import { onMounted } from "vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import { assetUrl } from "@/request";
-import { formatMoney } from "@/utils/resource-display";
+import { authenStore } from "@/stores/app-authen";
+import { formatMoney, formatNumberValue } from "@/utils/resource-display";
 import { useSalesCartStore } from "@/views/Orders/cart";
 import type { OrderCartLine } from "@/views/Orders/types";
 import {
@@ -226,6 +264,7 @@ const emit = defineEmits<{
   retry: [skuId: string];
 }>();
 const cart = useSalesCartStore();
+const auth = authenStore();
 
 const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 });
 
@@ -288,7 +327,8 @@ function getWeightedBreakdown(line: OrderCartLine): WeightedBreakdown | null {
     platingCost: Number(line.platingCost) || 0,
     customMarks: cart.roundingMarks?.weighted,
   });
-  const manualDiff = line.unitPrice - result.price;
+  const refPrice = line.originalUnitPrice ?? line.unitPrice;
+  const manualDiff = refPrice - result.price;
 
   return {
     silverCost: result.silverCost,
@@ -297,7 +337,7 @@ function getWeightedBreakdown(line: OrderCartLine): WeightedBreakdown | null {
     rawPrice: result.rawPrice,
     calculatedPrice: result.price,
     manualDiff,
-    hasManualAdjustment: manualDiff !== 0,
+    hasManualAdjustment: Boolean(line.manualPrice),
   };
 }
 
@@ -321,7 +361,8 @@ function getPieceBreakdown(line: OrderCartLine): PieceBreakdown | null {
   const discountPercent = Math.round(preview.discountRate * 100);
   const discountLabel =
     discountPercent > 0 ? `Giảm ${discountPercent}%` : "Không giảm";
-  const manualDiff = line.unitPrice - preview.price;
+  const refPrice = line.originalUnitPrice ?? line.unitPrice;
+  const manualDiff = refPrice - preview.price;
 
   return {
     importPrice,
@@ -334,35 +375,75 @@ function getPieceBreakdown(line: OrderCartLine): PieceBreakdown | null {
     rawPrice: preview.rawPrice,
     calculatedPrice: preview.price,
     manualDiff,
-    hasManualAdjustment: manualDiff !== 0,
+    hasManualAdjustment: Boolean(line.manualPrice),
   };
 }
 
 function getLineRoundedBasePrice(line: OrderCartLine): number {
   if (line.pricingType === "Đồ món") {
     const piece = getPieceBreakdown(line);
-    if (piece && !piece.hasManualAdjustment) {
+    if (piece) {
       return piece.roundedBasePrice + (Number(line.laborCost) || 0);
     }
   } else if (line.pricingType === "Đồ cân") {
     const weighted = getWeightedBreakdown(line);
-    if (weighted && !weighted.hasManualAdjustment) {
+    if (weighted) {
       return weighted.roundedBasePrice;
     }
   }
-  return Math.max(0, line.unitPrice - (Number(line.platingCost) || 0));
+  const refPrice = line.originalUnitPrice ?? line.unitPrice;
+  return Math.max(0, refPrice - (Number(line.platingCost) || 0));
 }
 
 function isManualPrice(line: OrderCartLine): boolean {
-  if (line.manualPrice) return true;
-  if (line.pricingType === "Đồ món") {
-    const piece = getPieceBreakdown(line);
-    if (piece?.hasManualAdjustment) return true;
-  } else if (line.pricingType === "Đồ cân") {
-    const weighted = getWeightedBreakdown(line);
-    if (weighted?.hasManualAdjustment) return true;
+  return Boolean(line.manualPrice);
+}
+
+function formatInputNumber(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "0";
+  return formatNumberValue(value);
+}
+
+function getLineDisplayTotal(line: OrderCartLine): number {
+  return line.unitPrice * line.quantity;
+}
+
+function isLineAdjusted(line: OrderCartLine): boolean {
+  return Boolean(
+    line.adjustedBy &&
+      line.originalUnitPrice !== undefined &&
+      line.unitPrice !== line.originalUnitPrice,
+  );
+}
+
+function onPriceFocus(event: FocusEvent): void {
+  const target = event.target as HTMLInputElement | null;
+  if (target) target.select();
+}
+
+function onPriceInput(line: OrderCartLine, event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const rawDigits = input.value.replace(/\D/g, "");
+  if (!rawDigits) return;
+  const numericTotal = Number(rawDigits);
+  input.value = formatNumberValue(numericTotal);
+  cart.setLinePrice(line.skuId, numericTotal, auth.displayName);
+  emit("change");
+}
+
+function onPriceBlur(line: OrderCartLine, event: Event): void {
+  const input = event.target as HTMLInputElement;
+  const rawDigits = input.value.replace(/\D/g, "");
+  if (!rawDigits || Number(rawDigits) <= 0) {
+    cart.resetLinePrice(line.skuId);
+    emit("change");
   }
-  return false;
+  input.value = formatInputNumber(getLineDisplayTotal(line));
+}
+
+function resetLinePrice(line: OrderCartLine): void {
+  cart.resetLinePrice(line.skuId);
+  emit("change");
 }
 
 function isRefreshing(skuId: string): boolean {
@@ -494,6 +575,15 @@ function remove(skuId: string): void {
     width: 4.5rem;
     height: 4.5rem;
   }
+.sales-cart-price-input-group {
+  max-width: 145px;
+}
+.sales-cart-price-input-group .form-control {
+  padding-right: 0.5rem;
+}
+.sales-cart-price-input-group .form-control:focus {
+  border-color: var(--phoenix-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--phoenix-primary-rgb), 0.2);
 }
 </style>
 
