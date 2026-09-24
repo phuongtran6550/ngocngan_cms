@@ -1,7 +1,11 @@
 <template>
   <div class="sku-detail-page">
     <LoadingSkeleton v-if="loading" />
-    <div v-else-if="error && !item" class="alert alert-subtle-danger" role="alert">
+    <div
+      v-else-if="error && !item"
+      class="alert alert-subtle-danger"
+      role="alert"
+    >
       {{ error }}
     </div>
     <template v-else-if="item">
@@ -27,7 +31,12 @@
       <div v-if="error" class="alert alert-subtle-danger" role="alert">
         {{ error }}
       </div>
-      <div v-if="cartMessage" class="alert" :class="cartMessageOk ? 'alert-subtle-success' : 'alert-subtle-warning'" role="status">
+      <div
+        v-if="cartMessage"
+        class="alert"
+        :class="cartMessageOk ? 'alert-subtle-success' : 'alert-subtle-warning'"
+        role="status"
+      >
         {{ cartMessage }}
       </div>
 
@@ -40,7 +49,11 @@
               @preview="preview = assetUrl(activeImage || item.thumbnail)"
             />
           </div>
-          <div v-if="gallery.length > 1" class="sku-gallery__thumbs" aria-label="Ảnh sản phẩm">
+          <div
+            v-if="gallery.length > 1"
+            class="sku-gallery__thumbs"
+            aria-label="Ảnh sản phẩm"
+          >
             <button
               v-for="image in gallery"
               :key="image"
@@ -62,21 +75,69 @@
             </span>
             <span
               class="badge badge-phoenix"
-              :class="item.status === 'inactive' ? 'badge-phoenix-secondary' : 'badge-phoenix-success'"
+              :class="
+                item.status === 'inactive'
+                  ? 'badge-phoenix-secondary'
+                  : 'badge-phoenix-success'
+              "
             >
-              {{ item.status === "inactive" ? "Ngừng hoạt động" : "Đang hoạt động" }}
+              {{
+                item.status === "inactive"
+                  ? "Ngừng hoạt động"
+                  : "Đang hoạt động"
+              }}
+            </span>
+            <span
+              class="badge badge-phoenix"
+              :class="stockStatus.badgeClass"
+              data-testid="sku-stock-badge"
+            >
+              <span class="stock-indicator-dot" />
+              {{ stockStatus.label }}: {{ stockCount }} sản phẩm
             </span>
           </div>
           <p class="sku-identity__eyebrow mb-2">SKU sản phẩm</p>
           <h2 class="sku-identity__name">{{ item.name }}</h2>
           <code class="sku-identity__code">{{ item.skuCode || "—" }}</code>
 
-          <div class="sku-price-card">
-            <span>Giá bán</span>
-            <strong>{{ formatMoney(item.price) }}</strong>
-            <small>
-              Còn <b>{{ item.stock }}</b> sản phẩm trong kho
-            </small>
+          <div class="sku-highlight-metrics">
+            <div class="sku-metric-card is-price">
+              <div class="sku-metric-card__header">
+                <span class="sku-metric-card__label">Giá bán</span>
+                <span class="badge badge-phoenix badge-phoenix-primary fs-10">
+                  {{ item.pricingType || "Niêm yết" }}
+                </span>
+              </div>
+              <strong class="sku-metric-card__value">
+                {{ formatMoney(item.price) }}
+              </strong>
+              <small class="sku-metric-card__hint">
+                {{ priceHint }}
+              </small>
+            </div>
+
+            <div
+              class="sku-metric-card is-stock"
+              :class="stockStatus.cardClass"
+            >
+              <div class="sku-metric-card__header">
+                <span class="sku-metric-card__label">Tồn kho</span>
+                <span
+                  class="badge badge-phoenix fs-10"
+                  :class="stockStatus.badgeClass"
+                >
+                  <span class="stock-indicator-dot" />
+                  {{ stockStatus.label }}
+                </span>
+              </div>
+              <strong class="sku-metric-card__value">
+                {{ stockCount }}
+                <span class="sku-metric-card__unit">sản phẩm</span>
+              </strong>
+              <small class="sku-metric-card__hint">
+                {{ stockStatus.hint }}
+              </small>
+            </div>
           </div>
 
           <dl class="sku-key-facts mb-0">
@@ -88,25 +149,45 @@
               <dt>Ni</dt>
               <dd>{{ sizeLabel }}</dd>
             </div>
+            <div>
+              <dt>Tiền xi</dt>
+              <dd data-testid="sku-plating-cost">{{ platingCostLabel }}</dd>
+            </div>
           </dl>
         </div>
       </div>
 
       <div class="sku-detail-grid">
-        <article class="card shadow-none border border-translucent sku-detail-card">
+        <article
+          class="card shadow-none border border-translucent sku-detail-card"
+        >
           <div class="card-body">
             <p class="sku-detail-card__eyebrow">Phân loại</p>
             <h2 class="sku-detail-card__title">Thông tin sản phẩm</h2>
             <dl class="sku-definition-list mb-0">
-              <div><dt>Danh mục</dt><dd>{{ item.category || "—" }}</dd></div>
-              <div><dt>Chất liệu</dt><dd>{{ item.material || "—" }}</dd></div>
-              <div><dt>Mẫu</dt><dd>{{ item.pattern || "—" }}</dd></div>
-              <div><dt>Loại tính giá</dt><dd>{{ item.pricingType || "—" }}</dd></div>
+              <div>
+                <dt>Danh mục</dt>
+                <dd>{{ item.category || "—" }}</dd>
+              </div>
+              <div>
+                <dt>Chất liệu</dt>
+                <dd>{{ item.material || "—" }}</dd>
+              </div>
+              <div>
+                <dt>Mẫu</dt>
+                <dd>{{ item.pattern || "—" }}</dd>
+              </div>
+              <div>
+                <dt>Loại tính giá</dt>
+                <dd>{{ item.pricingType || "—" }}</dd>
+              </div>
             </dl>
           </div>
         </article>
 
-        <article class="card shadow-none border border-translucent sku-detail-card">
+        <article
+          class="card shadow-none border border-translucent sku-detail-card"
+        >
           <div class="card-body">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <p class="sku-detail-card__eyebrow mb-0">Cấu thành giá</p>
@@ -149,7 +230,9 @@
                       v-if="currentSilverPrice"
                       class="sku-definition-hint d-block text-body-tertiary"
                     >
-                      ({{ weightLabel }} × {{ formatMoney(currentSilverPrice) }}) + {{ formatMoney(item.laborCost) }}
+                      ({{ weightLabel }} ×
+                      {{ formatMoney(currentSilverPrice) }}) +
+                      {{ formatMoney(item.laborCost) }}
                     </small>
                   </dt>
                   <dd>{{ formatMoney(weightedCostBreakdown.basePrice) }}</dd>
@@ -158,16 +241,22 @@
                 <div
                   v-if="weightedCostBreakdown"
                   :class="{
-                    'is-emphasis': (!item.platingCost || item.platingCost <= 0) && !weightedCostBreakdown.hasManualAdjustment,
+                    'is-emphasis':
+                      (!item.platingCost || item.platingCost <= 0) &&
+                      !weightedCostBreakdown.hasManualAdjustment,
                   }"
                 >
                   <dt>
                     Thành tiền (Đã làm tròn)
-                    <small class="sku-definition-hint d-block text-body-tertiary">
+                    <small
+                      class="sku-definition-hint d-block text-body-tertiary"
+                    >
                       Theo bậc giá chuẩn đồ cân
                     </small>
                   </dt>
-                  <dd>{{ formatMoney(weightedCostBreakdown.roundedBasePrice) }}</dd>
+                  <dd>
+                    {{ formatMoney(weightedCostBreakdown.roundedBasePrice) }}
+                  </dd>
                 </div>
 
                 <!-- Nếu có tiền xi -->
@@ -186,16 +275,24 @@
                 </template>
 
                 <!-- Điều chỉnh thủ công nếu có chênh lệch -->
-                <template v-if="weightedCostBreakdown && weightedCostBreakdown.hasManualAdjustment">
+                <template
+                  v-if="
+                    weightedCostBreakdown &&
+                    weightedCostBreakdown.hasManualAdjustment
+                  "
+                >
                   <div>
                     <dt>
                       Điều chỉnh thủ công
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Chênh lệch so với giá chuẩn
                       </small>
                     </dt>
                     <dd>
-                      {{ weightedCostBreakdown.manualDiff > 0 ? "+" : "" }}{{ formatMoney(weightedCostBreakdown.manualDiff) }}
+                      {{ weightedCostBreakdown.manualDiff > 0 ? "+" : ""
+                      }}{{ formatMoney(weightedCostBreakdown.manualDiff) }}
                     </dd>
                   </div>
                   <div class="is-emphasis">
@@ -215,7 +312,9 @@
                   <div>
                     <dt>
                       Giá nhân đôi
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Mức giá trần (100%)
                       </small>
                     </dt>
@@ -224,7 +323,9 @@
                   <div>
                     <dt>Hệ số tính giá</dt>
                     <dd>
-                      <span class="badge badge-phoenix badge-phoenix-primary me-1">
+                      <span
+                        class="badge badge-phoenix badge-phoenix-primary me-1"
+                      >
                         x{{ pieceCostBreakdown.multiplier }}
                       </span>
                       <span class="text-body-secondary fs-9">
@@ -235,7 +336,9 @@
                   <div>
                     <dt>
                       Tiền hàng tạm tính
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Giá nhập × {{ pieceCostBreakdown.multiplier }}
                       </small>
                     </dt>
@@ -244,11 +347,15 @@
                   <div>
                     <dt>
                       Tiền hàng sau làm tròn
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Theo bậc giá chuẩn
                       </small>
                     </dt>
-                    <dd>{{ formatMoney(pieceCostBreakdown.roundedBasePrice) }}</dd>
+                    <dd>
+                      {{ formatMoney(pieceCostBreakdown.roundedBasePrice) }}
+                    </dd>
                   </div>
                   <div>
                     <dt>Tiền xi</dt>
@@ -261,28 +368,41 @@
                   <div class="is-subtotal">
                     <dt>
                       Tạm tính theo công thức
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Hàng làm tròn + Xi + Công
                       </small>
                     </dt>
-                    <dd>{{ formatMoney(pieceCostBreakdown.calculatedPrice) }}</dd>
+                    <dd>
+                      {{ formatMoney(pieceCostBreakdown.calculatedPrice) }}
+                    </dd>
                   </div>
                   <div v-if="pieceCostBreakdown.hasManualAdjustment">
                     <dt>
                       Điều chỉnh thủ công
-                      <small class="sku-definition-hint d-block text-body-tertiary">
+                      <small
+                        class="sku-definition-hint d-block text-body-tertiary"
+                      >
                         Chênh lệch so với giá chuẩn
                       </small>
                     </dt>
                     <dd>
-                      {{ pieceCostBreakdown.manualDiff > 0 ? "+" : "" }}{{ formatMoney(pieceCostBreakdown.manualDiff) }}
+                      {{ pieceCostBreakdown.manualDiff > 0 ? "+" : ""
+                      }}{{ formatMoney(pieceCostBreakdown.manualDiff) }}
                     </dd>
                   </div>
                 </template>
                 <template v-else>
                   <div>
                     <dt>Giá nhập</dt>
-                    <dd>{{ item.importPrice !== null ? formatMoney(item.importPrice) : "Chưa thiết lập" }}</dd>
+                    <dd>
+                      {{
+                        item.importPrice !== null
+                          ? formatMoney(item.importPrice)
+                          : "Chưa thiết lập"
+                      }}
+                    </dd>
                   </div>
                   <div>
                     <dt>Tiền xi</dt>
@@ -313,7 +433,13 @@
                   <dt>Tạm tính chi phí</dt>
                   <dd>{{ formatMoney(otherCostTotal) }}</dd>
                 </div>
-                <div v-if="item.importPrice === null && item.laborCost <= 0 && item.platingCost <= 0">
+                <div
+                  v-if="
+                    item.importPrice === null &&
+                    item.laborCost <= 0 &&
+                    item.platingCost <= 0
+                  "
+                >
                   <dt>Chi phí</dt>
                   <dd>Không áp dụng</dd>
                 </div>
@@ -325,23 +451,25 @@
               </div>
             </dl>
 
-            <div class="sku-formula-note mt-3 p-2 rounded bg-body-tertiary border border-translucent">
-              <div class="d-flex align-items-center gap-1 text-body-secondary fs-10 font-sans-serif">
+            <div
+              class="sku-formula-note mt-3 p-2 rounded bg-body-tertiary border border-translucent"
+            >
+              <div
+                class="d-flex align-items-center gap-1 text-body-secondary fs-10 font-sans-serif"
+              >
                 <span class="fw-semibold text-body-highlight">Công thức:</span>
                 <span v-if="item.pricingType === 'Đồ cân'">
                   ((Trọng lượng × Giá bạc) + Tiền công) làm tròn + Tiền xi
                 </span>
                 <span v-else-if="item.pricingType === 'Đồ món'">
-                  (Giá nhập × Hệ số giá món → Làm tròn bậc) + Tiền xi + Tiền công
+                  (Giá nhập × Hệ số giá món → Làm tròn bậc) + Tiền xi + Tiền
+                  công
                 </span>
-                <span v-else>
-                  Chi phí cấu thành + Điều chỉnh niêm yết
-                </span>
+                <span v-else> Chi phí cấu thành + Điều chỉnh niêm yết </span>
               </div>
             </div>
           </div>
         </article>
-
       </div>
 
       <article
@@ -429,17 +557,20 @@
                   >
                     <dt>{{ historyFieldLabel(change.field) }}</dt>
                     <dd>
-                      <span>{{ historyValue(change.field, change.before) }}</span>
-                      <span class="sku-history-arrow" aria-hidden="true">→</span>
-                      <strong>{{ historyValue(change.field, change.after) }}</strong>
+                      <span>{{
+                        historyValue(change.field, change.before)
+                      }}</span>
+                      <span class="sku-history-arrow" aria-hidden="true"
+                        >→</span
+                      >
+                      <strong>{{
+                        historyValue(change.field, change.after)
+                      }}</strong>
                     </dd>
                   </div>
                 </dl>
 
-                <p
-                  v-if="hasSilverPrice(entry)"
-                  class="sku-history-silver mb-0"
-                >
+                <p v-if="hasSilverPrice(entry)" class="sku-history-silver mb-0">
                   {{ silverPriceLabel(entry) }}
                 </p>
               </div>
@@ -482,7 +613,11 @@ import ResourceImageCard from "@/components/media/ResourceImageCard.vue";
 import LoadingSkeleton from "@/components/placeholder/LoadingSkeleton.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
 import { apiError, assetUrl } from "@/request";
-import { formatDateTime, formatMoney, formatNumberValue } from "@/utils/resource-display";
+import {
+  formatDateTime,
+  formatMoney,
+  formatNumberValue,
+} from "@/utils/resource-display";
 import { productService } from "@/views/Products/service";
 import type {
   ProductSku,
@@ -559,7 +694,9 @@ const breadcrumbs = computed(() => [
 ]);
 const gallery = computed(() => {
   if (!item.value) return [];
-  return [...new Set([item.value.thumbnail, ...item.value.images].filter(Boolean))];
+  return [
+    ...new Set([item.value.thumbnail, ...item.value.images].filter(Boolean)),
+  ];
 });
 const weightLabel = computed(() =>
   item.value && Number.isFinite(item.value.weight)
@@ -570,6 +707,51 @@ const sizeLabel = computed(() => {
   const value = item.value?.size.trim() || "";
   if (!value) return "Không áp dụng";
   return /^ni\b/i.test(value) ? value : `Ni ${value}`;
+});
+const platingCostLabel = computed(() => {
+  if (!item.value) return "—";
+  return formatMoney(item.value.platingCost);
+});
+const stockCount = computed(() => {
+  const stock = item.value?.stock;
+  return typeof stock === "number" && Number.isFinite(stock)
+    ? Math.max(0, stock)
+    : 0;
+});
+const stockStatus = computed(() => {
+  const stock = stockCount.value;
+  if (stock <= 0) {
+    return {
+      label: "Hết hàng",
+      badgeClass: "badge-phoenix-danger",
+      cardClass: "is-out-of-stock",
+      hint: "Tạm hết hàng trong kho, cần nhập thêm",
+    };
+  }
+  if (stock <= 2) {
+    return {
+      label: "Sắp hết hàng",
+      badgeClass: "badge-phoenix-warning",
+      cardClass: "is-low-stock",
+      hint: `Tồn kho thấp (${stock} sản phẩm), chuẩn bị nhập thêm`,
+    };
+  }
+  return {
+    label: "Còn hàng",
+    badgeClass: "badge-phoenix-success",
+    cardClass: "is-in-stock",
+    hint: `Còn ${stock} sản phẩm sẵn sàng phục vụ`,
+  };
+});
+const priceHint = computed(() => {
+  if (!item.value) return "Đơn giá niêm yết";
+  if (item.value.pricingType === "Đồ món") {
+    return "Giá niêm yết theo bậc";
+  }
+  if (item.value.pricingType === "Đồ cân") {
+    return "Tính theo giá bạc & công";
+  }
+  return "Đơn giá niêm yết";
 });
 const currentSilverPriceLabel = computed(() => {
   if (silverPriceLoading.value) return "Đang tải...";
@@ -609,7 +791,8 @@ const weightedCostBreakdown = computed(() => {
     roundingDiff,
     manualDiff,
     hasManualAdjustment: manualDiff !== 0,
-    otherCost: sku.price - result.rawPrice > 0 ? sku.price - result.rawPrice : null,
+    otherCost:
+      sku.price - result.rawPrice > 0 ? sku.price - result.rawPrice : null,
   };
 });
 
@@ -738,7 +921,8 @@ async function loadCurrentSilverPrice(): Promise<void> {
     const normalized = apiError(loadError);
     if (normalized.code !== "ERR_CANCELED") silverPriceError.value = true;
   } finally {
-    if (currentRequest === silverPriceRequestId) silverPriceLoading.value = false;
+    if (currentRequest === silverPriceRequestId)
+      silverPriceLoading.value = false;
   }
 }
 
@@ -783,11 +967,7 @@ async function loadHistory(
 function retryHistory(): void {
   if (!item.value) return;
   const append = historyItems.value.length > 0;
-  void loadHistory(
-    item.value.id,
-    append ? historyPage.value + 1 : 1,
-    append,
-  );
+  void loadHistory(item.value.id, append ? historyPage.value + 1 : 1, append);
 }
 
 function loadMoreHistory(): void {
@@ -936,7 +1116,11 @@ onBeforeUnmount(() => {
   width: 15rem;
   height: 15rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--phoenix-primary-rgb), 0.12), transparent 68%);
+  background: radial-gradient(
+    circle,
+    rgba(var(--phoenix-primary-rgb), 0.12),
+    transparent 68%
+  );
   content: "";
   pointer-events: none;
 }
@@ -968,24 +1152,90 @@ onBeforeUnmount(() => {
   background: var(--phoenix-tertiary-bg);
 }
 
-.sku-price-card {
+.sku-highlight-metrics {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 0.25rem;
-  margin-block: 1.5rem;
-  padding: 1.15rem 1.25rem;
-  border-left: 0.28rem solid var(--phoenix-success);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin-block: 1.25rem;
+}
+
+.sku-metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
   border-radius: 0.2rem 0.8rem 0.8rem 0.2rem;
+  border: 1px solid var(--phoenix-border-color-translucent);
+  border-left-width: 0.28rem;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.sku-metric-card.is-price {
+  border-left-color: var(--phoenix-success);
   background: rgba(var(--phoenix-success-rgb), 0.08);
 }
 
-.sku-price-card span,
-.sku-price-card small {
+.sku-metric-card.is-stock.is-in-stock {
+  border-left-color: var(--phoenix-primary);
+  background: rgba(var(--phoenix-primary-rgb), 0.06);
+}
+
+.sku-metric-card.is-stock.is-low-stock {
+  border-left-color: var(--phoenix-warning);
+  background: rgba(var(--phoenix-warning-rgb), 0.09);
+}
+
+.sku-metric-card.is-stock.is-out-of-stock {
+  border-left-color: var(--phoenix-danger);
+  background: rgba(var(--phoenix-danger-rgb), 0.08);
+}
+
+.sku-metric-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sku-metric-card__label {
+  color: var(--phoenix-secondary-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sku-metric-card__value {
+  color: var(--phoenix-emphasis-color);
+  font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.sku-metric-card__unit {
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--phoenix-secondary-color);
 }
 
-.sku-price-card strong {
-  color: var(--phoenix-emphasis-color);
-  font-size: clamp(1.45rem, 3vw, 2rem);
+.sku-metric-card__hint {
+  color: var(--phoenix-secondary-color);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.stock-indicator-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.3rem;
+  border-radius: 50%;
+  background-color: currentColor;
 }
 
 .sku-key-facts {
@@ -1292,12 +1542,16 @@ onBeforeUnmount(() => {
   .sku-detail-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-
 }
 
 @media (max-width: 575.98px) {
   .sku-gallery__main {
     min-height: 16rem;
+  }
+
+  .sku-highlight-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
   }
 
   .sku-key-facts {
