@@ -575,6 +575,7 @@ function remove(skuId: string): void {
     width: 4.5rem;
     height: 4.5rem;
   }
+}
 .sales-cart-price-input-group {
   max-width: 145px;
 }
