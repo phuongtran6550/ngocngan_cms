@@ -112,32 +112,16 @@
                   0 đ
                 </span>
               </div>
-              <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent flex-wrap gap-2">
-                <div>
-                  <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                    <span class="fw-bold text-body-emphasis fs-7">Tổng thành tiền :</span>
-                  </div>
-                  <div v-if="isLineAdjusted(line)" class="d-flex align-items-center gap-2 mt-0.5">
-                    <small class="text-body-tertiary fs-10 text-decoration-line-through">
-                      Giá gốc: {{ money((line.originalUnitPrice ?? line.unitPrice) * line.quantity) }}
-                    </small>
-                    <button
-                      type="button"
-                      class="btn btn-link btn-sm p-0 fs-10 text-primary text-decoration-none"
-                      @click="resetLinePrice(line)"
-                    >
-                      Khôi phục giá gốc
-                    </button>
-                  </div>
-                </div>
-
-                <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                  <div class="input-group input-group-sm sales-cart-price-input-group">
+              <!-- Dòng 3: Tổng thành tiền (cố định 1 hàng ngang, không bị ngắt dòng hay tràn lề) -->
+              <div class="sales-cart-total-row d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent">
+                <span class="fw-bold text-body-emphasis fs-8 text-nowrap me-2">Tổng thành tiền :</span>
+                <div class="sales-cart-price-input-group">
+                  <div class="input-group input-group-sm">
                     <input
                       :id="`cart-price-${line.skuId}`"
                       type="text"
                       inputmode="numeric"
-                      class="form-control form-control-sm text-end font-monospace fw-bold text-primary fs-7"
+                      class="form-control form-control-sm text-end font-monospace fw-bold text-primary fs-8 px-2"
                       :value="formatInputNumber(getLineDisplayTotal(line))"
                       placeholder="0"
                       @focus="onPriceFocus"
@@ -145,15 +129,32 @@
                       @blur="onPriceBlur(line, $event)"
                       @keydown.enter="($event.target as HTMLInputElement).blur()"
                     />
-                    <span class="input-group-text px-2 text-primary fw-bold">₫</span>
+                    <span class="input-group-text px-2 text-primary fw-bold fs-9">₫</span>
                   </div>
-                  <span
-                    v-if="isLineAdjusted(line)"
-                    class="text-warning-emphasis fw-semibold fs-8 font-monospace text-nowrap"
-                  >
-                    ({{ line.adjustedBy || auth.displayName }} điều chỉnh)
-                  </span>
                 </div>
+              </div>
+
+              <!-- Dòng 4: Thông tin điều chỉnh (hiển thị khi thu ngân can thiệp giá) -->
+              <div
+                v-if="isLineAdjusted(line)"
+                class="sales-cart-adjusted-row d-flex justify-content-between align-items-center flex-wrap gap-1 mt-1 pt-1 border-top border-translucent fs-10"
+              >
+                <span
+                  class="text-warning-emphasis fw-medium text-truncate"
+                  :title="`Điều chỉnh bởi ${line.adjustedBy || auth.displayName}`"
+                >
+                  <AppIcon name="user-check" class="me-1 fs-11" />({{ line.adjustedBy || auth.displayName }} điều chỉnh)
+                </span>
+                <span class="text-body-tertiary text-nowrap ms-auto">
+                  Gốc: <del>{{ money((line.originalUnitPrice ?? line.unitPrice) * line.quantity) }}</del>
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm p-0 ms-1.5 text-primary text-decoration-none fs-10"
+                    @click="resetLinePrice(line)"
+                  >
+                    Khôi phục
+                  </button>
+                </span>
               </div>
             </div>
           </div>
@@ -575,16 +576,28 @@ function remove(skuId: string): void {
     width: 4.5rem;
     height: 4.5rem;
   }
+  .sales-cart-price-input-group {
+    width: 125px;
+  }
+}
+.sales-cart-total-row {
+  min-height: 2.25rem;
 }
 .sales-cart-price-input-group {
-  max-width: 145px;
+  width: 140px;
+  flex-shrink: 0;
 }
 .sales-cart-price-input-group .form-control {
+  padding-left: 0.5rem;
   padding-right: 0.5rem;
+  letter-spacing: -0.01em;
 }
 .sales-cart-price-input-group .form-control:focus {
   border-color: var(--phoenix-primary);
-  box-shadow: 0 0 0 0.2rem rgba(var(--phoenix-primary-rgb), 0.2);
+  box-shadow: 0 0 0 0.15rem rgba(var(--phoenix-primary-rgb), 0.2);
+}
+.sales-cart-adjusted-row {
+  min-height: 1.35rem;
 }
 </style>
 
