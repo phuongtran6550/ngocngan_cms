@@ -112,9 +112,9 @@
                   0 đ
                 </span>
               </div>
-              <!-- Dòng 3: Tổng thành tiền (cố định 1 hàng ngang, không bị ngắt dòng hay tràn lề) -->
-              <div class="sales-cart-total-row d-flex justify-content-between align-items-center pt-2 mt-1 border-top border-dashed border-translucent">
-                <span class="fw-bold text-body-emphasis fs-8 text-nowrap me-2">Tổng thành tiền :</span>
+              <!-- Dòng 3: Tổng thành tiền (Mobile: tách thành hàng riêng, Desktop: hiển thị ngang) -->
+              <div class="sales-cart-total-row d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center pt-2 mt-1 border-top border-dashed border-translucent gap-1.5 gap-sm-2">
+                <span class="fw-bold text-body-emphasis fs-8 text-nowrap">Tổng thành tiền :</span>
                 <div class="sales-cart-price-input-group">
                   <div class="input-group input-group-sm">
                     <input
@@ -134,10 +134,10 @@
                 </div>
               </div>
 
-              <!-- Dòng 4: Thông tin điều chỉnh (hiển thị khi thu ngân can thiệp giá) -->
+              <!-- Dòng 4: Thông tin điều chỉnh (Mobile: tách thành hàng riêng, Desktop: hiển thị ngang) -->
               <div
                 v-if="isLineAdjusted(line)"
-                class="sales-cart-adjusted-row d-flex justify-content-between align-items-center flex-wrap gap-1 mt-1 pt-1 border-top border-translucent fs-10"
+                class="sales-cart-adjusted-row d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-1 mt-1 pt-1 border-top border-translucent fs-10"
               >
                 <span
                   class="text-warning-emphasis fw-medium text-truncate"
@@ -145,16 +145,16 @@
                 >
                   <AppIcon name="user-check" class="me-1 fs-11" />({{ line.adjustedBy || auth.displayName }} điều chỉnh)
                 </span>
-                <span class="text-body-tertiary text-nowrap ms-auto">
-                  Gốc: <del>{{ money((line.originalUnitPrice ?? line.unitPrice) * line.quantity) }}</del>
+                <div class="d-flex align-items-center justify-content-between justify-content-sm-end gap-2 text-body-tertiary text-nowrap">
+                  <span>Gốc: <del>{{ money((line.originalUnitPrice ?? line.unitPrice) * line.quantity) }}</del></span>
                   <button
                     type="button"
-                    class="btn btn-link btn-sm p-0 ms-1.5 text-primary text-decoration-none fs-10"
+                    class="btn btn-link btn-sm p-0 text-primary text-decoration-none fs-10"
                     @click="resetLinePrice(line)"
                   >
                     Khôi phục
                   </button>
-                </span>
+                </div>
               </div>
             </div>
           </div>
@@ -576,8 +576,11 @@ function remove(skuId: string): void {
     width: 4.5rem;
     height: 4.5rem;
   }
+  .sales-cart-total-row {
+    min-height: auto;
+  }
   .sales-cart-price-input-group {
-    width: 125px;
+    width: 100% !important;
   }
 }
 .sales-cart-total-row {
