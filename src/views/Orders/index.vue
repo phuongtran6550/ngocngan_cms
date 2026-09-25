@@ -288,11 +288,11 @@ export default defineComponent({
       await Promise.all([this.store.load(), this.store.loadCounts()]);
     },
     updateFields(fields: string[]): void { if (fields.length) this.store.selectedColumns = fields; },
-    openDetail(row: ResourceRow): void { void this.$router.push(`/orders/${row.id}`); },
-    canDeleteRow(row: ResourceRow): boolean { return ["draft", "completed"].includes(String(row.status)); },
-    canRestoreRow(row: ResourceRow): boolean { return String(row.status) === "cancelled"; },
-    requestDelete(row: ResourceRow): void { this.store.requestDelete(row as unknown as Order); },
-    requestRestore(row: ResourceRow): void { this.store.requestRestore(row as unknown as Order); },
+    openDetail(row: ResourceRow | Order): void { void this.$router.push(`/orders/${row.id}`); },
+    canDeleteRow(row: ResourceRow | Order): boolean { return ["draft", "completed"].includes(String(row.status)); },
+    canRestoreRow(row: ResourceRow | Order): boolean { return String(row.status) === "cancelled"; },
+    requestDelete(row: ResourceRow | Order): void { this.store.requestDelete(row as unknown as Order); },
+    requestRestore(row: ResourceRow | Order): void { this.store.requestRestore(row as unknown as Order); },
     openFilters(): void {
       this.draftType = this.store.type;
       this.draftStatus = this.store.status;
@@ -330,7 +330,7 @@ export default defineComponent({
       await this.store.applyFilters();
       this.filterOpen = false;
     },
-    asOrder(row: ResourceRow): Order {
+    asOrder(row: ResourceRow | Order): Order {
       return row as unknown as Order;
     },
     async openReview(order: Order): Promise<void> {
