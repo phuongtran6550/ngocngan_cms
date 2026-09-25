@@ -8,8 +8,10 @@
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4174",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
+    "test": "npm run test:order-photo && npm run test:barcode-camera && npm run test:environment-camera",
     "test:order-photo": "node --test test/order-photo-capture.test.mjs",
     "test:barcode-camera": "node --test test/barcode-camera.test.mjs",
+    "test:environment-camera": "node --test test/environment-camera.test.mjs",
     "lint": "eslint .",
     "format:check": "prettier --check ."
   },

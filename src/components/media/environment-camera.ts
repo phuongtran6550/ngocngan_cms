@@ -51,6 +51,24 @@ export function normalizeEnvironmentCameraError(
   return { code: "camera", cause: error };
 }
 
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const platform =
+    (navigator as unknown as { platform?: string }).platform || "";
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    /iPad|iPhone|iPod/.test(platform) ||
+    (platform === "MacIntel" && (navigator.maxTouchPoints || 0) > 1)
+  );
+}
+
+export function isAndroid(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /Android/i.test(ua);
+}
+
 export async function listEnvironmentCameraDevices(): Promise<MediaDeviceInfo[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   try {
@@ -60,7 +78,13 @@ export async function listEnvironmentCameraDevices(): Promise<MediaDeviceInfo[]>
     return videoInputs.filter((d) => {
       const label = (d.label || "").toLowerCase();
       if (!label) return false;
-      if (label.includes("front") || label.includes("user")) return false;
+      if (
+        label.includes("front") ||
+        label.includes("user") ||
+        label.includes("trước")
+      ) {
+        return false;
+      }
       return (
         label.includes("back") ||
         label.includes("rear") ||
@@ -75,6 +99,13 @@ export async function listEnvironmentCameraDevices(): Promise<MediaDeviceInfo[]>
 
 export async function getBestEnvironmentCameraDeviceId(): Promise<string | undefined> {
   if (!navigator.mediaDevices?.enumerateDevices) return undefined;
+
+  // On iOS (iPhone/iPad), WebKit virtual multi-camera handles the 1x environment camera best
+  // when requested via facingMode: "environment" without a specific deviceId.
+  // Passing an explicit deviceId on iOS bypasses the virtual camera system and often locks
+  // the stream to a telephoto or auxiliary lens, causing unwanted zoom.
+  if (isIOS()) return undefined;
+
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter((d) => d.kind === "videoinput");
@@ -91,7 +122,13 @@ export async function getBestEnvironmentCameraDeviceId(): Promise<string | undef
     // Filter to confirmed back-facing cameras
     const backCameras = videoInputs.filter((d) => {
       const label = (d.label || "").toLowerCase();
-      if (label.includes("front") || label.includes("user")) return false;
+      if (
+        label.includes("front") ||
+        label.includes("user") ||
+        label.includes("trước")
+      ) {
+        return false;
+      }
       return (
         label.includes("back") ||
         label.includes("rear") ||
@@ -102,8 +139,8 @@ export async function getBestEnvironmentCameraDeviceId(): Promise<string | undef
 
     if (backCameras.length <= 1) return backCameras[0]?.deviceId;
 
-    // Look for primary wide lens (avoid telephoto, zoom, macro, ultra-wide)
-    const mainCamera = backCameras.find((d) => {
+    // Filter out ultra-wide and telephoto / macro / depth lenses so we only target the normal wide lens
+    const normalBackCameras = backCameras.filter((d) => {
       const label = (d.label || "").toLowerCase();
       const isUltraWide =
         label.includes("ultra") ||
@@ -115,7 +152,15 @@ export async function getBestEnvironmentCameraDeviceId(): Promise<string | undef
         label.includes("zoom") ||
         label.includes("macro") ||
         label.includes("depth");
-      if (isUltraWide || isTele) return false;
+      return !isUltraWide && !isTele;
+    });
+
+    const candidates =
+      normalBackCameras.length > 0 ? normalBackCameras : backCameras;
+
+    // Look for primary wide lens (e.g. Samsung "camera2 0", Oppo "camera 0", "main", "wide", "chính")
+    const mainCamera = candidates.find((d) => {
+      const label = (d.label || "").toLowerCase();
       return (
         label.includes("main") ||
         label.includes("wide") ||
@@ -124,7 +169,7 @@ export async function getBestEnvironmentCameraDeviceId(): Promise<string | undef
       );
     });
 
-    return mainCamera?.deviceId || backCameras[0]?.deviceId;
+    return mainCamera?.deviceId || candidates[0]?.deviceId;
   } catch {
     return undefined;
   }
@@ -135,12 +180,13 @@ export async function requestEnvironmentCamera(
 ): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) throw unsupportedCameraError();
 
+  const ios = isIOS();
   const isPortrait =
     typeof window !== "undefined" &&
     window.innerHeight > window.innerWidth;
 
   let targetDeviceId = deviceId;
-  if (!targetDeviceId) {
+  if (!targetDeviceId && !ios) {
     targetDeviceId = await getBestEnvironmentCameraDeviceId();
   }
 
@@ -148,7 +194,55 @@ export async function requestEnvironmentCamera(
     ? { deviceId: { exact: targetDeviceId } }
     : { facingMode: { ideal: "environment" } };
 
-  // 1. Preferred: Orientation-adaptive with 3:4 / 4:3 aspect ratio (avoids sensor crop on mobile)
+  // --- iOS (iPhone / iPad) Branch ---
+  // On iOS, WebKit's AVFoundation virtual camera maps 1920x1080 (or 1280x720) to the native
+  // uncropped 1x wide lens preset without digital sensor crop or zoom.
+  // We do NOT enforce portrait 3:4 aspect ratio on iOS because WebKit would center-crop
+  // the video feed, resulting in an artificial zoom.
+  if (ios) {
+    // 1. Preferred for iOS: standard 1080p landscape stream (WebKit handles rotation in portrait)
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          ...baseConstraints,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      });
+    } catch (error) {
+      if (!isOverconstrained(error)) throw error;
+    }
+
+    // 2. Fallback for iOS: 720p landscape stream
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          ...baseConstraints,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+    } catch (error) {
+      if (!isOverconstrained(error)) throw error;
+    }
+
+    // 3. Fallback for iOS: base constraints without dimensions
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: baseConstraints,
+      });
+    } catch (error) {
+      if (!isOverconstrained(error)) throw error;
+    }
+
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+  }
+
+  // --- Android (Samsung, Oppo, Xiaomi...) and other platforms ---
+  // 1. Preferred for Android: Orientation-adaptive with 3:4 / 4:3 aspect ratio (avoids sensor crop on Samsung/Oppo)
   try {
     return await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -236,8 +330,10 @@ export async function prepareEnvironmentCameraTrack(
     return { torchAvailable: false };
   }
 
-  // Reset hardware zoom to baseline if available to prevent sensor zoom trap on Samsung/Oppo
-  if (capabilities?.zoom) {
+  // Reset hardware zoom to baseline if available to prevent sensor zoom trap on Samsung/Oppo.
+  // We do NOT apply this on iOS, where AVFoundation manages zoom level natively and applying
+  // arbitrary zoom constraints can cause unexpected focal length transitions or digital zoom on iPhone.
+  if (!isIOS() && capabilities?.zoom) {
     const minZoom = capabilities.zoom.min ?? 1;
     await track
       .applyConstraints({
