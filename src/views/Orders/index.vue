@@ -46,6 +46,19 @@
           </button>
         </div>
       </template>
+
+      <template #card="{ row }">
+        <OrderCard
+          :order="asOrder(row)"
+          :can-update="auth.can('orders.update')"
+          :can-delete="auth.can('orders.delete') && canDeleteRow(row)"
+          :can-restore="auth.can(effectiveDefinition.permission.restore || 'orders.delete') && canRestoreRow(row)"
+          @preview="preview = $event"
+          @review="openReview"
+          @delete="requestDelete"
+          @restore="requestRestore"
+        />
+      </template>
     </ListShell>
 
     <DrawerPanel
@@ -147,6 +160,23 @@
       @cancel="store.cancelRestore"
       @confirm="store.confirmRestore"
     />
+
+    <DrawerPanel
+      :open="Boolean(editing)"
+      title="Đối chiếu thông tin khách hàng"
+      wide
+      @close="closeReview"
+    >
+      <OrderCustomerReview
+        v-if="editing"
+        :order="editing"
+        :submitting="saving"
+        :error="editError"
+        @submit="saveReview"
+      />
+    </DrawerPanel>
+
+    <ImagePreview :src="preview" alt="Ảnh đơn hàng" @close="preview = ''" />
   </div>
 </template>
 
@@ -154,11 +184,15 @@
 import CheckoutRequests from "@/views/Orders/components/CheckoutRequests.vue";
 import { defineComponent } from "vue";
 import { searchQueryFromRoute } from "@/utils/global-search";
+import ImagePreview from "@/components/media/ImagePreview.vue";
 import ListShell from "@/components/ListLayout/ListShell.vue";
 import ConfirmDialog from "@/components/overlay/ConfirmDialog.vue";
 import DrawerPanel from "@/components/overlay/DrawerPanel.vue";
 import AppIcon from "@/components/ui/AppIcon.vue";
+import OrderCard from "@/views/Orders/components/OrderCard.vue";
+import OrderCustomerReview from "@/views/Orders/components/OrderCustomerReview.vue";
 import { orderDefinition } from "@/views/Orders/config";
+import { orderService } from "@/views/Orders/service";
 import { useOrderStore } from "@/views/Orders/store";
 import type {
   CustomerInfoStatus,
@@ -166,6 +200,7 @@ import type {
   OrderStatus,
   OrderTypeFilter,
 } from "@/views/Orders/types";
+import { apiError } from "@/request";
 import { authenStore } from "@/stores/app-authen";
 import type { ResourceDefinition, ResourceRow } from "@/config/resource";
 import { inclusiveDateRangeError } from "@/utils/date-range";
@@ -175,9 +210,22 @@ const orderStatuses: readonly OrderStatus[] = ["completed", "returned", "cancell
 
 export default defineComponent({
   name: "OrderListPage",
-  components: { CheckoutRequests, AppIcon, ConfirmDialog, DrawerPanel, ListShell },
+  components: {
+    AppIcon,
+    CheckoutRequests,
+    ConfirmDialog,
+    DrawerPanel,
+    ImagePreview,
+    ListShell,
+    OrderCard,
+    OrderCustomerReview,
+  },
   data() {
     return {
+      editing: null as Order | null,
+      saving: false,
+      editError: "",
+      preview: "",
       filterOpen: false,
       draftType: "" as OrderTypeFilter,
       draftStatus: "" as OrderStatus | "",
@@ -281,6 +329,38 @@ export default defineComponent({
       this.commitDraftFilters();
       await this.store.applyFilters();
       this.filterOpen = false;
+    },
+    asOrder(row: ResourceRow): Order {
+      return row as unknown as Order;
+    },
+    async openReview(order: Order): Promise<void> {
+      this.editError = "";
+      try {
+        this.editing = await orderService.detail(order.id);
+      } catch (error) {
+        this.store.error = apiError(error).message;
+      }
+    },
+    closeReview(): void {
+      this.editing = null;
+      this.editError = "";
+    },
+    async saveReview(value: { name: string; phone: string; review: boolean }): Promise<void> {
+      if (!this.editing) return;
+      this.saving = true;
+      this.editError = "";
+      try {
+        await (value.review
+          ? orderService.reviewCustomerInfo(this.editing.id, value.name, value.phone)
+          : orderService.completeCustomerInfo(this.editing.id, value.name, value.phone));
+        this.closeReview();
+        this.store.message = "Đã xác nhận thông tin khách hàng";
+        await Promise.all([this.store.load(this.store.pagination.page), this.store.loadCounts()]);
+      } catch (error) {
+        this.editError = apiError(error).message;
+      } finally {
+        this.saving = false;
+      }
     },
   },
 });

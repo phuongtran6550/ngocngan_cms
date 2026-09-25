@@ -164,6 +164,27 @@
             @select-row="(row: any, val: any) => $emit('select-row', row, val)"
             @select-all="$emit('select-all', $event)"
           />
+          <slot
+            v-else-if="$slots.grid || $slots.card"
+            name="grid"
+            :rows="rows"
+            :columns="definition.columns"
+            :pagination="pagination"
+          >
+            <div
+              class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3"
+              data-testid="resource-card-grid"
+            >
+              <div
+                v-for="(row, rowIndex) in rows"
+                :key="row.id"
+                class="col"
+                data-testid="resource-card"
+              >
+                <slot name="card" :row="row" :row-index="rowIndex" />
+              </div>
+            </div>
+          </slot>
           <ResourceCardGrid
             v-else
             :columns="definition.columns"
