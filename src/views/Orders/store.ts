@@ -29,7 +29,7 @@ export const useOrderStore = defineStore("orders", {
     from: "",
     to: "",
     counts: { all: 0, completed: 0, returned: 0, cancelled: 0, complete: 0, ocrProcessing: 0, reviewRequired: 0, manualRequired: 0 } as OrderStatusCounts,
-    sortBy: "updatedAt" as (typeof orderSortKeys)[number],
+    sortBy: "createdAt" as (typeof orderSortKeys)[number],
     sortDirection: "desc" as "asc" | "desc",
     selectedColumns: ["thumbnail", "orderCode", "customerDisplay", "productSummary", "itemQuantity", "price", "customerInfoStatus", "status", "createdByName", "createdAt"],
     loading: false,
