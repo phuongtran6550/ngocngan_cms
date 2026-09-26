@@ -114,13 +114,13 @@ defineEmits<{
 
 const canReview = computed(() => {
   if (!props.canUpdate) return false;
-  return props.order.customerInfoStatus !== "complete";
+  return props.order.status !== "cancelled";
 });
 
 const actionLabel = computed(() => {
-  return props.order.customerInfoStatus === "review_required"
-    ? "Kiểm duyệt"
-    : "Nhập thông tin";
+  if (props.order.customerInfoStatus === "review_required") return "Kiểm duyệt";
+  if (props.order.customerInfoStatus === "complete") return "Sửa thông tin";
+  return "Nhập thông tin";
 });
 
 function money(value: number): string {

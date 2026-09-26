@@ -49,14 +49,14 @@
 
             <!-- Review / Supplement Customer Info CTA -->
             <button
-              v-if="auth.can('orders.update') && order.customerInfoStatus !== 'complete'"
+              v-if="auth.can('orders.update') && order.status !== 'cancelled'"
               type="button"
               class="btn btn-sm btn-primary text-nowrap d-flex align-items-center gap-1.5 print-hide"
               @click="reviewOpen = true"
             >
-              <AppIcon name="user-check" />
-              <span class="d-none d-sm-inline">{{ order.customerInfoStatus === 'review_required' ? 'Kiểm duyệt OCR' : 'Bổ sung khách' }}</span>
-              <span class="d-sm-none">{{ order.customerInfoStatus === 'review_required' ? 'Duyệt' : 'Bổ sung' }}</span>
+              <AppIcon :name="order.customerInfoStatus === 'complete' ? 'edit' : 'user-check'" />
+              <span class="d-none d-sm-inline">{{ customerActionLabel }}</span>
+              <span class="d-sm-none">{{ customerActionShortLabel }}</span>
             </button>
 
             <!-- Order Actions Dropdown Menu -->
@@ -363,7 +363,18 @@
                 </div>
                 <h2 class="fs-8 fw-bold mb-0 text-body-emphasis">Hồ sơ khách hàng</h2>
               </div>
-              <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
+              <div class="d-flex align-items-center gap-2">
+                <CustomerInfoStatusBadge :status="order.customerInfoStatus" />
+                <button
+                  v-if="auth.can('orders.update') && order.status !== 'cancelled'"
+                  type="button"
+                  class="btn btn-link p-0 text-body-secondary hover-primary"
+                  title="Điều chỉnh thông tin khách hàng"
+                  @click="reviewOpen = true"
+                >
+                  <AppIcon name="edit" />
+                </button>
+              </div>
             </div>
 
             <div class="card-body p-3 p-sm-4">
@@ -985,6 +996,18 @@ export default defineComponent({
     priceDifference(): number {
       if (!this.order) return 0;
       return this.order.price - this.calculatedSubtotal;
+    },
+    customerActionLabel(): string {
+      if (this.order?.customerInfoStatus === "review_required") return "Kiểm duyệt OCR";
+      if (this.order?.customerInfoStatus === "manual_required") return "Bổ sung khách";
+      if (this.order?.customerInfoStatus === "ocr_processing") return "Nhập khách ngay";
+      return "Sửa thông tin khách";
+    },
+    customerActionShortLabel(): string {
+      if (this.order?.customerInfoStatus === "review_required") return "Duyệt";
+      if (this.order?.customerInfoStatus === "manual_required") return "Bổ sung";
+      if (this.order?.customerInfoStatus === "ocr_processing") return "Nhập";
+      return "Sửa khách";
     },
     customerStatusDescription(): string {
       if (!this.order) return "";

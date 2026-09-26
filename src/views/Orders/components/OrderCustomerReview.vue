@@ -20,6 +20,9 @@
         <div v-else-if="order.customerInfoStatus === 'ocr_processing'" class="alert alert-subtle-info fs-9">
           Hệ thống vẫn đang đọc ảnh nền. Bạn có thể nhập ngay mà không cần chờ.
         </div>
+        <div v-else-if="order.customerInfoStatus === 'complete'" class="alert alert-subtle-success fs-9">
+          Thông tin khách hàng đã được ghi nhận. Bạn có thể đối chiếu với ảnh và điều chỉnh nếu thấy sai sót.
+        </div>
         <div v-else class="alert alert-subtle-secondary fs-9">
           Ảnh chưa cho kết quả đủ rõ. Vui lòng nhập tên và số điện thoại từ ảnh.
         </div>
@@ -118,7 +121,7 @@
         <div v-if="error" class="alert alert-subtle-danger" role="alert">{{ error }}</div>
         <button type="submit" class="btn btn-primary w-100" :disabled="submitting || !name.trim() || !phone.trim()">
           <span v-if="submitting" class="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-          {{ submitting ? "Đang lưu..." : "Xác nhận thông tin đầy đủ" }}
+          {{ submitting ? "Đang lưu..." : (order.customerInfoStatus === 'complete' ? 'Lưu thay đổi thông tin khách' : 'Xác nhận thông tin đầy đủ') }}
         </button>
       </div>
     </div>
